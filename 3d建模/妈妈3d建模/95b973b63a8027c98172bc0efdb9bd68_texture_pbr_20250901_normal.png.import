@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://bevnuponqdxef"
+path.s3tc="res://.godot/imported/95b973b63a8027c98172bc0efdb9bd68_texture_pbr_20250901_normal.png-de6265c1d100d24d2a6a18e24d7f7779.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "6c3aa06316fec2aadc8d4381a1eb74bc"
+}
+
+[deps]
+
+source_file="res://3d建模/妈妈3d建模/95b973b63a8027c98172bc0efdb9bd68_texture_pbr_20250901_normal.png"
+dest_files=["res://.godot/imported/95b973b63a8027c98172bc0efdb9bd68_texture_pbr_20250901_normal.png-de6265c1d100d24d2a6a18e24d7f7779.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=1
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=1
+roughness/src_normal="res://3d建模/妈妈3d建模/95b973b63a8027c98172bc0efdb9bd68_texture_pbr_20250901_normal.png"
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

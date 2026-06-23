@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://civ5luwtjubup"]
+
+[ext_resource type="Script" uid="uid://crsmjbvsdp1j7" path="res://scripts/grass_world.gd" id="1_grass"]
+
+[node name="GrassWorld" type="Node3D" unique_id=1342229310]
+script = ExtResource("1_grass")
