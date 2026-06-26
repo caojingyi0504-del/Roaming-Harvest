@@ -38,6 +38,7 @@ const VILLAGE_HOUSE_SCENE_PATH := "res://3d建模/村里房子/311d8c4383612ac90
 const TREE_SCENE_PATH := "res://3d建模/树/2f5d6b66e5b0fbbf4c7b1bede79477f5.glb"
 const HOE_SCENE_PATH := "res://3d建模/工具/锄头.glb"
 const WATERING_CAN_SCENE_PATH := "res://3d建模/工具/水壶.glb"
+const SCYTHE_SCENE_PATH := "res://3d建模/工具/镰刀.glb"
 const SEED_ICON_PATH := "res://ui/icons/seed_icon.png"
 const MOM_PORTRAIT_PATH := "res://聊天框/安提莉尔.png"
 const PLAYER_PORTRAIT_PATH := "res://聊天框/我.png"
@@ -82,8 +83,18 @@ const TREE_SHAKE_DURATION := 0.42
 const TREE_SHAKE_STRENGTH := 0.16
 const TREE_SHAKE_FREQUENCY := 48.0
 const PLAYER_MOVE_SPEED := 5.2
-const SOIL_TILE_HALF_SIZE := 0.50
+const SOIL_TILE_HALF_SIZE := 0.52
+const SOIL_TILE_SIZE := 1.04
+const SOIL_PATCH_SPACING := 3.35
 const SOIL_POND_EDGE_PADDING := 1.75
+const WATER_FILL_RADIUS := 2.2
+const WATER_FILL_SECONDS := 3.2
+const WATER_PER_USE := 0.20
+const SCYTHE_SWEEP_RADIUS := 2.55
+const SCYTHE_SWEEP_ANGLE := deg_to_rad(112.0)
+const SCYTHE_SWEEP_MIN_DISTANCE := 0.35
+const SCYTHE_GRASS_REGROW_SECONDS := 120.0
+const GRASS_SPATIAL_CELL_SIZE := 2.5
 const CHAPTER_ONE_PLAYER_START := Vector3(0.4, 0.0, 7.6)
 const CHAPTER_ONE_HOUSE_POSITION := Vector3(6.0, 0.0, -7.0)
 const CHAPTER_ONE_HOUSE_YAW := -24.0
@@ -100,6 +111,7 @@ const INVENTORY_HAND_SLOT := 0
 const INVENTORY_HOE_SLOT := 1
 const INVENTORY_SEED_SLOT := 2
 const INVENTORY_WATERING_CAN_SLOT := 3
+const INVENTORY_SCYTHE_SLOT := 4
 const INVENTORY_UNLOCKED_SLOT_COUNT := 5
 const INVENTORY_DRAG_HOLD_TIME := 0.35
 const INVENTORY_ITEM_NONE := ""
@@ -107,6 +119,7 @@ const INVENTORY_ITEM_HAND := "hand"
 const INVENTORY_ITEM_HOE := "hoe"
 const INVENTORY_ITEM_SEED := "seed"
 const INVENTORY_ITEM_WATERING_CAN := "watering_can"
+const INVENTORY_ITEM_SCYTHE := "scythe"
 const VISIBLE_SUN_POSITION := Vector3(-30.0, 42.0, 86.0)
 const PONDS := [
 	{
@@ -205,17 +218,34 @@ var _map_drag_start := Vector2.ZERO
 var _map_drag_vector := Vector2.ZERO
 var _has_hoe := false
 var _has_watering_can := false
+var _has_scythe := false
 var _seed_count := 0
 var _hoe_tutorial_active := false
 var _return_to_mom_prompt_active := false
 var _starter_kit_collected := false
+var _watering_task_prompt_active := false
+var _watering_task_active := false
+var _scythe_task_prompt_active := false
+var _scythe_collected := false
+var _water_amount := 0.0
+var _water_filling := false
+var _water_fill_effect_cooldown := 0.0
 var _notification_time := 0.0
 var _notification_text := ""
 var _tilled_soil_root: Node3D
 var _tilled_soil_centers: Array[Vector2] = []
+var _planted_seed_root: Node3D
+var _planted_seed_centers: Array[Vector2] = []
+var _watered_soil_centers: Array[Vector2] = []
 var _player_hoe_root: Node3D
 var _player_hoe_model: Node3D
 var _hoe_swinging := false
+var _scythe_swinging := false
+var _cut_grass_transforms: Dictionary = {}
+var _grass_spatial_cells: Dictionary = {}
+var _camera_shake_time := 0.0
+var _camera_shake_strength := 0.0
+var _camera_shake_offset := Vector3.ZERO
 var _typewriter_time := 0.0
 var _typewriter_total := 0
 var _solid_blockers: Array[Dictionary] = []
@@ -257,10 +287,18 @@ func _rebuild_scene() -> void:
 	_map_drag_vector = Vector2.ZERO
 	_has_hoe = false
 	_has_watering_can = false
+	_has_scythe = false
 	_seed_count = 0
 	_hoe_tutorial_active = false
 	_return_to_mom_prompt_active = false
 	_starter_kit_collected = false
+	_watering_task_prompt_active = false
+	_watering_task_active = false
+	_scythe_task_prompt_active = false
+	_scythe_collected = false
+	_water_amount = 0.0
+	_water_filling = false
+	_water_fill_effect_cooldown = 0.0
 	_selected_inventory_slot = 0
 	_reset_inventory_slot_items()
 	_clear_inventory_drag_state()
@@ -275,9 +313,18 @@ func _rebuild_scene() -> void:
 	_notification_time = 0.0
 	_tilled_soil_root = null
 	_tilled_soil_centers.clear()
+	_planted_seed_root = null
+	_planted_seed_centers.clear()
+	_watered_soil_centers.clear()
 	_player_hoe_root = null
 	_player_hoe_model = null
 	_hoe_swinging = false
+	_scythe_swinging = false
+	_cut_grass_transforms.clear()
+	_grass_spatial_cells.clear()
+	_camera_shake_time = 0.0
+	_camera_shake_strength = 0.0
+	_camera_shake_offset = Vector3.ZERO
 	_camper_is_highlighted = false
 	_typewriter_time = 0.0
 	_typewriter_total = 0
@@ -310,6 +357,8 @@ func _process(delta: float) -> void:
 		return
 	_update_mouse_cursor_mode()
 	_update_inventory_press(delta)
+	_update_watering_can_fill(delta)
+	_update_camera_shake(delta)
 	_update_tree_wind(delta)
 	_update_grass_player_push()
 	_update_mom_interaction()
@@ -364,8 +413,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+		if _try_start_watering_fill():
+			get_viewport().set_input_as_handled()
+			return
 		if not _try_enter_camper() and not _try_start_mom_dialogue():
 			_try_use_selected_tool()
+	if event is InputEventKey and not event.pressed and event.keycode == KEY_F:
+		_stop_watering_fill()
 	if event is InputEventMouseButton and event.pressed:
 		if not _is_free_cursor_requested():
 			_mouse_released_by_escape = false
@@ -379,9 +433,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			if _try_start_watering_fill():
+				get_viewport().set_input_as_handled()
+				return
 			if not _try_enter_camper() and not _try_start_mom_dialogue():
 				if not _try_use_selected_tool():
 					_shake_nearby_tree()
+	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_stop_watering_fill()
 
 func _is_free_cursor_requested() -> bool:
 	return Input.is_key_pressed(KEY_ALT) or _inventory_dragging_item
@@ -709,6 +768,7 @@ func _create_terrain() -> void:
 	add_child(ground)
 
 func _create_grass() -> void:
+	_grass_spatial_cells.clear()
 	var grass_mesh := _make_grass_clump_mesh()
 	var mat := ShaderMaterial.new()
 	mat.shader = GRASS_SHADER
@@ -752,6 +812,10 @@ func _create_grass() -> void:
 		var scale := rng.randf_range(0.78, 1.08) * grass_height * density_height
 		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(scale * rng.randf_range(0.95, 1.18), scale * height_variation, scale * rng.randf_range(0.95, 1.18)))
 		multimesh.set_instance_transform(placed, Transform3D(basis, Vector3(x, y, z)))
+		var cell_key := _grass_cell_key(Vector2(x, z))
+		if not _grass_spatial_cells.has(cell_key):
+			_grass_spatial_cells[cell_key] = []
+		_grass_spatial_cells[cell_key].append(placed)
 		var shade := rng.randf()
 		var clump_color := Color(lerpf(0.35, 0.72, shade), lerpf(0.52, 0.82, shade), lerpf(0.26, 0.38, shade), 1.0)
 		multimesh.set_instance_color(placed, clump_color)
@@ -772,6 +836,22 @@ func _update_grass_player_push() -> void:
 		return
 	if _player != null and is_instance_valid(_player):
 		_grass_material.set_shader_parameter("player_position", _player.global_position)
+
+func _start_camera_shake(duration: float, strength: float) -> void:
+	_camera_shake_time = maxf(_camera_shake_time, duration)
+	_camera_shake_strength = maxf(_camera_shake_strength, strength)
+
+func _update_camera_shake(delta: float) -> void:
+	if _camera_shake_time <= 0.0:
+		_camera_shake_offset = Vector3.ZERO
+		_camera_shake_strength = 0.0
+		return
+	_camera_shake_time = maxf(_camera_shake_time - delta, 0.0)
+	var falloff := _camera_shake_time / 0.16
+	_camera_shake_offset = Vector3(randf_range(-1.0, 1.0), randf_range(-0.45, 0.45), randf_range(-1.0, 1.0)) * _camera_shake_strength * falloff
+
+func _grass_cell_key(point: Vector2) -> Vector2i:
+	return Vector2i(floori(point.x / GRASS_SPATIAL_CELL_SIZE), floori(point.y / GRASS_SPATIAL_CELL_SIZE))
 
 func _grass_density_at(x: float, z: float) -> float:
 	var broad := sin(x * 0.115 + 1.7) * 0.5 + cos(z * 0.092 - 0.4) * 0.5
@@ -1278,6 +1358,7 @@ func _create_chapter_one_village_house() -> void:
 	_ground_model(model)
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_model_box_blocker(house, model, Vector2.ZERO, 0.56)
+
 func _create_chapter_one_rebas() -> void:
 	var scene := load(REBAS_SCENE_PATH)
 	if not scene is PackedScene:
@@ -1361,14 +1442,14 @@ func _create_mom_exclamation() -> void:
 	var marker := Label3D.new()
 	marker.name = "QuestExclamation"
 	marker.text = "!"
-	marker.position = Vector3(0.0, 3.75, 0.0)
-	marker.font_size = 92
-	marker.outline_size = 14
+	marker.position = Vector3(0.0, 3.28, 0.0)
+	marker.font_size = 150
+	marker.outline_size = 22
 	marker.modulate = Color(1.0, 0.82, 0.24, 1.0)
 	marker.outline_modulate = Color(0.56, 0.36, 0.10, 1.0)
 	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	marker.no_depth_test = true
-	marker.visible = not _dialogue_completed
+	marker.visible = _should_show_mom_exclamation()
 	_mom_exclamation = marker
 	_mom.add_child(marker)
 
@@ -1581,6 +1662,25 @@ func _create_map_popup(root: Control) -> void:
 
 	_position_map_camper()
 
+	var exit_button := Button.new()
+	exit_button.name = "MapExitButton"
+	exit_button.text = "退出"
+	exit_button.anchor_left = 1.0
+	exit_button.anchor_top = 0.0
+	exit_button.anchor_right = 1.0
+	exit_button.anchor_bottom = 0.0
+	exit_button.offset_left = -118.0
+	exit_button.offset_top = 18.0
+	exit_button.offset_right = -24.0
+	exit_button.offset_bottom = 58.0
+	exit_button.add_theme_font_size_override("font_size", 18)
+	exit_button.add_theme_color_override("font_color", Color(0.25, 0.18, 0.10))
+	exit_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.92, 0.84, 0.62, 0.92), Color(1.0, 0.94, 0.72, 0.96), 18.0, 1))
+	exit_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.98, 0.89, 0.66, 1.0), Color(1.0, 0.98, 0.80, 1.0), 18.0, 1))
+	exit_button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.82, 0.68, 0.46, 1.0), Color(0.98, 0.90, 0.66, 1.0), 18.0, 1))
+	exit_button.pressed.connect(_close_map_popup)
+	_map_panel.add_child(exit_button)
+
 func _reset_inventory_slot_items() -> void:
 	_inventory_slot_items.clear()
 	for _index in range(10):
@@ -1589,6 +1689,7 @@ func _reset_inventory_slot_items() -> void:
 	_inventory_slot_items[INVENTORY_HOE_SLOT] = INVENTORY_ITEM_HOE
 	_inventory_slot_items[INVENTORY_SEED_SLOT] = INVENTORY_ITEM_SEED
 	_inventory_slot_items[INVENTORY_WATERING_CAN_SLOT] = INVENTORY_ITEM_WATERING_CAN
+	_inventory_slot_items[INVENTORY_SCYTHE_SLOT] = INVENTORY_ITEM_SCYTHE
 
 func _get_inventory_slot_item(slot_index: int) -> String:
 	if slot_index >= 0 and slot_index < _inventory_slot_items.size():
@@ -1609,6 +1710,8 @@ func _is_inventory_item_available(item: String) -> bool:
 			return _seed_count > 0
 		INVENTORY_ITEM_WATERING_CAN:
 			return _has_watering_can
+		INVENTORY_ITEM_SCYTHE:
+			return _has_scythe
 	return false
 
 func _find_inventory_slot_for_item(item: String, fallback_slot: int) -> int:
@@ -1677,6 +1780,11 @@ func _update_inventory_bar() -> void:
 			continue
 		var hoe_icon := slot.get_node_or_null("HoeIcon") as TextureRect
 		var watering_can_icon := slot.get_node_or_null("WateringCanIcon") as TextureRect
+		var scythe_icon := slot.get_node_or_null("ScytheIcon") as TextureRect
+		var water_bar := slot.get_node_or_null("WaterLevelBar") as Node2D
+		var water_fill: Line2D = null
+		if water_bar != null:
+			water_fill = water_bar.get_node_or_null("WaterLevelFill") as Line2D
 		var seed_icon := slot.get_node_or_null("SeedIcon") as TextureRect
 		var seed_count_label := slot.get_node_or_null("SeedCount") as Label
 		var hand_icon := slot.get_node_or_null("HandIcon") as Label
@@ -1684,6 +1792,12 @@ func _update_inventory_bar() -> void:
 			hoe_icon.visible = false
 		if watering_can_icon != null:
 			watering_can_icon.visible = false
+		if scythe_icon != null:
+			scythe_icon.visible = false
+		if water_bar != null:
+			water_bar.visible = false
+		if water_fill != null:
+			water_fill.visible = false
 		if seed_icon != null:
 			seed_icon.visible = false
 		if seed_count_label != null:
@@ -1719,15 +1833,31 @@ func _update_inventory_bar() -> void:
 			label.text = ""
 			if watering_can_icon == null:
 				watering_can_icon = _create_watering_can_inventory_icon(slot)
+			if water_bar == null or water_fill == null:
+				_create_watering_can_water_bar(slot)
+				water_bar = slot.get_node_or_null("WaterLevelBar") as Node2D
+				if water_bar != null:
+					water_fill = water_bar.get_node_or_null("WaterLevelFill") as Line2D
 			if watering_can_icon != null:
 				watering_can_icon.visible = true
+			if water_bar != null:
+				water_bar.visible = true
+			if water_fill != null:
+				water_fill.visible = true
+				water_fill.points = PackedVector2Array([Vector2(5.0, 50.0), Vector2(5.0 + 46.0 * clampf(_water_amount, 0.0, 1.0), 50.0)])
+		elif item == INVENTORY_ITEM_SCYTHE and item_available:
+			label.text = ""
+			if scythe_icon == null:
+				scythe_icon = _create_scythe_inventory_icon(slot)
+			if scythe_icon != null:
+				scythe_icon.visible = true
 		elif index >= 5:
 			label.text = "锁"
 		else:
 			label.text = ""
 
 func _has_inventory_items() -> bool:
-	return _has_hoe or _has_watering_can or _seed_count > 0
+	return _has_hoe or _has_watering_can or _has_scythe or _seed_count > 0
 
 func _create_hand_inventory_icon(slot: PanelContainer) -> Label:
 	var icon := Label.new()
@@ -1809,6 +1939,41 @@ func _create_watering_can_inventory_icon(slot: PanelContainer) -> TextureRect:
 	slot.move_child(icon, 0)
 	_setup_watering_can_preview_viewport(icon, Vector2i(320, 320), false)
 	return icon
+
+func _create_scythe_inventory_icon(slot: PanelContainer) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.name = "ScytheIcon"
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 0.0
+	icon.offset_top = 0.0
+	icon.offset_right = 0.0
+	icon.offset_bottom = 0.0
+	slot.add_child(icon)
+	slot.move_child(icon, 0)
+	_setup_scythe_preview_viewport(icon, Vector2i(320, 320), false)
+	return icon
+
+func _create_watering_can_water_bar(slot: PanelContainer) -> void:
+	var bar := Node2D.new()
+	bar.name = "WaterLevelBar"
+	slot.add_child(bar)
+
+	var back := Line2D.new()
+	back.name = "WaterLevelBack"
+	back.width = 5.0
+	back.default_color = Color(0.16, 0.22, 0.24, 0.62)
+	back.points = PackedVector2Array([Vector2(5.0, 50.0), Vector2(51.0, 50.0)])
+	bar.add_child(back)
+
+	var fill := Line2D.new()
+	fill.name = "WaterLevelFill"
+	fill.width = 5.0
+	fill.default_color = Color(0.28, 0.67, 1.0, 0.94)
+	fill.points = PackedVector2Array([Vector2(5.0, 50.0), Vector2(5.0, 50.0)])
+	bar.add_child(fill)
 
 func _on_inventory_slot_gui_input(event: InputEvent, slot_index: int) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -1898,6 +2063,8 @@ func _create_inventory_drag_ghost(item: String) -> Control:
 			seed_count_label.text = "x%d" % _seed_count
 		INVENTORY_ITEM_WATERING_CAN:
 			_create_watering_can_inventory_icon(ghost)
+		INVENTORY_ITEM_SCYTHE:
+			_create_scythe_inventory_icon(ghost)
 	ghost.move_to_front()
 	return ghost
 
@@ -1919,10 +2086,29 @@ func _select_inventory_delta(delta: int) -> void:
 	_update_inventory_bar()
 
 func _try_use_selected_tool() -> bool:
-	if not _has_hoe or _get_inventory_slot_item(_selected_inventory_slot) != INVENTORY_ITEM_HOE or _dialogue_open or _map_open or _hoe_swinging:
+	if _dialogue_open or _map_open or _hoe_swinging:
 		return false
-	_till_soil_in_front_of_player()
-	return true
+	var item := _get_inventory_slot_item(_selected_inventory_slot)
+	match item:
+		INVENTORY_ITEM_HOE:
+			if not _has_hoe:
+				return false
+			_till_soil_in_front_of_player()
+			return true
+		INVENTORY_ITEM_SEED:
+			if _seed_count <= 0:
+				return false
+			return _plant_seed_in_front_of_player()
+		INVENTORY_ITEM_WATERING_CAN:
+			if not _has_watering_can:
+				return false
+			return _use_watering_can()
+		INVENTORY_ITEM_SCYTHE:
+			if not _has_scythe or _scythe_swinging:
+				return false
+			_use_scythe()
+			return true
+	return false
 
 func _till_soil_in_front_of_player() -> void:
 	if _player == null:
@@ -1955,6 +2141,440 @@ func _till_soil_in_front_of_player() -> void:
 		_show_good_job_feedback()
 	var impact_timer := get_tree().create_timer(0.16)
 	impact_timer.timeout.connect(_create_soil_patch.bind(center))
+
+func _plant_seed_in_front_of_player() -> bool:
+	if _player == null:
+		return false
+	var yaw := _get_player_visual_yaw()
+	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
+	var target := _player.global_position + forward * 2.0
+	var soil_center := _find_tilled_soil_center_at(target)
+	if soil_center.x == INF:
+		_show_notification("先在松好的土地上播种")
+		return true
+	for planted in _planted_seed_centers:
+		if planted.distance_squared_to(soil_center) <= 0.25:
+			_show_notification("这块地已经种过了")
+			return true
+	_planted_seed_centers.append(soil_center)
+	_seed_count = maxi(_seed_count - 1, 0)
+	_create_seedling_at(soil_center)
+	_update_inventory_bar()
+	_show_good_job_feedback()
+	if not _watering_task_active:
+		_watering_task_prompt_active = true
+		_show_notification("回去找%s，她会教你怎么浇水" % MOM_NAME)
+	else:
+		_show_notification("种下一颗胡萝卜种子")
+	return true
+
+func _find_tilled_soil_center_at(position: Vector3) -> Vector2:
+	if _tilled_soil_centers.is_empty():
+		return Vector2(INF, INF)
+	var grid_yaw := _soil_grid_yaw()
+	var target := Vector2(position.x, position.z)
+	var best_center := Vector2(INF, INF)
+	var best_distance := INF
+	for center in _tilled_soil_centers:
+		var local := (target - center).rotated(grid_yaw)
+		if absf(local.x) <= 1.52 and absf(local.y) <= 1.52:
+			var distance := target.distance_squared_to(center)
+			if distance < best_distance:
+				best_distance = distance
+				best_center = center
+	return best_center
+
+func _create_seedling_at(center: Vector2) -> void:
+	if _planted_seed_root == null or not is_instance_valid(_planted_seed_root):
+		_planted_seed_root = Node3D.new()
+		_planted_seed_root.name = "PlantedSeedRoot"
+		_mark_generated(_planted_seed_root)
+		add_child(_planted_seed_root)
+	var root := Node3D.new()
+	root.name = "PlantedSeed"
+	root.position = Vector3(center.x, _height_at(center.x, center.y) + 0.045, center.y)
+	root.rotation.y = _soil_grid_yaw()
+	_planted_seed_root.add_child(root)
+
+	var seed_mat := StandardMaterial3D.new()
+	seed_mat.albedo_color = Color(0.76, 0.42, 0.18, 1.0)
+	seed_mat.roughness = 0.9
+	var leaf_mat := StandardMaterial3D.new()
+	leaf_mat.albedo_color = Color(0.42, 0.76, 0.26, 1.0)
+	leaf_mat.roughness = 0.82
+
+	var seed := MeshInstance3D.new()
+	seed.name = "SeedBody"
+	var seed_mesh := SphereMesh.new()
+	seed_mesh.radius = 0.12
+	seed_mesh.height = 0.18
+	seed.mesh = seed_mesh
+	seed.scale = Vector3(1.35, 0.55, 0.82)
+	seed.rotation_degrees = Vector3(0.0, 0.0, -18.0)
+	seed.material_override = seed_mat
+	root.add_child(seed)
+
+	var stem := MeshInstance3D.new()
+	stem.name = "SeedStem"
+	var stem_mesh := CylinderMesh.new()
+	stem_mesh.top_radius = 0.025
+	stem_mesh.bottom_radius = 0.035
+	stem_mesh.height = 0.34
+	stem.mesh = stem_mesh
+	stem.position.y = 0.18
+	stem.material_override = leaf_mat
+	root.add_child(stem)
+
+	for side in [-1.0, 1.0]:
+		var leaf := MeshInstance3D.new()
+		leaf.name = "SeedLeaf"
+		var leaf_mesh := SphereMesh.new()
+		leaf_mesh.radius = 0.11
+		leaf_mesh.height = 0.08
+		leaf.mesh = leaf_mesh
+		leaf.scale = Vector3(1.55, 0.38, 0.74)
+		leaf.position = Vector3(0.08 * side, 0.35, 0.0)
+		leaf.rotation_degrees = Vector3(0.0, 0.0, 28.0 * side)
+		leaf.material_override = leaf_mat
+		root.add_child(leaf)
+
+func _try_start_watering_fill() -> bool:
+	if not _has_watering_can or _get_inventory_slot_item(_selected_inventory_slot) != INVENTORY_ITEM_WATERING_CAN:
+		return false
+	if not _is_player_near_pond_edge():
+		return false
+	if _water_amount >= 0.995:
+		_show_notification("水壶已经装满了")
+		return true
+	_water_filling = true
+	_show_notification("正在补水...")
+	return true
+
+func _stop_watering_fill() -> void:
+	_water_filling = false
+
+func _update_watering_can_fill(delta: float) -> void:
+	if not _water_filling:
+		return
+	_water_fill_effect_cooldown = maxf(_water_fill_effect_cooldown - delta, 0.0)
+	if not _has_watering_can or _get_inventory_slot_item(_selected_inventory_slot) != INVENTORY_ITEM_WATERING_CAN or not _is_player_near_pond_edge():
+		_stop_watering_fill()
+		return
+	var before := _water_amount
+	_water_amount = clampf(_water_amount + delta / WATER_FILL_SECONDS, 0.0, 1.0)
+	if absf(_water_amount - before) > 0.002:
+		_update_inventory_bar()
+		if _water_fill_effect_cooldown <= 0.0:
+			_create_water_fill_effect()
+			_water_fill_effect_cooldown = 0.18
+		_show_notification("正在补水...")
+	if _water_amount >= 0.995:
+		_water_amount = 1.0
+		_stop_watering_fill()
+		_update_inventory_bar()
+		_show_notification("水壶装满了，可以去浇水了")
+
+func _is_player_near_pond_edge() -> bool:
+	if _player == null:
+		return false
+	var pos := _player.global_position
+	return _is_inside_pond(pos.x, pos.z, WATER_FILL_RADIUS)
+
+func _use_watering_can() -> bool:
+	if _water_amount + 0.001 < WATER_PER_USE:
+		_show_notification("水壶没水了，去湖边长按补水")
+		return true
+	var yaw := _get_player_visual_yaw()
+	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
+	var target := _player.global_position + forward * 2.0
+	var soil_center := _find_tilled_soil_center_at(target)
+	if soil_center.x == INF:
+		_show_notification("对准种好的土地再浇水")
+		return true
+	var planted := false
+	for center in _planted_seed_centers:
+		if center.distance_squared_to(soil_center) <= 0.25:
+			planted = true
+			break
+	if not planted:
+		_show_notification("这里还没种胡萝卜种子")
+		return true
+	for watered in _watered_soil_centers:
+		if watered.distance_squared_to(soil_center) <= 0.25:
+			return true
+	_water_amount = maxf(_water_amount - WATER_PER_USE, 0.0)
+	_watered_soil_centers.append(soil_center)
+	_darkened_watered_soil_patch(soil_center)
+	_update_inventory_bar()
+	_play_watering_can_use(yaw, soil_center)
+	_create_watering_effect(soil_center)
+	if not _scythe_collected and not _scythe_task_prompt_active:
+		_scythe_task_prompt_active = true
+		_show_good_job_feedback()
+		_show_notification("回去找%s，她还有东西要给你" % MOM_NAME)
+	else:
+		_show_notification("浇水完成")
+	return true
+
+func _create_water_fill_effect() -> void:
+	if _player == null:
+		return
+	var effect := MeshInstance3D.new()
+	effect.name = "WaterFillSplash"
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.08
+	mesh.height = 0.05
+	effect.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.42, 0.75, 1.0, 0.55)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	effect.material_override = mat
+	effect.position = _player.global_position + Vector3(0.0, 0.16, 0.0)
+	_mark_generated(effect)
+	add_child(effect)
+	var tween := create_tween()
+	tween.tween_property(effect, "scale", Vector3(2.2, 0.2, 2.2), 0.34)
+	tween.finished.connect(effect.queue_free)
+
+func _create_watering_effect(center: Vector2) -> void:
+	var root := Node3D.new()
+	root.name = "WateringEffect"
+	root.position = Vector3(center.x, _height_at(center.x, center.y) + 0.08, center.y)
+	_mark_generated(root)
+	add_child(root)
+
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.36, 0.70, 1.0, 0.62)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for index in range(18):
+		var drop := MeshInstance3D.new()
+		drop.name = "WaterDrop"
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.065
+		mesh.height = 0.13
+		drop.mesh = mesh
+		drop.material_override = mat
+		var angle := float(index) / 18.0 * TAU
+		var radius := 0.28 + float(index % 3) * 0.22
+		drop.position = Vector3(cos(angle) * radius, 0.76 + float(index % 4) * 0.07, sin(angle) * radius)
+		root.add_child(drop)
+		var tween := create_tween()
+		tween.tween_property(drop, "position:y", 0.02, 0.38).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.parallel().tween_property(drop, "scale", Vector3(0.2, 0.2, 0.2), 0.38)
+		tween.finished.connect(drop.queue_free)
+
+	var timer := get_tree().create_timer(0.46)
+	timer.timeout.connect(root.queue_free)
+
+func _darkened_watered_soil_patch(center: Vector2) -> void:
+	if _tilled_soil_root == null or not is_instance_valid(_tilled_soil_root):
+		return
+	var grid_yaw := _soil_grid_yaw()
+	var wet_mat := StandardMaterial3D.new()
+	wet_mat.albedo_color = Color(0.42, 0.25, 0.12, 1.0)
+	wet_mat.roughness = 0.96
+	for child in _tilled_soil_root.get_children():
+		if child is MeshInstance3D:
+			var tile := child as MeshInstance3D
+			var local := (Vector2(tile.global_position.x, tile.global_position.z) - center).rotated(grid_yaw)
+			if absf(local.x) <= 1.58 and absf(local.y) <= 1.58:
+				tile.material_override = wet_mat
+
+func _play_watering_can_use(yaw: float, center: Vector2) -> void:
+	var scene := load(WATERING_CAN_SCENE_PATH)
+	if not scene is PackedScene or _player == null:
+		return
+	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
+	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
+	var root := Node3D.new()
+	root.name = "WateringCanUse"
+	root.global_position = _player.global_position + right * 0.46 + forward * 0.48 + Vector3(0.0, 1.12, 0.0)
+	root.rotation = Vector3(deg_to_rad(-10.0), yaw, deg_to_rad(-22.0))
+	_mark_generated(root)
+	add_child(root)
+
+	var model := scene.instantiate() as Node3D
+	if model == null:
+		root.queue_free()
+		return
+	root.add_child(model)
+	_fit_model_to_max_dimension(model, 1.25)
+	_center_model_on_origin(model)
+	model.rotation_degrees = Vector3(-8.0, -32.0, -70.0)
+	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+	var target := Vector3(center.x, _height_at(center.x, center.y) + 0.78, center.y)
+	var tween := create_tween()
+	tween.tween_property(root, "global_position", target, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(root, "rotation:x", deg_to_rad(-38.0), 0.16)
+	tween.tween_interval(0.24)
+	tween.tween_property(root, "scale", Vector3.ZERO, 0.12)
+	tween.finished.connect(root.queue_free)
+
+func _use_scythe() -> void:
+	if _player == null or _grass_multimesh == null:
+		return
+	var yaw := _get_player_visual_yaw()
+	_scythe_swinging = true
+	_play_scythe_swing(yaw)
+	var hit_timer := get_tree().create_timer(0.13)
+	hit_timer.timeout.connect(_cut_grass_in_front.bind(yaw))
+
+func _play_scythe_swing(yaw: float) -> void:
+	var scene := load(SCYTHE_SCENE_PATH)
+	if not scene is PackedScene or _player == null:
+		_scythe_swinging = false
+		return
+	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
+	var root := Node3D.new()
+	root.name = "ScytheSwing"
+	root.global_position = _player.global_position + Vector3(0.0, 0.78, 0.0)
+	root.rotation = Vector3(0.0, yaw - SCYTHE_SWEEP_ANGLE * 0.5, 0.0)
+	_mark_generated(root)
+	add_child(root)
+
+	var model := scene.instantiate() as Node3D
+	if model == null:
+		root.queue_free()
+		_scythe_swinging = false
+		return
+	root.add_child(model)
+	_fit_model_to_max_dimension(model, 1.85)
+	_center_model_on_origin(model)
+	model.position = Vector3(0.0, 0.0, 1.35)
+	model.rotation_degrees = Vector3(0.0, 155.0, 88.0)
+	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+	var tween := create_tween()
+	tween.tween_property(root, "rotation:y", yaw + SCYTHE_SWEEP_ANGLE * 0.5, 0.28).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.parallel().tween_property(root, "global_position", _player.global_position + forward * 0.12 + Vector3(0.0, 0.72, 0.0), 0.28)
+	tween.tween_property(root, "scale", Vector3.ZERO, 0.08)
+	tween.finished.connect(_finish_scythe_swing.bind(root))
+
+func _finish_scythe_swing(root: Node3D) -> void:
+	if root != null and is_instance_valid(root):
+		root.queue_free()
+	_scythe_swinging = false
+
+func _cut_grass_in_front(yaw: float) -> void:
+	if _grass_multimesh == null or _player == null:
+		return
+	var forward := Vector2(sin(yaw), cos(yaw))
+	var player_pos := Vector2(_player.global_position.x, _player.global_position.z)
+	var min_cell := _grass_cell_key(player_pos - Vector2(SCYTHE_SWEEP_RADIUS, SCYTHE_SWEEP_RADIUS))
+	var max_cell := _grass_cell_key(player_pos + Vector2(SCYTHE_SWEEP_RADIUS, SCYTHE_SWEEP_RADIUS))
+	var cut_count := 0
+	var candidates := {}
+	for cell_x in range(min_cell.x, max_cell.x + 1):
+		for cell_y in range(min_cell.y, max_cell.y + 1):
+			var key := Vector2i(cell_x, cell_y)
+			if not _grass_spatial_cells.has(key):
+				continue
+			for index in _grass_spatial_cells[key]:
+				candidates[index] = true
+	for index in candidates.keys():
+		if _try_cut_grass_instance(int(index), player_pos, forward):
+			cut_count += 1
+			if cut_count >= 96:
+				break
+	if cut_count > 0:
+		_start_camera_shake(0.16, 0.055)
+
+func _try_cut_grass_instance(index: int, player_pos: Vector2, forward: Vector2) -> bool:
+	if _cut_grass_transforms.has(index):
+		return false
+	var transform := _grass_multimesh.get_instance_transform(index)
+	if absf(transform.basis.determinant()) < 0.0001:
+		return false
+	var offset := Vector2(transform.origin.x, transform.origin.z) - player_pos
+	var distance := offset.length()
+	if distance < SCYTHE_SWEEP_MIN_DISTANCE or distance > SCYTHE_SWEEP_RADIUS:
+		return false
+	if absf(forward.angle_to(offset.normalized())) > SCYTHE_SWEEP_ANGLE * 0.5:
+		return false
+	_cut_grass_transforms[index] = transform
+	var hidden := transform
+	hidden.basis = hidden.basis.scaled(Vector3.ZERO)
+	_grass_multimesh.set_instance_transform(index, hidden)
+	_create_cut_grass_feedback(transform)
+	var timer := get_tree().create_timer(SCYTHE_GRASS_REGROW_SECONDS)
+	timer.timeout.connect(_regrow_grass_instance.bind(index))
+	return true
+
+func _regrow_grass_instance(index: int) -> void:
+	if _grass_multimesh == null or not _cut_grass_transforms.has(index):
+		return
+	var transform := _cut_grass_transforms[index] as Transform3D
+	_grass_multimesh.set_instance_transform(index, transform)
+	_cut_grass_transforms.erase(index)
+
+func _create_cut_grass_feedback(transform: Transform3D) -> void:
+	var falling := MeshInstance3D.new()
+	falling.name = "CutGrassFallingClump"
+	falling.mesh = _grass_multimesh.mesh if _grass_multimesh != null else _make_grass_clump_mesh()
+	falling.transform = transform
+	falling.material_override = _grass_material
+	_mark_generated(falling)
+	add_child(falling)
+	var fall_tween := create_tween()
+	fall_tween.tween_property(falling, "scale", Vector3(1.0, 0.08, 1.0), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	fall_tween.parallel().tween_property(falling, "rotation:x", falling.rotation.x + randf_range(-0.65, 0.65), 0.16)
+	fall_tween.tween_property(falling, "scale", Vector3.ZERO, 0.18)
+	fall_tween.finished.connect(falling.queue_free)
+
+	var pieces := randi_range(2, 4)
+	for _piece_index in range(pieces):
+		_create_cut_grass_piece(transform.origin)
+	if randf() < 0.28:
+		_create_grass_resource_drop(transform.origin)
+
+func _create_cut_grass_piece(origin: Vector3) -> void:
+	var piece := MeshInstance3D.new()
+	piece.name = "CutGrassPiece"
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.08, 0.014, randf_range(0.18, 0.36))
+	piece.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.42, 0.68, 0.22, 1.0)
+	mat.roughness = 0.9
+	piece.material_override = mat
+	piece.position = Vector3(origin.x, origin.y + 0.055, origin.z)
+	piece.rotation = Vector3(randf_range(-0.35, 0.35), randf_range(0.0, TAU), randf_range(-0.35, 0.35))
+	_mark_generated(piece)
+	add_child(piece)
+	var tween := create_tween()
+	tween.tween_property(piece, "position", piece.position + Vector3(randf_range(-0.18, 0.18), 0.02, randf_range(-0.18, 0.18)), 0.18)
+	tween.tween_interval(5.5)
+	tween.tween_property(piece, "scale", Vector3.ZERO, 0.4)
+	tween.finished.connect(piece.queue_free)
+
+func _create_grass_resource_drop(origin: Vector3) -> void:
+	var drop := MeshInstance3D.new()
+	drop.name = ["GrassDrop", "FiberDrop", "SeedDrop"].pick_random()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.075
+	mesh.height = 0.08
+	drop.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	match drop.name:
+		"FiberDrop":
+			mat.albedo_color = Color(0.72, 0.61, 0.38, 1.0)
+		"SeedDrop":
+			mat.albedo_color = Color(0.90, 0.62, 0.28, 1.0)
+		_:
+			mat.albedo_color = Color(0.36, 0.70, 0.20, 1.0)
+	mat.roughness = 0.86
+	drop.material_override = mat
+	drop.position = origin + Vector3(randf_range(-0.16, 0.16), 0.11, randf_range(-0.16, 0.16))
+	_mark_generated(drop)
+	add_child(drop)
+	var tween := create_tween()
+	tween.tween_property(drop, "position:y", origin.y + 0.055, 0.22).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(10.0)
+	tween.tween_property(drop, "scale", Vector3.ZERO, 0.35)
+	tween.finished.connect(drop.queue_free)
 
 func _show_good_job_feedback() -> void:
 	if _hud_root == null:
@@ -2091,8 +2711,8 @@ func _snap_soil_position(position: Vector3) -> Vector3:
 	var yaw: float = _soil_grid_yaw()
 	var origin: Vector2 = Vector2(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z) if _chapter_one_active else Vector2.ZERO
 	var local: Vector2 = (Vector2(position.x, position.z) - origin).rotated(yaw)
-	local.x = roundf(local.x)
-	local.y = roundf(local.y)
+	local.x = roundf(local.x / SOIL_PATCH_SPACING) * SOIL_PATCH_SPACING
+	local.y = roundf(local.y / SOIL_PATCH_SPACING) * SOIL_PATCH_SPACING
 	var snapped: Vector2 = origin + local.rotated(-yaw)
 	return Vector3(snapped.x, position.y, snapped.y)
 
@@ -2108,7 +2728,7 @@ func _remove_soil_tiles_over_pond() -> void:
 func _clear_grass_in_soil_patch(center: Vector3) -> void:
 	if _grass_multimesh == null:
 		return
-	var half_size := 1.55
+	var half_size := 1.68
 	var grid_yaw := _soil_grid_yaw()
 	for index in range(_grass_multimesh.instance_count):
 		var transform := _grass_multimesh.get_instance_transform(index)
@@ -2124,7 +2744,7 @@ func _create_soil_tile(position: Vector3) -> void:
 	var tile := MeshInstance3D.new()
 	tile.name = "SoilTile"
 	var mesh := PlaneMesh.new()
-	mesh.size = Vector2(0.96, 0.96)
+	mesh.size = Vector2(SOIL_TILE_SIZE, SOIL_TILE_SIZE)
 	tile.mesh = mesh
 	tile.position = Vector3(position.x, _height_at(position.x, position.z) + 0.018, position.z)
 	tile.rotation.y = _soil_grid_yaw()
@@ -2190,6 +2810,32 @@ func _make_round_style(fill: Color, border: Color, radius: float, border_width: 
 
 func _build_mom_dialogue() -> Array[Dictionary]:
 	if _chapter_one_active:
+		if _scythe_task_prompt_active and not _scythe_collected:
+			return [
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "浇得很好，土喝饱水，胡萝卜才会慢慢长大。",
+				},
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "草长得太快了，这把镰刀你拿着。前面草太密的时候，就横着扫过去。",
+				},
+			]
+		if _watering_task_prompt_active:
+			return [
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "做得很好，胡萝卜种子已经睡进土里了。",
+				},
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "接下来带着水壶去湖边，长按把水装满，再回来给它浇水吧。",
+				},
+			]
 		if _return_to_mom_prompt_active and not _starter_kit_collected:
 			return [
 				{
@@ -2200,7 +2846,7 @@ func _build_mom_dialogue() -> Array[Dictionary]:
 				{
 					"speaker": MOM_NAME,
 					"portrait": MOM_PORTRAIT_PATH,
-					"text": "这里有 5 颗种子，还有水壶。先拿去试试吧。",
+					"text": "这里有 5 颗胡萝卜种子，还有水壶。先拿去试试吧。",
 				},
 			]
 		if _is_mom_soil_task_pending():
@@ -2336,7 +2982,7 @@ func _build_mom_dialogue() -> Array[Dictionary]:
 		{
 			"speaker": "安提莉尔",
 			"portrait": MOM_PORTRAIT_PATH,
-			"text": "从播下第一颗种子开始，慢慢适应村里的生活吧。",
+			"text": "从播下第一颗胡萝卜种子开始，慢慢适应村里的生活吧。",
 		},
 	]
 
@@ -2355,11 +3001,11 @@ func _update_mom_interaction() -> void:
 func _update_mom_exclamation(delta: float) -> void:
 	if _mom_exclamation == null:
 		return
-	var should_show := _mom != null and _can_talk_to_mom() and not _dialogue_open
+	var should_show := _mom != null and _should_show_mom_exclamation() and not _dialogue_open
 	_mom_exclamation.visible = should_show
 	if should_show:
-		var bob := sin(Time.get_ticks_msec() * 0.004) * 0.12
-		_mom_exclamation.position.y = 3.75 + bob
+		var bob := sin(Time.get_ticks_msec() * 0.004) * 0.08
+		_mom_exclamation.position.y = 3.28 + bob
 
 func _grant_hoe() -> void:
 	if _has_hoe or _reward_overlay != null:
@@ -2405,6 +3051,9 @@ func _show_hoe_reward_overlay() -> void:
 
 func _show_watering_can_reward_overlay() -> void:
 	_show_tool_reward_overlay("恭喜获得水壶", "WateringCanPreview", "旋转查看水壶", Callable(self, "_setup_watering_can_preview_viewport"), Callable(self, "_collect_watering_can_reward"))
+
+func _show_scythe_reward_overlay() -> void:
+	_show_tool_reward_overlay("恭喜获得镰刀", "ScythePreview", "旋转查看镰刀", Callable(self, "_setup_scythe_preview_viewport"), Callable(self, "_collect_scythe_reward"))
 
 func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_text: String, preview_setup: Callable, collect_callable: Callable) -> void:
 	if _hud_root == null:
@@ -2646,6 +3295,53 @@ func _setup_watering_can_preview_viewport(target: TextureRect, size: Vector2i, i
 		_reward_viewport = sub_viewport
 		_reward_model_root = root
 
+func _setup_scythe_preview_viewport(target: TextureRect, size: Vector2i, interactive: bool) -> void:
+	var sub_viewport := SubViewport.new()
+	sub_viewport.size = size
+	sub_viewport.transparent_bg = true
+	sub_viewport.world_3d = World3D.new()
+	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	target.add_child(sub_viewport)
+	target.texture = sub_viewport.get_texture()
+
+	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 6.6 if interactive else 4.4
+	camera.position = Vector3(0.0, 0.0, 8.0 if interactive else 7.0)
+	camera.current = true
+	sub_viewport.add_child(camera)
+	camera.look_at(Vector3.ZERO, Vector3.UP)
+
+	var light := DirectionalLight3D.new()
+	light.light_energy = 2.8
+	light.rotation_degrees = Vector3(-46.0, -35.0, 0.0)
+	sub_viewport.add_child(light)
+
+	var fill_light := OmniLight3D.new()
+	fill_light.light_energy = 0.8
+	fill_light.position = Vector3(1.6, 2.4, 2.2)
+	sub_viewport.add_child(fill_light)
+
+	var scene := load(SCYTHE_SCENE_PATH)
+	if not scene is PackedScene:
+		return
+	var root := Node3D.new()
+	root.name = "ScythePreviewRoot"
+	sub_viewport.add_child(root)
+	var model := scene.instantiate() as Node3D
+	if model == null:
+		return
+	root.add_child(model)
+	_fit_model_to_max_dimension(model, 5.2 if interactive else 3.2)
+	_center_model_on_origin(model)
+	model.rotation_degrees = Vector3(0.0 if interactive else 18.0, -38.0, 48.0 if interactive else 68.0)
+	if not interactive:
+		model.position += Vector3(0.12, 0.18, 0.0)
+	root.rotation_degrees = Vector3.ZERO
+	if interactive:
+		_reward_viewport = sub_viewport
+		_reward_model_root = root
+
 func _on_reward_overlay_gui_input(event: InputEvent) -> void:
 	_handle_reward_overlay_input(event)
 
@@ -2731,7 +3427,7 @@ func _grant_starter_kit() -> void:
 	_seed_count = max(_seed_count, 5)
 	_update_inventory_bar()
 	if _has_watering_can or _reward_overlay != null:
-		_show_notification("获得 5 颗种子和水壶")
+		_show_tool_switch_prompt()
 		return
 	_show_watering_can_reward_overlay()
 
@@ -2740,8 +3436,8 @@ func _collect_watering_can_reward() -> void:
 		return
 	_reward_collecting = true
 	_has_watering_can = true
-	var watering_can_slot := _find_inventory_slot_for_item(INVENTORY_ITEM_WATERING_CAN, INVENTORY_WATERING_CAN_SLOT)
-	_selected_inventory_slot = watering_can_slot
+	var seed_slot := _find_inventory_slot_for_item(INVENTORY_ITEM_SEED, INVENTORY_SEED_SLOT)
+	_selected_inventory_slot = seed_slot
 	_update_inventory_bar()
 	if _inventory_bar != null:
 		_inventory_bar.visible = true
@@ -2749,7 +3445,7 @@ func _collect_watering_can_reward() -> void:
 		var tween := create_tween()
 		tween.set_parallel(true)
 		if _reward_panel != null:
-			var target := _get_inventory_slot_center(watering_can_slot)
+			var target := _get_inventory_slot_center(_find_inventory_slot_for_item(INVENTORY_ITEM_WATERING_CAN, INVENTORY_WATERING_CAN_SLOT))
 			tween.tween_property(_reward_panel, "global_position", target - Vector2(26.0, 26.0), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 			tween.tween_property(_reward_panel, "scale", Vector2(0.12, 0.12), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		tween.tween_property(_reward_overlay, "modulate:a", 0.0, 0.34)
@@ -2767,7 +3463,50 @@ func _finish_collect_watering_can_reward() -> void:
 	_reward_dragging = false
 	_reward_press_position = Vector2.ZERO
 	_reward_collecting = false
-	_show_notification("获得 5 颗种子和水壶")
+	_show_tool_switch_prompt()
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _show_tool_switch_prompt() -> void:
+	_show_notification("滚轮 / 点击背包切换工具")
+
+func _grant_scythe() -> void:
+	if _has_scythe or _reward_overlay != null:
+		return
+	_show_scythe_reward_overlay()
+
+func _collect_scythe_reward() -> void:
+	if _reward_collecting:
+		return
+	_reward_collecting = true
+	_has_scythe = true
+	var scythe_slot := _find_inventory_slot_for_item(INVENTORY_ITEM_SCYTHE, INVENTORY_SCYTHE_SLOT)
+	_selected_inventory_slot = scythe_slot
+	_update_inventory_bar()
+	if _inventory_bar != null:
+		_inventory_bar.visible = true
+	if _reward_overlay != null:
+		var tween := create_tween()
+		tween.set_parallel(true)
+		if _reward_panel != null:
+			var target := _get_inventory_slot_center(scythe_slot)
+			tween.tween_property(_reward_panel, "global_position", target - Vector2(26.0, 26.0), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+			tween.tween_property(_reward_panel, "scale", Vector2(0.12, 0.12), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		tween.tween_property(_reward_overlay, "modulate:a", 0.0, 0.34)
+		tween.finished.connect(_finish_collect_scythe_reward)
+		return
+	_finish_collect_scythe_reward()
+
+func _finish_collect_scythe_reward() -> void:
+	if _reward_overlay != null:
+		_reward_overlay.queue_free()
+	_reward_overlay = null
+	_reward_panel = null
+	_reward_viewport = null
+	_reward_model_root = null
+	_reward_dragging = false
+	_reward_press_position = Vector2.ZERO
+	_reward_collecting = false
+	_show_notification("获得镰刀：F / 点击 横扫除草")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _update_notification(delta: float) -> void:
@@ -2794,6 +3533,24 @@ func _refresh_interaction_prompt_text() -> void:
 
 	if _return_to_mom_prompt_active and not mom_near and not _is_player_near_camper():
 		_interaction_prompt_label.text = "返回和%s对话" % MOM_NAME
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = true
+			_interaction_prompt.move_to_front()
+
+	if _watering_task_prompt_active and not mom_near and not _is_player_near_camper():
+		_interaction_prompt_label.text = "返回和%s对话" % MOM_NAME
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = true
+			_interaction_prompt.move_to_front()
+
+	if _watering_task_active and _has_watering_can and _get_inventory_slot_item(_selected_inventory_slot) == INVENTORY_ITEM_WATERING_CAN and not mom_near and not _is_player_near_camper():
+		_interaction_prompt_label.text = "长按 F / 鼠标补水" if _is_player_near_pond_edge() else "F / 点击  给胡萝卜浇水"
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = true
+			_interaction_prompt.move_to_front()
+
+	if _has_scythe and _get_inventory_slot_item(_selected_inventory_slot) == INVENTORY_ITEM_SCYTHE and not mom_near and not _is_player_near_camper():
+		_interaction_prompt_label.text = "F / 点击  横扫除草"
 		if _interaction_prompt != null:
 			_interaction_prompt.visible = true
 			_interaction_prompt.move_to_front()
@@ -2839,7 +3596,6 @@ func _set_camper_highlight(enabled: bool) -> void:
 
 func _open_map_popup() -> void:
 	_map_open = true
-	_map_camper_pos = MAP_CAMPER_START
 	_map_village_label_time = 0.0
 	_map_was_near_village = false
 	_map_locked_label_time = 0.0
@@ -2901,7 +3657,7 @@ func _update_map_popup(delta: float) -> void:
 		_map_locked_label.modulate.a = move_toward(_map_locked_label.modulate.a, locked_target_alpha, delta * 1.9)
 	if _interaction_prompt_label != null:
 		if near_village:
-			_interaction_prompt_label.text = "F / 点击  进入村庄"
+			_interaction_prompt_label.text = "F / 点击  返回当前位置" if _chapter_one_active else "F / 点击  进入村庄"
 		elif near_locked_site:
 			_interaction_prompt_label.text = "此地暂未解锁"
 		else:
@@ -3018,6 +3774,9 @@ func _try_enter_village() -> bool:
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = true
 	_close_map_popup()
+	if _chapter_one_active:
+		return true
+	_map_camper_pos = MAP_VILLAGE_POINT
 	_start_chapter_one_transition()
 	return true
 
@@ -3075,6 +3834,7 @@ func _start_chapter_one_transition() -> void:
 
 func _build_chapter_one_scene() -> void:
 	_chapter_one_active = true
+	_map_camper_pos = MAP_VILLAGE_POINT
 	_active_ponds = CHAPTER_ONE_PONDS.duplicate(true)
 	_grass_material = null
 	_grass_multimesh = null
@@ -3093,10 +3853,18 @@ func _build_chapter_one_scene() -> void:
 	_camper_is_highlighted = false
 	_has_hoe = false
 	_has_watering_can = false
+	_has_scythe = false
 	_seed_count = 0
 	_hoe_tutorial_active = false
 	_return_to_mom_prompt_active = false
 	_starter_kit_collected = false
+	_watering_task_prompt_active = false
+	_watering_task_active = false
+	_scythe_task_prompt_active = false
+	_scythe_collected = false
+	_water_amount = 0.0
+	_water_filling = false
+	_water_fill_effect_cooldown = 0.0
 	_selected_inventory_slot = 0
 	_reset_inventory_slot_items()
 	_clear_inventory_drag_state()
@@ -3110,9 +3878,18 @@ func _build_chapter_one_scene() -> void:
 	_notification_time = 0.0
 	_tilled_soil_root = null
 	_tilled_soil_centers.clear()
+	_planted_seed_root = null
+	_planted_seed_centers.clear()
+	_watered_soil_centers.clear()
 	_player_hoe_root = null
 	_player_hoe_model = null
 	_hoe_swinging = false
+	_scythe_swinging = false
+	_cut_grass_transforms.clear()
+	_grass_spatial_cells.clear()
+	_camera_shake_time = 0.0
+	_camera_shake_strength = 0.0
+	_camera_shake_offset = Vector3.ZERO
 	_typewriter_time = 0.0
 	_typewriter_total = 0
 	_solid_blockers.clear()
@@ -3167,7 +3944,10 @@ func _is_mom_soil_task_pending() -> bool:
 	return _chapter_one_active and _dialogue_completed and _has_hoe and _tilled_soil_centers.is_empty()
 
 func _can_talk_to_mom() -> bool:
-	return not _dialogue_completed or _is_mom_soil_task_pending() or (_return_to_mom_prompt_active and not _starter_kit_collected)
+	return not _dialogue_completed or _is_mom_soil_task_pending() or (_return_to_mom_prompt_active and not _starter_kit_collected) or _watering_task_prompt_active or (_scythe_task_prompt_active and not _scythe_collected)
+
+func _should_show_mom_exclamation() -> bool:
+	return not _dialogue_completed or (_return_to_mom_prompt_active and not _starter_kit_collected) or _watering_task_prompt_active or (_scythe_task_prompt_active and not _scythe_collected)
 
 func _set_mom_highlight(enabled: bool) -> void:
 	_mom_is_highlighted = enabled
@@ -3208,6 +3988,14 @@ func _close_dialogue(completed: bool = false) -> void:
 			_return_to_mom_prompt_active = false
 			_starter_kit_collected = true
 			_grant_starter_kit()
+		elif _chapter_one_active and _watering_task_prompt_active:
+			_watering_task_prompt_active = false
+			_watering_task_active = true
+			_show_notification("去湖边长按补水，再给胡萝卜浇水")
+		elif _chapter_one_active and _scythe_task_prompt_active and not _scythe_collected:
+			_scythe_task_prompt_active = false
+			_scythe_collected = true
+			_grant_scythe()
 		elif _chapter_one_active and not _has_hoe:
 			_grant_hoe()
 	if _dialogue_panel != null:
@@ -3578,7 +4366,8 @@ func _apply_camera() -> void:
 	var distance := cos(_orbit.y) * _zoom
 	var height := sin(_orbit.y) * _zoom + 1.1
 	var eye_offset := Vector3(0.0, height, -distance).rotated(Vector3.UP, _orbit.x)
-	var eye := follow_target + eye_offset
+	var eye := follow_target + eye_offset + _camera_shake_offset
+	target += _camera_shake_offset * 0.35
 	_camera.global_position = eye
 	_camera.look_at(target, Vector3.UP)
 

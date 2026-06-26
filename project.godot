@@ -14,6 +14,17 @@ config/name="Roaming Harvest - Grass Prototype"
 run/main_scene="res://scenes/Intro.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
+[autoload]
+
+GameManager="*res://scripts/managers/game_manager.gd"
+TimeManager="*res://scripts/managers/time_manager.gd"
+SaveManager="*res://scripts/managers/save_manager.gd"
+InteractionManager="*res://scripts/managers/interaction_manager.gd"
+InventoryManager="*res://scripts/managers/inventory_manager.gd"
+WorldManager="*res://scripts/managers/world_manager.gd"
+CropManager="*res://scripts/managers/crop_manager.gd"
+UIManager="*res://scripts/managers/ui_manager.gd"
+
 [display]
 
 window/size/viewport_width=1280
