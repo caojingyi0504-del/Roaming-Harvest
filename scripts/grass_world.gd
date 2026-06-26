@@ -98,6 +98,8 @@ const CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS := 30.0
 const CHAPTER_ONE_CAMPER_POND_PADDING_RADIUS := 10.0
 const CHAPTER_ONE_HOUSE_INTERIOR_CENTER := Vector2(0.0, -4.2)
 const CHAPTER_ONE_HOUSE_INTERIOR_SIZE := Vector2(7.6, 6.0)
+const CHAPTER_ONE_HOUSE_DOORWAY_CENTER := Vector2(0.0, -0.35)
+const CHAPTER_ONE_HOUSE_DOORWAY_SIZE := Vector2(3.35, 2.1)
 const CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y := 0.08
 const INVENTORY_HAND_SLOT := 0
 const INVENTORY_HOE_SLOT := 1
@@ -1303,6 +1305,20 @@ func _create_chapter_one_house_interior_floor(house: Node3D) -> void:
 	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	floor_root.add_child(floor_mesh)
 
+	var threshold := MeshInstance3D.new()
+	threshold.name = "DoorwayThreshold"
+	var threshold_mesh := BoxMesh.new()
+	threshold_mesh.size = Vector3(CHAPTER_ONE_HOUSE_DOORWAY_SIZE.x, 0.075, CHAPTER_ONE_HOUSE_DOORWAY_SIZE.y)
+	threshold.mesh = threshold_mesh
+	threshold.material_override = floor_mat
+	threshold.position = Vector3(
+		CHAPTER_ONE_HOUSE_DOORWAY_CENTER.x - CHAPTER_ONE_HOUSE_INTERIOR_CENTER.x,
+		-0.035,
+		CHAPTER_ONE_HOUSE_DOORWAY_CENTER.y - CHAPTER_ONE_HOUSE_INTERIOR_CENTER.y
+	)
+	threshold.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	floor_root.add_child(threshold)
+
 	var plank_mat := StandardMaterial3D.new()
 	plank_mat.albedo_color = Color(0.62, 0.39, 0.19)
 	plank_mat.roughness = 0.9
@@ -1338,6 +1354,7 @@ func _create_chapter_one_house_interior_floor(house: Node3D) -> void:
 	body.add_child(collision)
 
 	_register_interior_floor_area(house, CHAPTER_ONE_HOUSE_INTERIOR_CENTER, CHAPTER_ONE_HOUSE_INTERIOR_SIZE * 0.5, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
+	_register_interior_floor_area(house, CHAPTER_ONE_HOUSE_DOORWAY_CENTER, CHAPTER_ONE_HOUSE_DOORWAY_SIZE * 0.5, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
 
 func _create_floor_trim(parent: Node3D, local_position: Vector3, size: Vector3, material: Material) -> void:
 	var trim := MeshInstance3D.new()
