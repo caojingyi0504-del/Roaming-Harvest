@@ -38,6 +38,7 @@ const VILLAGE_HOUSE_SCENE_PATH := "res://3d建模/村里房子/311d8c4383612ac90
 const TREE_SCENE_PATH := "res://3d建模/树/2f5d6b66e5b0fbbf4c7b1bede79477f5.glb"
 const HOE_SCENE_PATH := "res://3d建模/工具/锄头.glb"
 const WATERING_CAN_SCENE_PATH := "res://3d建模/工具/水壶.glb"
+const SEED_ICON_PATH := "res://ui/icons/seed_icon.png"
 const MOM_PORTRAIT_PATH := "res://聊天框/安提莉尔.png"
 const PLAYER_PORTRAIT_PATH := "res://聊天框/我.png"
 const DIALOGUE_BOX_PATH := "res://聊天框/聊天框.png"
@@ -99,6 +100,13 @@ const INVENTORY_HAND_SLOT := 0
 const INVENTORY_HOE_SLOT := 1
 const INVENTORY_SEED_SLOT := 2
 const INVENTORY_WATERING_CAN_SLOT := 3
+const INVENTORY_UNLOCKED_SLOT_COUNT := 5
+const INVENTORY_DRAG_HOLD_TIME := 0.35
+const INVENTORY_ITEM_NONE := ""
+const INVENTORY_ITEM_HAND := "hand"
+const INVENTORY_ITEM_HOE := "hoe"
+const INVENTORY_ITEM_SEED := "seed"
+const INVENTORY_ITEM_WATERING_CAN := "watering_can"
 const VISIBLE_SUN_POSITION := Vector3(-30.0, 42.0, 86.0)
 const PONDS := [
 	{
@@ -150,7 +158,16 @@ var _interaction_prompt: Control
 var _interaction_prompt_label: Label
 var _inventory_bar: HBoxContainer
 var _inventory_slots: Array[PanelContainer] = []
+var _inventory_slot_items: Array[String] = []
 var _selected_inventory_slot := 0
+var _inventory_press_slot := -1
+var _inventory_press_time := 0.0
+var _inventory_press_position := Vector2.ZERO
+var _inventory_dragging_item := false
+var _inventory_drag_source_slot := -1
+var _inventory_drag_hover_slot := -1
+var _inventory_drag_ghost: Control
+var _mouse_released_by_escape := false
 var _reward_overlay: Control
 var _reward_panel: Control
 var _reward_viewport: SubViewport
@@ -245,6 +262,9 @@ func _rebuild_scene() -> void:
 	_return_to_mom_prompt_active = false
 	_starter_kit_collected = false
 	_selected_inventory_slot = 0
+	_reset_inventory_slot_items()
+	_clear_inventory_drag_state()
+	_mouse_released_by_escape = false
 	_reward_overlay = null
 	_reward_panel = null
 	_reward_viewport = null
@@ -288,6 +308,8 @@ func _process(delta: float) -> void:
 	if _reward_overlay != null and _reward_overlay.visible:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		return
+	_update_mouse_cursor_mode()
+	_update_inventory_press(delta)
 	_update_tree_wind(delta)
 	_update_grass_player_push()
 	_update_mom_interaction()
@@ -296,11 +318,21 @@ func _process(delta: float) -> void:
 		_update_dialogue_typewriter(delta)
 	if _map_open:
 		_update_map_popup(delta)
-	if not _dialogue_open and not _map_open:
+	if not _dialogue_open and not _map_open and not _is_free_cursor_requested():
 		_update_camera_input(delta)
 		_apply_camera()
 	_update_mom_exclamation(delta)
 	_update_notification(delta)
+
+func _input(event: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
+	if event is InputEventMouseMotion and _inventory_dragging_item:
+		_update_inventory_drag(event.position)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and (_inventory_dragging_item or _inventory_press_slot != -1):
+		_finish_inventory_drag(event.position)
+		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
@@ -314,7 +346,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _map_open:
 		_handle_map_input(event)
 		return
-	if event is InputEventMouseMotion and not _dialogue_open:
+	if event is InputEventMouseMotion and not _dialogue_open and not _is_free_cursor_requested():
 		var mouse_sensitivity := 0.0032
 		_orbit.x -= event.relative.x * mouse_sensitivity
 		_orbit.y = clampf(_orbit.y + event.relative.y * mouse_sensitivity, 0.04, 0.72)
@@ -325,6 +357,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _map_open:
 			_close_map_popup()
 		else:
+			_mouse_released_by_escape = true
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_P:
 		_capture_player_position()
@@ -334,7 +367,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if not _try_enter_camper() and not _try_start_mom_dialogue():
 			_try_use_selected_tool()
 	if event is InputEventMouseButton and event.pressed:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		if not _is_free_cursor_requested():
+			_mouse_released_by_escape = false
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_select_inventory_delta(-1)
 			get_viewport().set_input_as_handled()
@@ -347,6 +382,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			if not _try_enter_camper() and not _try_start_mom_dialogue():
 				if not _try_use_selected_tool():
 					_shake_nearby_tree()
+
+func _is_free_cursor_requested() -> bool:
+	return Input.is_key_pressed(KEY_ALT) or _inventory_dragging_item
+
+func _update_mouse_cursor_mode() -> void:
+	if _dialogue_open or _map_open or _is_free_cursor_requested():
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	elif not _mouse_released_by_escape:
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _queue_editor_rebuild() -> void:
 	if not Engine.is_editor_hint() or not is_inside_tree() or _editor_rebuild_queued:
@@ -1536,6 +1580,42 @@ func _create_map_popup(root: Control) -> void:
 
 	_position_map_camper()
 
+func _reset_inventory_slot_items() -> void:
+	_inventory_slot_items.clear()
+	for _index in range(10):
+		_inventory_slot_items.append(INVENTORY_ITEM_NONE)
+	_inventory_slot_items[INVENTORY_HAND_SLOT] = INVENTORY_ITEM_HAND
+	_inventory_slot_items[INVENTORY_HOE_SLOT] = INVENTORY_ITEM_HOE
+	_inventory_slot_items[INVENTORY_SEED_SLOT] = INVENTORY_ITEM_SEED
+	_inventory_slot_items[INVENTORY_WATERING_CAN_SLOT] = INVENTORY_ITEM_WATERING_CAN
+
+func _get_inventory_slot_item(slot_index: int) -> String:
+	if slot_index >= 0 and slot_index < _inventory_slot_items.size():
+		return _inventory_slot_items[slot_index]
+	return INVENTORY_ITEM_NONE
+
+func _set_inventory_slot_item(slot_index: int, item: String) -> void:
+	if slot_index >= 0 and slot_index < _inventory_slot_items.size():
+		_inventory_slot_items[slot_index] = item
+
+func _is_inventory_item_available(item: String) -> bool:
+	match item:
+		INVENTORY_ITEM_HAND:
+			return _has_inventory_items()
+		INVENTORY_ITEM_HOE:
+			return _has_hoe
+		INVENTORY_ITEM_SEED:
+			return _seed_count > 0
+		INVENTORY_ITEM_WATERING_CAN:
+			return _has_watering_can
+	return false
+
+func _find_inventory_slot_for_item(item: String, fallback_slot: int) -> int:
+	for index in range(INVENTORY_UNLOCKED_SLOT_COUNT):
+		if _get_inventory_slot_item(index) == item:
+			return index
+	return fallback_slot
+
 func _create_inventory_bar(root: Control) -> void:
 	_inventory_slots.clear()
 	_inventory_bar = HBoxContainer.new()
@@ -1581,39 +1661,60 @@ func _update_inventory_bar() -> void:
 		var slot := _inventory_slots[index]
 		var locked := index >= 5
 		var selected := index == _selected_inventory_slot
+		var drag_hover := _inventory_dragging_item and index == _inventory_drag_hover_slot and not locked
 		var fill := Color(0.98, 0.84, 0.48, 0.96) if selected else Color(0.92, 0.80, 0.58, 0.86)
 		var border := Color(1.0, 0.98, 0.74, 1.0) if selected else Color(1.0, 0.94, 0.72, 0.96)
 		if locked:
 			fill = Color(0.40, 0.36, 0.30, 0.78)
 			border = Color(0.64, 0.58, 0.49, 0.86)
+		elif drag_hover:
+			fill = Color(0.98, 0.88, 0.58, 0.98)
+			border = Color(0.58, 0.95, 0.78, 1.0)
 		slot.add_theme_stylebox_override("panel", _make_round_style(fill, border, 8.0, 3 if selected else 2))
 		var label := slot.get_node_or_null("SlotLabel") as Label
 		if label == null:
 			continue
 		var hoe_icon := slot.get_node_or_null("HoeIcon") as TextureRect
 		var watering_can_icon := slot.get_node_or_null("WateringCanIcon") as TextureRect
+		var seed_icon := slot.get_node_or_null("SeedIcon") as TextureRect
+		var seed_count_label := slot.get_node_or_null("SeedCount") as Label
 		var hand_icon := slot.get_node_or_null("HandIcon") as Label
 		if hoe_icon != null:
 			hoe_icon.visible = false
 		if watering_can_icon != null:
 			watering_can_icon.visible = false
+		if seed_icon != null:
+			seed_icon.visible = false
+		if seed_count_label != null:
+			seed_count_label.visible = false
 		if hand_icon != null:
 			hand_icon.visible = false
-		if index == INVENTORY_HAND_SLOT and _has_inventory_items():
+		var item := _get_inventory_slot_item(index)
+		var item_available := _is_inventory_item_available(item)
+		if item == INVENTORY_ITEM_HAND and item_available:
 			label.text = ""
 			if hand_icon == null:
 				hand_icon = _create_hand_inventory_icon(slot)
 			if hand_icon != null:
 				hand_icon.visible = true
-		elif index == INVENTORY_HOE_SLOT and _has_hoe:
+		elif item == INVENTORY_ITEM_HOE and item_available:
 			label.text = ""
 			if hoe_icon == null:
 				hoe_icon = _create_hoe_inventory_icon(slot)
 			if hoe_icon != null:
 				hoe_icon.visible = true
-		elif index == INVENTORY_SEED_SLOT and _seed_count > 0:
-			label.text = "种子\nx%d" % _seed_count
-		elif index == INVENTORY_WATERING_CAN_SLOT and _has_watering_can:
+		elif item == INVENTORY_ITEM_SEED and item_available:
+			label.text = ""
+			if seed_icon == null:
+				seed_icon = _create_seed_inventory_icon(slot)
+			if seed_count_label == null:
+				seed_count_label = _create_seed_count_label(slot)
+			if seed_icon != null:
+				seed_icon.visible = true
+			if seed_count_label != null:
+				seed_count_label.text = "x%d" % _seed_count
+				seed_count_label.visible = true
+		elif item == INVENTORY_ITEM_WATERING_CAN and item_available:
 			label.text = ""
 			if watering_can_icon == null:
 				watering_can_icon = _create_watering_can_inventory_icon(slot)
@@ -1657,6 +1758,41 @@ func _create_hoe_inventory_icon(slot: PanelContainer) -> TextureRect:
 	_setup_hoe_preview_viewport(icon, Vector2i(320, 320), false)
 	return icon
 
+func _create_seed_inventory_icon(slot: PanelContainer) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.name = "SeedIcon"
+	icon.texture = load(SEED_ICON_PATH) as Texture2D
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = -4.0
+	icon.offset_top = -5.0
+	icon.offset_right = 4.0
+	icon.offset_bottom = 3.0
+	slot.add_child(icon)
+	slot.move_child(icon, 0)
+	return icon
+
+func _create_seed_count_label(slot: PanelContainer) -> Label:
+	var label := Label.new()
+	label.name = "SeedCount"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	label.add_theme_font_size_override("font_size", 17)
+	label.add_theme_color_override("font_color", Color(0.26, 0.18, 0.09))
+	label.add_theme_color_override("font_shadow_color", Color(1.0, 0.95, 0.76, 0.82))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.offset_left = 4.0
+	label.offset_top = 4.0
+	label.offset_right = -5.0
+	label.offset_bottom = -3.0
+	slot.add_child(label)
+	return label
+
 func _create_watering_can_inventory_icon(slot: PanelContainer) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.name = "WateringCanIcon"
@@ -1674,11 +1810,106 @@ func _create_watering_can_inventory_icon(slot: PanelContainer) -> TextureRect:
 	return icon
 
 func _on_inventory_slot_gui_input(event: InputEvent, slot_index: int) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if slot_index < 5:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and slot_index < INVENTORY_UNLOCKED_SLOT_COUNT:
 			_selected_inventory_slot = slot_index
+			_inventory_press_slot = slot_index
+			_inventory_press_time = 0.0
+			_inventory_press_position = event.global_position
 			_update_inventory_bar()
+		elif not event.pressed and (_inventory_dragging_item or _inventory_press_slot != -1):
+			_finish_inventory_drag(event.global_position)
 		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _inventory_dragging_item:
+		_update_inventory_drag(event.global_position)
+		get_viewport().set_input_as_handled()
+
+func _update_inventory_press(delta: float) -> void:
+	if _inventory_press_slot == -1 or _inventory_dragging_item:
+		return
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_clear_inventory_drag_state()
+		return
+	_inventory_press_time += delta
+	if _inventory_press_time >= INVENTORY_DRAG_HOLD_TIME:
+		_start_inventory_drag(_inventory_press_slot)
+
+func _start_inventory_drag(slot_index: int) -> void:
+	var item := _get_inventory_slot_item(slot_index)
+	if not _is_inventory_item_available(item):
+		_clear_inventory_drag_state()
+		return
+	_inventory_dragging_item = true
+	_inventory_drag_source_slot = slot_index
+	_inventory_drag_hover_slot = slot_index
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_inventory_drag_ghost = _create_inventory_drag_ghost(item)
+	_update_inventory_drag(_inventory_press_position)
+	_update_inventory_bar()
+
+func _update_inventory_drag(screen_position: Vector2) -> void:
+	if _inventory_drag_ghost != null:
+		_inventory_drag_ghost.global_position = screen_position - _inventory_drag_ghost.size * 0.5
+	_inventory_drag_hover_slot = _get_inventory_slot_at_position(screen_position)
+	_update_inventory_bar()
+
+func _finish_inventory_drag(screen_position: Vector2) -> void:
+	if _inventory_dragging_item:
+		var target_slot := _get_inventory_slot_at_position(screen_position)
+		if target_slot >= 0 and target_slot < INVENTORY_UNLOCKED_SLOT_COUNT and target_slot != _inventory_drag_source_slot:
+			var source_item := _get_inventory_slot_item(_inventory_drag_source_slot)
+			var target_item := _get_inventory_slot_item(target_slot)
+			_set_inventory_slot_item(target_slot, source_item)
+			_set_inventory_slot_item(_inventory_drag_source_slot, target_item)
+			if _selected_inventory_slot == _inventory_drag_source_slot:
+				_selected_inventory_slot = target_slot
+			elif _selected_inventory_slot == target_slot:
+				_selected_inventory_slot = _inventory_drag_source_slot
+	_clear_inventory_drag_state()
+	_update_inventory_bar()
+
+func _get_inventory_slot_at_position(screen_position: Vector2) -> int:
+	for index in range(mini(INVENTORY_UNLOCKED_SLOT_COUNT, _inventory_slots.size())):
+		var slot := _inventory_slots[index]
+		var rect := Rect2(slot.global_position, slot.size)
+		if rect.has_point(screen_position):
+			return index
+	return -1
+
+func _create_inventory_drag_ghost(item: String) -> Control:
+	var ghost := PanelContainer.new()
+	ghost.name = "InventoryDragGhost"
+	ghost.size = Vector2(56.0, 56.0)
+	ghost.custom_minimum_size = Vector2(56.0, 56.0)
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ghost.modulate.a = 0.86
+	ghost.add_theme_stylebox_override("panel", _make_round_style(Color(0.98, 0.84, 0.48, 0.92), Color(1.0, 0.98, 0.74, 1.0), 8.0, 3))
+	if _hud_root != null:
+		_hud_root.add_child(ghost)
+	match item:
+		INVENTORY_ITEM_HAND:
+			_create_hand_inventory_icon(ghost)
+		INVENTORY_ITEM_HOE:
+			_create_hoe_inventory_icon(ghost)
+		INVENTORY_ITEM_SEED:
+			_create_seed_inventory_icon(ghost)
+			var seed_count_label := _create_seed_count_label(ghost)
+			seed_count_label.text = "x%d" % _seed_count
+		INVENTORY_ITEM_WATERING_CAN:
+			_create_watering_can_inventory_icon(ghost)
+	ghost.move_to_front()
+	return ghost
+
+func _clear_inventory_drag_state() -> void:
+	if _inventory_drag_ghost != null and is_instance_valid(_inventory_drag_ghost):
+		_inventory_drag_ghost.queue_free()
+	_inventory_press_slot = -1
+	_inventory_press_time = 0.0
+	_inventory_press_position = Vector2.ZERO
+	_inventory_dragging_item = false
+	_inventory_drag_source_slot = -1
+	_inventory_drag_hover_slot = -1
+	_inventory_drag_ghost = null
 
 func _select_inventory_delta(delta: int) -> void:
 	if not _has_inventory_items():
@@ -1687,7 +1918,7 @@ func _select_inventory_delta(delta: int) -> void:
 	_update_inventory_bar()
 
 func _try_use_selected_tool() -> bool:
-	if not _has_hoe or _selected_inventory_slot != INVENTORY_HOE_SLOT or _dialogue_open or _map_open or _hoe_swinging:
+	if not _has_hoe or _get_inventory_slot_item(_selected_inventory_slot) != INVENTORY_ITEM_HOE or _dialogue_open or _map_open or _hoe_swinging:
 		return false
 	_till_soil_in_front_of_player()
 	return true
@@ -2345,7 +2576,7 @@ func _setup_watering_can_preview_viewport(target: TextureRect, size: Vector2i, i
 	root.add_child(model)
 	_fit_model_to_max_dimension(model, 4.8 if interactive else 3.7)
 	_center_model_on_origin(model)
-	model.rotation_degrees = Vector3(0.0 if interactive else 24.0, -32.0 if interactive else -36.0, 0.0 if interactive else 10.0)
+	model.rotation_degrees = Vector3(0.0, -32.0 if interactive else -28.0, 0.0)
 	root.rotation_degrees = Vector3(0.0, 0.0, 0.0)
 	if interactive:
 		_reward_viewport = sub_viewport
@@ -2393,7 +2624,8 @@ func _collect_hoe_reward() -> void:
 		return
 	_reward_collecting = true
 	_has_hoe = true
-	_selected_inventory_slot = INVENTORY_HOE_SLOT
+	var hoe_slot := _find_inventory_slot_for_item(INVENTORY_ITEM_HOE, INVENTORY_HOE_SLOT)
+	_selected_inventory_slot = hoe_slot
 	_update_inventory_bar()
 	if _inventory_bar != null:
 		_inventory_bar.visible = true
@@ -2401,7 +2633,7 @@ func _collect_hoe_reward() -> void:
 		var tween := create_tween()
 		tween.set_parallel(true)
 		if _reward_panel != null:
-			var target := _get_inventory_slot_center(INVENTORY_HOE_SLOT)
+			var target := _get_inventory_slot_center(hoe_slot)
 			tween.tween_property(_reward_panel, "global_position", target - Vector2(26.0, 26.0), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 			tween.tween_property(_reward_panel, "scale", Vector2(0.12, 0.12), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		tween.tween_property(_reward_overlay, "modulate:a", 0.0, 0.34)
@@ -2444,7 +2676,8 @@ func _collect_watering_can_reward() -> void:
 		return
 	_reward_collecting = true
 	_has_watering_can = true
-	_selected_inventory_slot = INVENTORY_WATERING_CAN_SLOT
+	var watering_can_slot := _find_inventory_slot_for_item(INVENTORY_ITEM_WATERING_CAN, INVENTORY_WATERING_CAN_SLOT)
+	_selected_inventory_slot = watering_can_slot
 	_update_inventory_bar()
 	if _inventory_bar != null:
 		_inventory_bar.visible = true
@@ -2452,7 +2685,7 @@ func _collect_watering_can_reward() -> void:
 		var tween := create_tween()
 		tween.set_parallel(true)
 		if _reward_panel != null:
-			var target := _get_inventory_slot_center(INVENTORY_WATERING_CAN_SLOT)
+			var target := _get_inventory_slot_center(watering_can_slot)
 			tween.tween_property(_reward_panel, "global_position", target - Vector2(26.0, 26.0), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 			tween.tween_property(_reward_panel, "scale", Vector2(0.12, 0.12), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		tween.tween_property(_reward_overlay, "modulate:a", 0.0, 0.34)
@@ -2801,6 +3034,9 @@ func _build_chapter_one_scene() -> void:
 	_return_to_mom_prompt_active = false
 	_starter_kit_collected = false
 	_selected_inventory_slot = 0
+	_reset_inventory_slot_items()
+	_clear_inventory_drag_state()
+	_mouse_released_by_escape = false
 	_reward_overlay = null
 	_reward_panel = null
 	_reward_viewport = null
