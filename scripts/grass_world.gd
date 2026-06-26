@@ -101,11 +101,11 @@ const CHAPTER_ONE_HOUSE_INTERIOR_SIZE := Vector2(9.2, 6.0)
 const CHAPTER_ONE_HOUSE_DOORWAY_CENTER := Vector2(-4.2, -0.35)
 const CHAPTER_ONE_HOUSE_DOORWAY_SIZE := Vector2(4.8, 2.8)
 const CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y := 0.08
-const CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER := Vector2(-4.2, 1.25)
-const CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER := Vector2(-4.2, -1.45)
+const CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER := Vector2(0.0, 1.10)
+const CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER := Vector2(0.0, -1.55)
 const CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN := Vector2(-4.2, 2.35)
 const CHAPTER_ONE_HOUSE_INSIDE_SPAWN := Vector2(-4.2, -2.75)
-const CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE := Vector2(4.7, 2.1)
+const CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE := Vector2(18.0, 4.6)
 const CHAPTER_ONE_HOUSE_PORTAL_DELAY := 0.16
 const CHAPTER_ONE_HOUSE_PORTAL_COOLDOWN := 0.65
 const CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME := 0.18
@@ -1414,7 +1414,6 @@ func _update_chapter_one_house_portal(delta: float) -> void:
 	if _house_portal_cooldown > 0.0:
 		_house_portal_cooldown = maxf(_house_portal_cooldown - delta, 0.0)
 	var player_position := _player.global_position
-	var movement := player_position - _house_portal_last_player_position
 	_house_portal_last_player_position = player_position
 	if _house_portal_cooldown > 0.0 or _dialogue_open or _map_open:
 		_house_portal_dwell = 0.0
@@ -1425,13 +1424,6 @@ func _update_chapter_one_house_portal(delta: float) -> void:
 		_house_portal_dwell = 0.0
 		return
 
-	var desired_direction := _get_house_portal_direction(not _inside_chapter_one_house)
-	if movement.length_squared() > 0.0004:
-		movement.y = 0.0
-		movement = movement.normalized()
-		if movement.dot(desired_direction) < 0.12:
-			_house_portal_dwell = 0.0
-			return
 	_house_portal_dwell += delta
 	if _house_portal_dwell >= CHAPTER_ONE_HOUSE_PORTAL_DELAY:
 		_start_chapter_one_house_portal_transition(not _inside_chapter_one_house)
