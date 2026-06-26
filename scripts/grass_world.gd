@@ -2484,6 +2484,69 @@ func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_te
 	collect_button.pressed.connect(collect_callable)
 	stack.add_child(collect_button)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	call_deferred("_play_tool_reward_burst", title)
+
+func _play_tool_reward_burst(title: Label) -> void:
+	if title == null or not is_instance_valid(title) or _reward_overlay == null:
+		return
+	var burst_root := Control.new()
+	burst_root.name = "RewardConfettiBurst"
+	burst_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	burst_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_overlay.add_child(burst_root)
+
+	var title_center := title.get_global_rect().get_center()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = Time.get_ticks_msec()
+	var colors := [
+		Color(1.0, 0.55, 0.48),
+		Color(1.0, 0.82, 0.34),
+		Color(0.56, 0.84, 1.0),
+		Color(0.64, 0.93, 0.50),
+		Color(0.96, 0.63, 1.0),
+		Color(1.0, 0.96, 0.62),
+	]
+	title.pivot_offset = title.size * 0.5
+	title.scale = Vector2(0.76, 0.76)
+	title.modulate.a = 1.0
+	var title_tween := create_tween()
+	title_tween.tween_property(title, "scale", Vector2(1.16, 1.16), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	title_tween.tween_property(title, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	var burst_tween := create_tween()
+	burst_tween.set_parallel(true)
+	for index in range(58):
+		var piece := ColorRect.new()
+		piece.color = colors[index % colors.size()]
+		piece.size = Vector2(rng.randf_range(5.0, 10.0), rng.randf_range(9.0, 18.0))
+		piece.position = title_center + Vector2(rng.randf_range(-34.0, 34.0), rng.randf_range(-10.0, 14.0))
+		piece.pivot_offset = piece.size * 0.5
+		piece.rotation = rng.randf_range(-PI, PI)
+		piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		burst_root.add_child(piece)
+		var angle := rng.randf_range(-PI, PI)
+		var distance := rng.randf_range(95.0, 260.0)
+		var outward := Vector2(cos(angle), sin(angle)) * distance
+		outward.y += rng.randf_range(-70.0, 85.0)
+		var duration := rng.randf_range(0.58, 1.05)
+		burst_tween.tween_property(piece, "position", piece.position + outward, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		burst_tween.tween_property(piece, "rotation", piece.rotation + rng.randf_range(-5.2, 5.2), duration)
+		burst_tween.tween_property(piece, "modulate:a", 0.0, 0.34).set_delay(rng.randf_range(0.42, 0.70))
+	for index in range(12):
+		var spark := ColorRect.new()
+		spark.color = Color(1.0, 0.96, 0.70, 0.95)
+		spark.size = Vector2(rng.randf_range(3.0, 5.0), rng.randf_range(28.0, 48.0))
+		spark.position = title_center + Vector2(rng.randf_range(-20.0, 20.0), rng.randf_range(-8.0, 8.0))
+		spark.pivot_offset = spark.size * 0.5
+		spark.rotation = rng.randf_range(-PI, PI)
+		spark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		burst_root.add_child(spark)
+		var angle := spark.rotation - PI * 0.5
+		var outward := Vector2(cos(angle), sin(angle)) * rng.randf_range(80.0, 170.0)
+		burst_tween.tween_property(spark, "position", spark.position + outward, rng.randf_range(0.42, 0.72)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		burst_tween.tween_property(spark, "scale:y", 0.18, 0.32).set_delay(0.18)
+		burst_tween.tween_property(spark, "modulate:a", 0.0, 0.24).set_delay(0.36)
+	burst_tween.finished.connect(burst_root.queue_free)
 
 func _setup_hoe_preview_viewport(target: TextureRect, size: Vector2i, interactive: bool) -> void:
 	var sub_viewport := SubViewport.new()
