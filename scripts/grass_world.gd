@@ -80,7 +80,7 @@ const TREE_SHAKE_STRENGTH := 0.16
 const TREE_SHAKE_FREQUENCY := 48.0
 const PLAYER_MOVE_SPEED := 5.2
 const SOIL_TILE_HALF_SIZE := 0.50
-const SOIL_POND_EDGE_PADDING := 1.15
+const SOIL_POND_EDGE_PADDING := 1.75
 const CHAPTER_ONE_PLAYER_START := Vector3(0.4, 0.0, 7.6)
 const CHAPTER_ONE_HOUSE_POSITION := Vector3(6.0, 0.0, -7.0)
 const CHAPTER_ONE_HOUSE_YAW := -24.0
@@ -181,6 +181,7 @@ var _map_dragging := false
 var _map_drag_start := Vector2.ZERO
 var _map_drag_vector := Vector2.ZERO
 var _has_hoe := false
+var _hoe_tutorial_active := false
 var _notification_time := 0.0
 var _notification_text := ""
 var _tilled_soil_root: Node3D
@@ -228,6 +229,7 @@ func _rebuild_scene() -> void:
 	_map_dragging = false
 	_map_drag_vector = Vector2.ZERO
 	_has_hoe = false
+	_hoe_tutorial_active = false
 	_selected_inventory_slot = 0
 	_reward_overlay = null
 	_reward_panel = null
@@ -1641,13 +1643,18 @@ func _till_soil_in_front_of_player() -> void:
 	center = _snap_soil_position(center)
 	var center_2d := Vector2(center.x, center.z)
 	if not _can_place_soil_tile(center):
-		_show_notification("这里是水面，不能锄地")
 		return
 	_play_hoe_swing(yaw, center)
 	for existing in _tilled_soil_centers:
 		if existing.distance_squared_to(center_2d) <= 0.25:
 			return
 	_tilled_soil_centers.append(center_2d)
+	_hoe_tutorial_active = false
+	if _notification_text == "按 F 或鼠标点击  锄一块地":
+		_notification_time = 0.0
+		_notification_text = ""
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = false
 	var impact_timer := get_tree().create_timer(0.16)
 	impact_timer.timeout.connect(_create_soil_patch.bind(center))
 
@@ -1710,33 +1717,25 @@ func _create_soil_patch(center: Vector3) -> void:
 			_create_soil_tile(tile_position)
 
 func _can_place_soil_tile(position: Vector3) -> bool:
-	var grid_yaw := _soil_grid_yaw()
-	for offset in [
-		Vector2.ZERO,
-		Vector2(-SOIL_TILE_HALF_SIZE, -SOIL_TILE_HALF_SIZE),
-		Vector2(SOIL_TILE_HALF_SIZE, -SOIL_TILE_HALF_SIZE),
-		Vector2(-SOIL_TILE_HALF_SIZE, SOIL_TILE_HALF_SIZE),
-		Vector2(SOIL_TILE_HALF_SIZE, SOIL_TILE_HALF_SIZE),
-		Vector2(0.0, -SOIL_TILE_HALF_SIZE),
-		Vector2(0.0, SOIL_TILE_HALF_SIZE),
-		Vector2(-SOIL_TILE_HALF_SIZE, 0.0),
-		Vector2(SOIL_TILE_HALF_SIZE, 0.0),
-	]:
-		var rotated_offset := offset.rotated(-grid_yaw)
-		if _is_inside_pond(position.x + rotated_offset.x, position.z + rotated_offset.y, SOIL_POND_EDGE_PADDING):
-			return false
+	var grid_yaw: float = _soil_grid_yaw()
+	for x in range(-2, 3):
+		for z in range(-2, 3):
+			var offset := Vector2(float(x), float(z)) * (SOIL_TILE_HALF_SIZE * 0.5)
+			var rotated_offset: Vector2 = offset.rotated(-grid_yaw)
+			if _is_inside_pond(position.x + rotated_offset.x, position.z + rotated_offset.y, SOIL_POND_EDGE_PADDING):
+				return false
 	return true
 
 func _soil_grid_yaw() -> float:
 	return deg_to_rad(CHAPTER_ONE_HOUSE_YAW) if _chapter_one_active else 0.0
 
 func _snap_soil_position(position: Vector3) -> Vector3:
-	var yaw := _soil_grid_yaw()
-	var origin := Vector2(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z) if _chapter_one_active else Vector2.ZERO
-	var local := (Vector2(position.x, position.z) - origin).rotated(yaw)
+	var yaw: float = _soil_grid_yaw()
+	var origin: Vector2 = Vector2(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z) if _chapter_one_active else Vector2.ZERO
+	var local: Vector2 = (Vector2(position.x, position.z) - origin).rotated(yaw)
 	local.x = roundf(local.x)
 	local.y = roundf(local.y)
-	var snapped := origin + local.rotated(-yaw)
+	var snapped: Vector2 = origin + local.rotated(-yaw)
 	return Vector3(snapped.x, position.y, snapped.y)
 
 func _remove_soil_tiles_over_pond() -> void:
@@ -1992,6 +1991,17 @@ func _show_notification(text: String) -> void:
 		_interaction_prompt.visible = true
 		_interaction_prompt.move_to_front()
 
+func _show_hoe_tutorial_prompt() -> void:
+	if not _hoe_tutorial_active or not _has_hoe:
+		return
+	_notification_time = 3.0
+	_notification_text = "按 F 或鼠标点击  锄一块地"
+	if _interaction_prompt_label != null:
+		_interaction_prompt_label.text = _notification_text
+	if _interaction_prompt != null:
+		_interaction_prompt.visible = true
+		_interaction_prompt.move_to_front()
+
 func _capture_player_position() -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
@@ -2209,6 +2219,8 @@ func _finish_collect_hoe_reward() -> void:
 	_reward_dragging = false
 	_reward_press_position = Vector2.ZERO
 	_reward_collecting = false
+	_hoe_tutorial_active = true
+	call_deferred("_show_hoe_tutorial_prompt")
 	_show_notification("获得锄头")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
@@ -2233,6 +2245,12 @@ func _refresh_interaction_prompt_text() -> void:
 		_interaction_prompt_label.text = "F / 点击  与 安提莉尔 对话"
 	elif _is_player_near_camper():
 		_interaction_prompt_label.text = "F / 点击  进入房车地图"
+
+	if _hoe_tutorial_active and _has_hoe and not mom_near and not _is_player_near_camper():
+		_interaction_prompt_label.text = "按 F 或鼠标点击  锄一块地"
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = true
+			_interaction_prompt.move_to_front()
 
 func _update_camper_interaction() -> void:
 	if _mom_is_highlighted:
@@ -2522,6 +2540,7 @@ func _build_chapter_one_scene() -> void:
 	_map_open = false
 	_camper_is_highlighted = false
 	_has_hoe = false
+	_hoe_tutorial_active = false
 	_selected_inventory_slot = 0
 	_reward_overlay = null
 	_reward_panel = null
