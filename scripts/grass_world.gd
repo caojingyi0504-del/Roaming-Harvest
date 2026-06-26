@@ -96,6 +96,9 @@ const CHAPTER_ONE_HOUSE_TARGET_LENGTH := 24.0
 const CHAPTER_ONE_REBAS_TARGET_HEIGHT := 3.15
 const CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS := 30.0
 const CHAPTER_ONE_CAMPER_POND_PADDING_RADIUS := 10.0
+const CHAPTER_ONE_HOUSE_INTERIOR_CENTER := Vector2(0.0, -4.2)
+const CHAPTER_ONE_HOUSE_INTERIOR_SIZE := Vector2(7.6, 6.0)
+const CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y := 0.08
 const INVENTORY_HAND_SLOT := 0
 const INVENTORY_HOE_SLOT := 1
 const INVENTORY_SEED_SLOT := 2
@@ -221,6 +224,7 @@ var _typewriter_total := 0
 var _solid_blockers: Array[Dictionary] = []
 var _wind_trees: Array[Dictionary] = []
 var _active_ponds: Array = []
+var _interior_floor_areas: Array[Dictionary] = []
 var _orbit := Vector2(0.0, 0.42)
 var _zoom := 15.0
 var _editor_rebuild_queued := false
@@ -283,6 +287,7 @@ func _rebuild_scene() -> void:
 	_typewriter_total = 0
 	_solid_blockers.clear()
 	_wind_trees.clear()
+	_interior_floor_areas.clear()
 	_clear_generated()
 	_setup_world()
 	_create_visible_sun()
@@ -1276,6 +1281,83 @@ func _create_chapter_one_village_house() -> void:
 	_ground_model(model)
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_model_box_blocker(house, model, Vector2.ZERO, 0.56)
+	_create_chapter_one_house_interior_floor(house)
+
+func _create_chapter_one_house_interior_floor(house: Node3D) -> void:
+	var floor_root := Node3D.new()
+	floor_root.name = "InteriorWalkableFloor"
+	floor_root.position = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_CENTER.x, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y, CHAPTER_ONE_HOUSE_INTERIOR_CENTER.y)
+	_mark_generated(floor_root)
+	house.add_child(floor_root)
+
+	var floor_mesh := MeshInstance3D.new()
+	floor_mesh.name = "HoneyWoodFloor"
+	var box := BoxMesh.new()
+	box.size = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.08, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y)
+	floor_mesh.mesh = box
+	var floor_mat := StandardMaterial3D.new()
+	floor_mat.albedo_color = Color(0.86, 0.63, 0.34)
+	floor_mat.roughness = 0.82
+	floor_mesh.material_override = floor_mat
+	floor_mesh.position.y = -0.04
+	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	floor_root.add_child(floor_mesh)
+
+	var plank_mat := StandardMaterial3D.new()
+	plank_mat.albedo_color = Color(0.62, 0.39, 0.19)
+	plank_mat.roughness = 0.9
+	var plank_count := 7
+	for index in range(1, plank_count):
+		var seam := MeshInstance3D.new()
+		seam.name = "FloorPlankSeam%d" % index
+		var seam_mesh := BoxMesh.new()
+		seam_mesh.size = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x - 0.22, 0.014, 0.028)
+		seam.mesh = seam_mesh
+		seam.material_override = plank_mat
+		var z := -CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * 0.5 + CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * float(index) / float(plank_count)
+		seam.position = Vector3(0.0, 0.014, z)
+		seam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		floor_root.add_child(seam)
+
+	var trim_mat := StandardMaterial3D.new()
+	trim_mat.albedo_color = Color(0.52, 0.31, 0.14)
+	trim_mat.roughness = 0.88
+	_create_floor_trim(floor_root, Vector3(0.0, 0.055, -CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * 0.5), Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.11, 0.12), trim_mat)
+	_create_floor_trim(floor_root, Vector3(0.0, 0.055, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * 0.5), Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.11, 0.12), trim_mat)
+	_create_floor_trim(floor_root, Vector3(-CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x * 0.5, 0.055, 0.0), Vector3(0.12, 0.11, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y), trim_mat)
+	_create_floor_trim(floor_root, Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x * 0.5, 0.055, 0.0), Vector3(0.12, 0.11, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y), trim_mat)
+
+	var body := StaticBody3D.new()
+	body.name = "InteriorFloorCollision"
+	floor_root.add_child(body)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.12, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y)
+	collision.shape = shape
+	collision.position.y = -0.02
+	body.add_child(collision)
+
+	_register_interior_floor_area(house, CHAPTER_ONE_HOUSE_INTERIOR_CENTER, CHAPTER_ONE_HOUSE_INTERIOR_SIZE * 0.5, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
+
+func _create_floor_trim(parent: Node3D, local_position: Vector3, size: Vector3, material: Material) -> void:
+	var trim := MeshInstance3D.new()
+	trim.name = "FloorTrim"
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	trim.mesh = mesh
+	trim.material_override = material
+	trim.position = local_position
+	trim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(trim)
+
+func _register_interior_floor_area(root: Node3D, center_local: Vector2, half_extents: Vector2, floor_y_local: float) -> void:
+	var center_world := root.global_transform * Vector3(center_local.x, floor_y_local, center_local.y)
+	_interior_floor_areas.append({
+		"center": center_world,
+		"yaw": root.rotation.y,
+		"half_extents": half_extents,
+		"floor_y": center_world.y,
+	})
 
 func _create_chapter_one_rebas() -> void:
 	var scene := load(REBAS_SCENE_PATH)
@@ -3053,6 +3135,7 @@ func _build_chapter_one_scene() -> void:
 	_typewriter_total = 0
 	_solid_blockers.clear()
 	_wind_trees.clear()
+	_interior_floor_areas.clear()
 	_clear_generated()
 	_setup_world()
 	_create_visible_sun()
@@ -3374,6 +3457,8 @@ func _add_tree_blocker(center: Vector3, radius: float, tree_index: int) -> void:
 
 func _handle_solid_bump(world_position: Vector3) -> bool:
 	var point := Vector2(world_position.x, world_position.z)
+	if _is_point_inside_interior_floor(point):
+		return false
 	for blocker in _solid_blockers:
 		var shape: String = blocker["shape"]
 		var center_3d: Vector3 = blocker["center"]
@@ -3423,10 +3508,32 @@ func _shake_nearby_tree() -> bool:
 
 func _is_blocked_by_solid(world_position: Vector3) -> bool:
 	var point := Vector2(world_position.x, world_position.z)
+	if _is_point_inside_interior_floor(point):
+		return false
 	for blocker in _solid_blockers:
 		if _is_point_inside_blocker(point, blocker):
 			return true
 	return false
+
+func _is_point_inside_interior_floor(point: Vector2) -> bool:
+	for area in _interior_floor_areas:
+		if _is_point_inside_interior_area(point, area):
+			return true
+	return false
+
+func _get_interior_floor_height(point: Vector2) -> Variant:
+	for area in _interior_floor_areas:
+		if _is_point_inside_interior_area(point, area):
+			return float(area["floor_y"])
+	return null
+
+func _is_point_inside_interior_area(point: Vector2, area: Dictionary) -> bool:
+	var center_3d: Vector3 = area["center"]
+	var center := Vector2(center_3d.x, center_3d.z)
+	var yaw: float = area["yaw"]
+	var half_extents: Vector2 = area["half_extents"]
+	var local := (point - center).rotated(-yaw)
+	return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
 
 func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
 	var shape: String = blocker["shape"]
@@ -3519,6 +3626,9 @@ func _apply_camera() -> void:
 	_camera.look_at(target, Vector3.UP)
 
 func _height_at(x: float, z: float) -> float:
+	var interior_height: Variant = _get_interior_floor_height(Vector2(x, z))
+	if interior_height != null:
+		return float(interior_height)
 	var rolling := sin(x * 0.026 + z * 0.014) * 1.35
 	var cross_slope := cos(x * 0.018 - z * 0.024 + 1.2) * 0.95
 	var meadow := sin(x * 0.056) * 0.42 + cos(z * 0.049) * 0.38
