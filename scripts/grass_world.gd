@@ -96,19 +96,6 @@ const CHAPTER_ONE_HOUSE_TARGET_LENGTH := 24.0
 const CHAPTER_ONE_REBAS_TARGET_HEIGHT := 3.15
 const CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS := 30.0
 const CHAPTER_ONE_CAMPER_POND_PADDING_RADIUS := 10.0
-const CHAPTER_ONE_HOUSE_INTERIOR_CENTER := Vector2(-1.8, -4.2)
-const CHAPTER_ONE_HOUSE_INTERIOR_SIZE := Vector2(9.2, 6.0)
-const CHAPTER_ONE_HOUSE_DOORWAY_CENTER := Vector2(-4.2, -0.35)
-const CHAPTER_ONE_HOUSE_DOORWAY_SIZE := Vector2(4.8, 2.8)
-const CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y := 0.08
-const CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER := Vector2(-4.2, 1.10)
-const CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER := Vector2(-4.2, -1.55)
-const CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN := Vector2(-4.2, 2.35)
-const CHAPTER_ONE_HOUSE_INSIDE_SPAWN := Vector2(-4.2, -2.75)
-const CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE := Vector2(5.6, 4.6)
-const CHAPTER_ONE_HOUSE_PORTAL_DELAY := 0.16
-const CHAPTER_ONE_HOUSE_PORTAL_COOLDOWN := 0.65
-const CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME := 0.18
 const INVENTORY_HAND_SLOT := 0
 const INVENTORY_HOE_SLOT := 1
 const INVENTORY_SEED_SLOT := 2
@@ -160,15 +147,6 @@ var _player_visual: Node3D
 var _camper: Node3D
 var _camper_model: Node3D
 var _camper_is_highlighted := false
-var _chapter_one_house: Node3D
-var _chapter_one_house_model: Node3D
-var _inside_chapter_one_house := false
-var _house_portal_transitioning := false
-var _house_portal_cooldown := 0.0
-var _house_portal_dwell := 0.0
-var _house_portal_last_player_position := Vector3.ZERO
-var _outside_camera_orbit := Vector2.ZERO
-var _outside_camera_zoom := 0.0
 var _mom: Node3D
 var _mom_model: Node3D
 var _mom_exclamation: Label3D
@@ -243,7 +221,6 @@ var _typewriter_total := 0
 var _solid_blockers: Array[Dictionary] = []
 var _wind_trees: Array[Dictionary] = []
 var _active_ponds: Array = []
-var _interior_floor_areas: Array[Dictionary] = []
 var _orbit := Vector2(0.0, 0.42)
 var _zoom := 15.0
 var _editor_rebuild_queued := false
@@ -267,15 +244,6 @@ func _rebuild_scene() -> void:
 	_camper = null
 	_camper_model = null
 	_map_camper_model = null
-	_chapter_one_house = null
-	_chapter_one_house_model = null
-	_inside_chapter_one_house = false
-	_house_portal_transitioning = false
-	_house_portal_cooldown = 0.0
-	_house_portal_dwell = 0.0
-	_house_portal_last_player_position = Vector3.ZERO
-	_outside_camera_orbit = Vector2.ZERO
-	_outside_camera_zoom = 0.0
 	_mom = null
 	_mom_model = null
 	_mom_exclamation = null
@@ -315,7 +283,6 @@ func _rebuild_scene() -> void:
 	_typewriter_total = 0
 	_solid_blockers.clear()
 	_wind_trees.clear()
-	_interior_floor_areas.clear()
 	_clear_generated()
 	_setup_world()
 	_create_visible_sun()
@@ -336,7 +303,7 @@ func _rebuild_scene() -> void:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-	if _chapter_transitioning or _house_portal_transitioning:
+	if _chapter_transitioning:
 		return
 	if _reward_overlay != null and _reward_overlay.visible:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -345,7 +312,6 @@ func _process(delta: float) -> void:
 	_update_inventory_press(delta)
 	_update_tree_wind(delta)
 	_update_grass_player_push()
-	_update_chapter_one_house_portal(delta)
 	_update_mom_interaction()
 	_refresh_interaction_prompt_text()
 	if _dialogue_open:
@@ -1300,7 +1266,6 @@ func _create_chapter_one_village_house() -> void:
 	house.name = "ChapterOneVillageHouse"
 	house.position = Vector3(CHAPTER_ONE_HOUSE_POSITION.x, _height_at(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z), CHAPTER_ONE_HOUSE_POSITION.z)
 	house.rotation.y = deg_to_rad(CHAPTER_ONE_HOUSE_YAW)
-	_chapter_one_house = house
 	_mark_generated(house)
 	add_child(house)
 
@@ -1308,225 +1273,11 @@ func _create_chapter_one_village_house() -> void:
 	if model == null:
 		return
 	model.name = "VillageHouseModel"
-	_chapter_one_house_model = model
 	house.add_child(model)
 	_fit_model_to_footprint_length(model, CHAPTER_ONE_HOUSE_TARGET_LENGTH)
 	_ground_model(model)
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_model_box_blocker(house, model, Vector2.ZERO, 0.56)
-	_create_chapter_one_house_interior_floor(house)
-
-func _create_chapter_one_house_interior_floor(house: Node3D) -> void:
-	var floor_root := Node3D.new()
-	floor_root.name = "InteriorWalkableFloor"
-	floor_root.position = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_CENTER.x, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y, CHAPTER_ONE_HOUSE_INTERIOR_CENTER.y)
-	_mark_generated(floor_root)
-	house.add_child(floor_root)
-
-	var floor_mesh := MeshInstance3D.new()
-	floor_mesh.name = "HoneyWoodFloor"
-	var box := BoxMesh.new()
-	box.size = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.08, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y)
-	floor_mesh.mesh = box
-	var floor_mat := StandardMaterial3D.new()
-	floor_mat.albedo_color = Color(0.86, 0.63, 0.34)
-	floor_mat.roughness = 0.82
-	floor_mesh.material_override = floor_mat
-	floor_mesh.position.y = -0.04
-	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	floor_root.add_child(floor_mesh)
-
-	var threshold := MeshInstance3D.new()
-	threshold.name = "DoorwayThreshold"
-	var threshold_mesh := BoxMesh.new()
-	threshold_mesh.size = Vector3(CHAPTER_ONE_HOUSE_DOORWAY_SIZE.x, 0.075, CHAPTER_ONE_HOUSE_DOORWAY_SIZE.y)
-	threshold.mesh = threshold_mesh
-	threshold.material_override = floor_mat
-	threshold.position = Vector3(
-		CHAPTER_ONE_HOUSE_DOORWAY_CENTER.x - CHAPTER_ONE_HOUSE_INTERIOR_CENTER.x,
-		-0.035,
-		CHAPTER_ONE_HOUSE_DOORWAY_CENTER.y - CHAPTER_ONE_HOUSE_INTERIOR_CENTER.y
-	)
-	threshold.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	floor_root.add_child(threshold)
-
-	var plank_mat := StandardMaterial3D.new()
-	plank_mat.albedo_color = Color(0.62, 0.39, 0.19)
-	plank_mat.roughness = 0.9
-	var plank_count := 7
-	for index in range(1, plank_count):
-		var seam := MeshInstance3D.new()
-		seam.name = "FloorPlankSeam%d" % index
-		var seam_mesh := BoxMesh.new()
-		seam_mesh.size = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x - 0.22, 0.014, 0.028)
-		seam.mesh = seam_mesh
-		seam.material_override = plank_mat
-		var z := -CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * 0.5 + CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * float(index) / float(plank_count)
-		seam.position = Vector3(0.0, 0.014, z)
-		seam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		floor_root.add_child(seam)
-
-	var trim_mat := StandardMaterial3D.new()
-	trim_mat.albedo_color = Color(0.52, 0.31, 0.14)
-	trim_mat.roughness = 0.88
-	_create_floor_trim(floor_root, Vector3(0.0, 0.055, -CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * 0.5), Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.11, 0.12), trim_mat)
-	_create_floor_trim(floor_root, Vector3(0.0, 0.055, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y * 0.5), Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.11, 0.12), trim_mat)
-	_create_floor_trim(floor_root, Vector3(-CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x * 0.5, 0.055, 0.0), Vector3(0.12, 0.11, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y), trim_mat)
-	_create_floor_trim(floor_root, Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x * 0.5, 0.055, 0.0), Vector3(0.12, 0.11, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y), trim_mat)
-
-	var body := StaticBody3D.new()
-	body.name = "InteriorFloorCollision"
-	floor_root.add_child(body)
-	var collision := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(CHAPTER_ONE_HOUSE_INTERIOR_SIZE.x, 0.12, CHAPTER_ONE_HOUSE_INTERIOR_SIZE.y)
-	collision.shape = shape
-	collision.position.y = -0.02
-	body.add_child(collision)
-
-	_register_interior_floor_area(house, CHAPTER_ONE_HOUSE_INTERIOR_CENTER, CHAPTER_ONE_HOUSE_INTERIOR_SIZE * 0.5, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
-	_register_interior_floor_area(house, CHAPTER_ONE_HOUSE_DOORWAY_CENTER, CHAPTER_ONE_HOUSE_DOORWAY_SIZE * 0.5, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
-	_clear_grass_in_interior_floor_areas()
-
-func _create_floor_trim(parent: Node3D, local_position: Vector3, size: Vector3, material: Material) -> void:
-	var trim := MeshInstance3D.new()
-	trim.name = "FloorTrim"
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	trim.mesh = mesh
-	trim.material_override = material
-	trim.position = local_position
-	trim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(trim)
-
-func _register_interior_floor_area(root: Node3D, center_local: Vector2, half_extents: Vector2, floor_y_local: float) -> void:
-	var center_world := root.global_transform * Vector3(center_local.x, floor_y_local, center_local.y)
-	_interior_floor_areas.append({
-		"center": center_world,
-		"yaw": root.rotation.y,
-		"half_extents": half_extents,
-		"floor_y": center_world.y,
-	})
-
-func _update_chapter_one_house_portal(delta: float) -> void:
-	if not _chapter_one_active or _player == null or _chapter_one_house == null:
-		return
-	if _house_portal_cooldown > 0.0:
-		_house_portal_cooldown = maxf(_house_portal_cooldown - delta, 0.0)
-	var player_position := _player.global_position
-	_house_portal_last_player_position = player_position
-	if _house_portal_cooldown > 0.0 or _dialogue_open or _map_open:
-		_house_portal_dwell = 0.0
-		return
-
-	var trigger_center := CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER if _inside_chapter_one_house else CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER
-	if not _is_player_inside_house_portal_area(player_position, trigger_center):
-		_house_portal_dwell = 0.0
-		return
-
-	_house_portal_dwell += delta
-	if _house_portal_dwell >= CHAPTER_ONE_HOUSE_PORTAL_DELAY:
-		_start_chapter_one_house_portal_transition(not _inside_chapter_one_house)
-
-func _is_player_inside_house_portal_area(player_position: Vector3, center_local: Vector2) -> bool:
-	var center := _house_local_to_world(center_local, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
-	var point := Vector2(player_position.x, player_position.z)
-	var local := (point - Vector2(center.x, center.z)).rotated(_chapter_one_house.rotation.y)
-	var half_extents := CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE * 0.5
-	return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
-
-func _get_house_portal_direction(entering: bool) -> Vector3:
-	var from_point := CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN if entering else CHAPTER_ONE_HOUSE_INSIDE_SPAWN
-	var to_point := CHAPTER_ONE_HOUSE_INSIDE_SPAWN if entering else CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN
-	var from_world := _house_local_to_world(from_point, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
-	var to_world := _house_local_to_world(to_point, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
-	var direction := to_world - from_world
-	direction.y = 0.0
-	if direction.length_squared() <= 0.0001:
-		return Vector3.FORWARD
-	return direction.normalized()
-
-func _house_local_to_world(local_point: Vector2, floor_y: float) -> Vector3:
-	if _chapter_one_house == null:
-		return Vector3(local_point.x, floor_y, local_point.y)
-	return _chapter_one_house.global_transform * Vector3(local_point.x, floor_y, local_point.y)
-
-func _start_chapter_one_house_portal_transition(entering: bool) -> void:
-	if _house_portal_transitioning:
-		return
-	_house_portal_transitioning = true
-	_house_portal_dwell = 0.0
-	call_deferred("_run_chapter_one_house_portal_transition", entering)
-
-func _run_chapter_one_house_portal_transition(entering: bool) -> void:
-	if _player == null:
-		_house_portal_transitioning = false
-		return
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	var transition_layer := CanvasLayer.new()
-	transition_layer.name = "HousePortalFade"
-	transition_layer.layer = 120
-	add_child(transition_layer)
-
-	var overlay := ColorRect.new()
-	overlay.color = Color(0.0, 0.0, 0.0, 0.0)
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	transition_layer.add_child(overlay)
-
-	var fade_out := create_tween()
-	fade_out.tween_property(overlay, "color:a", 1.0, CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME)
-	await fade_out.finished
-
-	if entering:
-		_outside_camera_orbit = _orbit
-		_outside_camera_zoom = _zoom
-		_inside_chapter_one_house = true
-		_set_chapter_one_house_shell_visible(false)
-		_player.global_position = _house_local_to_world(CHAPTER_ONE_HOUSE_INSIDE_SPAWN, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y) + Vector3(0.0, 0.04, 0.0)
-		_orbit = Vector2(_chapter_one_house.rotation.y + PI, 0.62)
-		_zoom = 9.2
-	else:
-		_inside_chapter_one_house = false
-		_set_chapter_one_house_shell_visible(true)
-		_player.global_position = _house_local_to_world(CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y) + Vector3(0.0, 0.04, 0.0)
-		if _outside_camera_zoom > 0.0:
-			_orbit = _outside_camera_orbit
-			_zoom = _outside_camera_zoom
-	_apply_camera()
-	_house_portal_last_player_position = _player.global_position
-	_house_portal_cooldown = CHAPTER_ONE_HOUSE_PORTAL_COOLDOWN
-
-	var fade_in := create_tween()
-	fade_in.tween_property(overlay, "color:a", 0.0, CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME)
-	await fade_in.finished
-
-	transition_layer.queue_free()
-	_house_portal_transitioning = false
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-
-func _set_chapter_one_house_shell_visible(visible: bool) -> void:
-	if _chapter_one_house_model != null and is_instance_valid(_chapter_one_house_model):
-		_chapter_one_house_model.visible = visible
-
-func _clear_grass_in_interior_floor_areas() -> void:
-	if _grass_multimesh == null:
-		return
-	for area in _interior_floor_areas:
-		_clear_grass_in_interior_area(area)
-
-func _clear_grass_in_interior_area(area: Dictionary) -> void:
-	var center_3d: Vector3 = area["center"]
-	var center := Vector2(center_3d.x, center_3d.z)
-	var yaw: float = area["yaw"]
-	var half_extents: Vector2 = area["half_extents"]
-	for index in range(_grass_multimesh.instance_count):
-		var transform := _grass_multimesh.get_instance_transform(index)
-		var origin := transform.origin
-		var local := (Vector2(origin.x, origin.z) - center).rotated(yaw)
-		if absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y:
-			transform.basis = transform.basis.scaled(Vector3.ZERO)
-			_grass_multimesh.set_instance_transform(index, transform)
-
 func _create_chapter_one_rebas() -> void:
 	var scene := load(REBAS_SCENE_PATH)
 	if not scene is PackedScene:
@@ -3268,15 +3019,6 @@ func _build_chapter_one_scene() -> void:
 	_camper = null
 	_camper_model = null
 	_map_camper_model = null
-	_chapter_one_house = null
-	_chapter_one_house_model = null
-	_inside_chapter_one_house = false
-	_house_portal_transitioning = false
-	_house_portal_cooldown = 0.0
-	_house_portal_dwell = 0.0
-	_house_portal_last_player_position = Vector3.ZERO
-	_outside_camera_orbit = Vector2.ZERO
-	_outside_camera_zoom = 0.0
 	_mom = null
 	_mom_model = null
 	_mom_exclamation = null
@@ -3312,7 +3054,6 @@ func _build_chapter_one_scene() -> void:
 	_typewriter_total = 0
 	_solid_blockers.clear()
 	_wind_trees.clear()
-	_interior_floor_areas.clear()
 	_clear_generated()
 	_setup_world()
 	_create_visible_sun()
@@ -3527,7 +3268,7 @@ func _is_map_open() -> bool:
 	return _map_open
 
 func _is_chapter_transitioning() -> bool:
-	return _chapter_transitioning or _house_portal_transitioning
+	return _chapter_transitioning
 
 func _fit_model_to_height(model: Node3D, target_height: float) -> void:
 	var bounds := _get_model_bounds(model)
@@ -3634,8 +3375,6 @@ func _add_tree_blocker(center: Vector3, radius: float, tree_index: int) -> void:
 
 func _handle_solid_bump(world_position: Vector3) -> bool:
 	var point := Vector2(world_position.x, world_position.z)
-	if _is_point_inside_interior_floor(point):
-		return false
 	for blocker in _solid_blockers:
 		var shape: String = blocker["shape"]
 		var center_3d: Vector3 = blocker["center"]
@@ -3685,32 +3424,10 @@ func _shake_nearby_tree() -> bool:
 
 func _is_blocked_by_solid(world_position: Vector3) -> bool:
 	var point := Vector2(world_position.x, world_position.z)
-	if _is_point_inside_interior_floor(point):
-		return false
 	for blocker in _solid_blockers:
 		if _is_point_inside_blocker(point, blocker):
 			return true
 	return false
-
-func _is_point_inside_interior_floor(point: Vector2) -> bool:
-	for area in _interior_floor_areas:
-		if _is_point_inside_interior_area(point, area):
-			return true
-	return false
-
-func _get_interior_floor_height(point: Vector2) -> Variant:
-	for area in _interior_floor_areas:
-		if _is_point_inside_interior_area(point, area):
-			return float(area["floor_y"])
-	return null
-
-func _is_point_inside_interior_area(point: Vector2, area: Dictionary) -> bool:
-	var center_3d: Vector3 = area["center"]
-	var center := Vector2(center_3d.x, center_3d.z)
-	var yaw: float = area["yaw"]
-	var half_extents: Vector2 = area["half_extents"]
-	var local := (point - center).rotated(yaw)
-	return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
 
 func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
 	var shape: String = blocker["shape"]
@@ -3803,9 +3520,6 @@ func _apply_camera() -> void:
 	_camera.look_at(target, Vector3.UP)
 
 func _height_at(x: float, z: float) -> float:
-	var interior_height: Variant = _get_interior_floor_height(Vector2(x, z))
-	if interior_height != null:
-		return float(interior_height)
 	var rolling := sin(x * 0.026 + z * 0.014) * 1.35
 	var cross_slope := cos(x * 0.018 - z * 0.024 + 1.2) * 0.95
 	var meadow := sin(x * 0.056) * 0.42 + cos(z * 0.049) * 0.38
