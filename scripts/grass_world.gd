@@ -101,6 +101,14 @@ const CHAPTER_ONE_HOUSE_INTERIOR_SIZE := Vector2(9.2, 6.0)
 const CHAPTER_ONE_HOUSE_DOORWAY_CENTER := Vector2(-4.2, -0.35)
 const CHAPTER_ONE_HOUSE_DOORWAY_SIZE := Vector2(4.8, 2.8)
 const CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y := 0.08
+const CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER := Vector2(-4.2, 1.25)
+const CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER := Vector2(-4.2, -1.45)
+const CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN := Vector2(-4.2, 2.35)
+const CHAPTER_ONE_HOUSE_INSIDE_SPAWN := Vector2(-4.2, -2.75)
+const CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE := Vector2(4.7, 2.1)
+const CHAPTER_ONE_HOUSE_PORTAL_DELAY := 0.16
+const CHAPTER_ONE_HOUSE_PORTAL_COOLDOWN := 0.65
+const CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME := 0.18
 const INVENTORY_HAND_SLOT := 0
 const INVENTORY_HOE_SLOT := 1
 const INVENTORY_SEED_SLOT := 2
@@ -152,6 +160,15 @@ var _player_visual: Node3D
 var _camper: Node3D
 var _camper_model: Node3D
 var _camper_is_highlighted := false
+var _chapter_one_house: Node3D
+var _chapter_one_house_model: Node3D
+var _inside_chapter_one_house := false
+var _house_portal_transitioning := false
+var _house_portal_cooldown := 0.0
+var _house_portal_dwell := 0.0
+var _house_portal_last_player_position := Vector3.ZERO
+var _outside_camera_orbit := Vector2.ZERO
+var _outside_camera_zoom := 0.0
 var _mom: Node3D
 var _mom_model: Node3D
 var _mom_exclamation: Label3D
@@ -250,6 +267,15 @@ func _rebuild_scene() -> void:
 	_camper = null
 	_camper_model = null
 	_map_camper_model = null
+	_chapter_one_house = null
+	_chapter_one_house_model = null
+	_inside_chapter_one_house = false
+	_house_portal_transitioning = false
+	_house_portal_cooldown = 0.0
+	_house_portal_dwell = 0.0
+	_house_portal_last_player_position = Vector3.ZERO
+	_outside_camera_orbit = Vector2.ZERO
+	_outside_camera_zoom = 0.0
 	_mom = null
 	_mom_model = null
 	_mom_exclamation = null
@@ -310,7 +336,7 @@ func _rebuild_scene() -> void:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-	if _chapter_transitioning:
+	if _chapter_transitioning or _house_portal_transitioning:
 		return
 	if _reward_overlay != null and _reward_overlay.visible:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -319,6 +345,7 @@ func _process(delta: float) -> void:
 	_update_inventory_press(delta)
 	_update_tree_wind(delta)
 	_update_grass_player_push()
+	_update_chapter_one_house_portal(delta)
 	_update_mom_interaction()
 	_refresh_interaction_prompt_text()
 	if _dialogue_open:
@@ -1239,6 +1266,7 @@ func _create_player() -> void:
 	if _player == null:
 		return
 	_player.name = "Player"
+	_player.add_to_group("player")
 	_player.position = Vector3(PLAYER_START.x, _height_at(PLAYER_START.x, PLAYER_START.z) + 0.04, PLAYER_START.z)
 	_mark_generated(_player)
 	add_child(_player)
@@ -1253,6 +1281,7 @@ func _create_chapter_one_player() -> void:
 	if _player == null:
 		return
 	_player.name = "Player"
+	_player.add_to_group("player")
 	_player.position = Vector3(CHAPTER_ONE_PLAYER_START.x, _height_at(CHAPTER_ONE_PLAYER_START.x, CHAPTER_ONE_PLAYER_START.z) + 0.04, CHAPTER_ONE_PLAYER_START.z)
 	_player.rotation.y = 0.0
 	var visual_root := _player.get_node_or_null("VisualRoot") as Node3D
@@ -1271,6 +1300,7 @@ func _create_chapter_one_village_house() -> void:
 	house.name = "ChapterOneVillageHouse"
 	house.position = Vector3(CHAPTER_ONE_HOUSE_POSITION.x, _height_at(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z), CHAPTER_ONE_HOUSE_POSITION.z)
 	house.rotation.y = deg_to_rad(CHAPTER_ONE_HOUSE_YAW)
+	_chapter_one_house = house
 	_mark_generated(house)
 	add_child(house)
 
@@ -1278,6 +1308,7 @@ func _create_chapter_one_village_house() -> void:
 	if model == null:
 		return
 	model.name = "VillageHouseModel"
+	_chapter_one_house_model = model
 	house.add_child(model)
 	_fit_model_to_footprint_length(model, CHAPTER_ONE_HOUSE_TARGET_LENGTH)
 	_ground_model(model)
@@ -1355,6 +1386,7 @@ func _create_chapter_one_house_interior_floor(house: Node3D) -> void:
 
 	_register_interior_floor_area(house, CHAPTER_ONE_HOUSE_INTERIOR_CENTER, CHAPTER_ONE_HOUSE_INTERIOR_SIZE * 0.5, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
 	_register_interior_floor_area(house, CHAPTER_ONE_HOUSE_DOORWAY_CENTER, CHAPTER_ONE_HOUSE_DOORWAY_SIZE * 0.5, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
+	_clear_grass_in_interior_floor_areas()
 
 func _create_floor_trim(parent: Node3D, local_position: Vector3, size: Vector3, material: Material) -> void:
 	var trim := MeshInstance3D.new()
@@ -1375,6 +1407,133 @@ func _register_interior_floor_area(root: Node3D, center_local: Vector2, half_ext
 		"half_extents": half_extents,
 		"floor_y": center_world.y,
 	})
+
+func _update_chapter_one_house_portal(delta: float) -> void:
+	if not _chapter_one_active or _player == null or _chapter_one_house == null:
+		return
+	if _house_portal_cooldown > 0.0:
+		_house_portal_cooldown = maxf(_house_portal_cooldown - delta, 0.0)
+	var player_position := _player.global_position
+	var movement := player_position - _house_portal_last_player_position
+	_house_portal_last_player_position = player_position
+	if _house_portal_cooldown > 0.0 or _dialogue_open or _map_open:
+		_house_portal_dwell = 0.0
+		return
+
+	var trigger_center := CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER if _inside_chapter_one_house else CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER
+	if not _is_player_inside_house_portal_area(player_position, trigger_center):
+		_house_portal_dwell = 0.0
+		return
+
+	var desired_direction := _get_house_portal_direction(not _inside_chapter_one_house)
+	if movement.length_squared() > 0.0004:
+		movement.y = 0.0
+		movement = movement.normalized()
+		if movement.dot(desired_direction) < 0.12:
+			_house_portal_dwell = 0.0
+			return
+	_house_portal_dwell += delta
+	if _house_portal_dwell >= CHAPTER_ONE_HOUSE_PORTAL_DELAY:
+		_start_chapter_one_house_portal_transition(not _inside_chapter_one_house)
+
+func _is_player_inside_house_portal_area(player_position: Vector3, center_local: Vector2) -> bool:
+	var center := _house_local_to_world(center_local, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
+	var point := Vector2(player_position.x, player_position.z)
+	var local := (point - Vector2(center.x, center.z)).rotated(-_chapter_one_house.rotation.y)
+	var half_extents := CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE * 0.5
+	return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
+
+func _get_house_portal_direction(entering: bool) -> Vector3:
+	var from_point := CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN if entering else CHAPTER_ONE_HOUSE_INSIDE_SPAWN
+	var to_point := CHAPTER_ONE_HOUSE_INSIDE_SPAWN if entering else CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN
+	var from_world := _house_local_to_world(from_point, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
+	var to_world := _house_local_to_world(to_point, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
+	var direction := to_world - from_world
+	direction.y = 0.0
+	if direction.length_squared() <= 0.0001:
+		return Vector3.FORWARD
+	return direction.normalized()
+
+func _house_local_to_world(local_point: Vector2, floor_y: float) -> Vector3:
+	if _chapter_one_house == null:
+		return Vector3(local_point.x, floor_y, local_point.y)
+	return _chapter_one_house.global_transform * Vector3(local_point.x, floor_y, local_point.y)
+
+func _start_chapter_one_house_portal_transition(entering: bool) -> void:
+	if _house_portal_transitioning:
+		return
+	_house_portal_transitioning = true
+	_house_portal_dwell = 0.0
+	call_deferred("_run_chapter_one_house_portal_transition", entering)
+
+func _run_chapter_one_house_portal_transition(entering: bool) -> void:
+	if _player == null:
+		_house_portal_transitioning = false
+		return
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	var transition_layer := CanvasLayer.new()
+	transition_layer.name = "HousePortalFade"
+	transition_layer.layer = 120
+	add_child(transition_layer)
+
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.0, 0.0, 0.0, 0.0)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	transition_layer.add_child(overlay)
+
+	var fade_out := create_tween()
+	fade_out.tween_property(overlay, "color:a", 1.0, CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME)
+	await fade_out.finished
+
+	if entering:
+		_outside_camera_orbit = _orbit
+		_outside_camera_zoom = _zoom
+		_inside_chapter_one_house = true
+		_set_chapter_one_house_shell_visible(false)
+		_player.global_position = _house_local_to_world(CHAPTER_ONE_HOUSE_INSIDE_SPAWN, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y) + Vector3(0.0, 0.04, 0.0)
+		_orbit = Vector2(_chapter_one_house.rotation.y + PI, 0.62)
+		_zoom = 9.2
+	else:
+		_inside_chapter_one_house = false
+		_set_chapter_one_house_shell_visible(true)
+		_player.global_position = _house_local_to_world(CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y) + Vector3(0.0, 0.04, 0.0)
+		if _outside_camera_zoom > 0.0:
+			_orbit = _outside_camera_orbit
+			_zoom = _outside_camera_zoom
+	_apply_camera()
+	_house_portal_last_player_position = _player.global_position
+	_house_portal_cooldown = CHAPTER_ONE_HOUSE_PORTAL_COOLDOWN
+
+	var fade_in := create_tween()
+	fade_in.tween_property(overlay, "color:a", 0.0, CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME)
+	await fade_in.finished
+
+	transition_layer.queue_free()
+	_house_portal_transitioning = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _set_chapter_one_house_shell_visible(visible: bool) -> void:
+	if _chapter_one_house_model != null and is_instance_valid(_chapter_one_house_model):
+		_chapter_one_house_model.visible = visible
+
+func _clear_grass_in_interior_floor_areas() -> void:
+	if _grass_multimesh == null:
+		return
+	for area in _interior_floor_areas:
+		_clear_grass_in_interior_area(area)
+
+func _clear_grass_in_interior_area(area: Dictionary) -> void:
+	var center_3d: Vector3 = area["center"]
+	var center := Vector2(center_3d.x, center_3d.z)
+	var yaw: float = area["yaw"]
+	var half_extents: Vector2 = area["half_extents"]
+	for index in range(_grass_multimesh.instance_count):
+		var transform := _grass_multimesh.get_instance_transform(index)
+		var origin := transform.origin
+		var local := (Vector2(origin.x, origin.z) - center).rotated(-yaw)
+		if absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y:
+			transform.basis = transform.basis.scaled(Vector3.ZERO)
+			_grass_multimesh.set_instance_transform(index, transform)
 
 func _create_chapter_one_rebas() -> void:
 	var scene := load(REBAS_SCENE_PATH)
@@ -3117,6 +3276,15 @@ func _build_chapter_one_scene() -> void:
 	_camper = null
 	_camper_model = null
 	_map_camper_model = null
+	_chapter_one_house = null
+	_chapter_one_house_model = null
+	_inside_chapter_one_house = false
+	_house_portal_transitioning = false
+	_house_portal_cooldown = 0.0
+	_house_portal_dwell = 0.0
+	_house_portal_last_player_position = Vector3.ZERO
+	_outside_camera_orbit = Vector2.ZERO
+	_outside_camera_zoom = 0.0
 	_mom = null
 	_mom_model = null
 	_mom_exclamation = null
@@ -3367,7 +3535,7 @@ func _is_map_open() -> bool:
 	return _map_open
 
 func _is_chapter_transitioning() -> bool:
-	return _chapter_transitioning
+	return _chapter_transitioning or _house_portal_transitioning
 
 func _fit_model_to_height(model: Node3D, target_height: float) -> void:
 	var bounds := _get_model_bounds(model)
