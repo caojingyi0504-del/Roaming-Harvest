@@ -37,6 +37,7 @@ const REBAS_SCENE_PATH := "res://3d建模/瑞巴斯坎特/edc69c0683555e5c1d2445
 const VILLAGE_HOUSE_SCENE_PATH := "res://3d建模/村里房子/311d8c4383612ac907ea5d625b074aaa.glb"
 const TREE_SCENE_PATH := "res://3d建模/树/2f5d6b66e5b0fbbf4c7b1bede79477f5.glb"
 const HOE_SCENE_PATH := "res://3d建模/工具/锄头.glb"
+const WATERING_CAN_SCENE_PATH := "res://3d建模/工具/水壶.glb"
 const MOM_PORTRAIT_PATH := "res://聊天框/安提莉尔.png"
 const PLAYER_PORTRAIT_PATH := "res://聊天框/我.png"
 const DIALOGUE_BOX_PATH := "res://聊天框/聊天框.png"
@@ -73,6 +74,7 @@ const MAP_CAMPER_SPEED := 0.24
 const MAP_CAMPER_RIGHT_FACING_YAW := PI
 const MAP_CAMPER_YAW_OFFSET := MAP_CAMPER_RIGHT_FACING_YAW - PI * 0.5
 const DIALOGUE_CHARS_PER_SECOND := 28.0
+const MOM_NAME := "安提莉尔"
 const TREE_BLOCKER_RADIUS := 1.05
 const TREE_CLICK_SHAKE_RADIUS := 1.25
 const TREE_SHAKE_DURATION := 0.42
@@ -93,6 +95,10 @@ const CHAPTER_ONE_HOUSE_TARGET_LENGTH := 24.0
 const CHAPTER_ONE_REBAS_TARGET_HEIGHT := 3.15
 const CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS := 30.0
 const CHAPTER_ONE_CAMPER_POND_PADDING_RADIUS := 10.0
+const INVENTORY_HAND_SLOT := 0
+const INVENTORY_HOE_SLOT := 1
+const INVENTORY_SEED_SLOT := 2
+const INVENTORY_WATERING_CAN_SLOT := 3
 const VISIBLE_SUN_POSITION := Vector3(-30.0, 42.0, 86.0)
 const PONDS := [
 	{
@@ -181,7 +187,11 @@ var _map_dragging := false
 var _map_drag_start := Vector2.ZERO
 var _map_drag_vector := Vector2.ZERO
 var _has_hoe := false
+var _has_watering_can := false
+var _seed_count := 0
 var _hoe_tutorial_active := false
+var _return_to_mom_prompt_active := false
+var _starter_kit_collected := false
 var _notification_time := 0.0
 var _notification_text := ""
 var _tilled_soil_root: Node3D
@@ -229,7 +239,11 @@ func _rebuild_scene() -> void:
 	_map_dragging = false
 	_map_drag_vector = Vector2.ZERO
 	_has_hoe = false
+	_has_watering_can = false
+	_seed_count = 0
 	_hoe_tutorial_active = false
+	_return_to_mom_prompt_active = false
+	_starter_kit_collected = false
 	_selected_inventory_slot = 0
 	_reward_overlay = null
 	_reward_panel = null
@@ -1526,7 +1540,7 @@ func _create_inventory_bar(root: Control) -> void:
 	_inventory_slots.clear()
 	_inventory_bar = HBoxContainer.new()
 	_inventory_bar.name = "InventoryBar"
-	_inventory_bar.visible = _has_hoe
+	_inventory_bar.visible = _has_inventory_items()
 	_inventory_bar.anchor_left = 0.5
 	_inventory_bar.anchor_top = 1.0
 	_inventory_bar.anchor_right = 0.5
@@ -1562,7 +1576,7 @@ func _create_inventory_bar(root: Control) -> void:
 func _update_inventory_bar() -> void:
 	if _inventory_bar == null:
 		return
-	_inventory_bar.visible = _has_hoe
+	_inventory_bar.visible = _has_inventory_items()
 	for index in range(_inventory_slots.size()):
 		var slot := _inventory_slots[index]
 		var locked := index >= 5
@@ -1576,21 +1590,56 @@ func _update_inventory_bar() -> void:
 		var label := slot.get_node_or_null("SlotLabel") as Label
 		if label == null:
 			continue
-		var icon := slot.get_node_or_null("HoeIcon") as TextureRect
-		if index == 0 and _has_hoe:
+		var hoe_icon := slot.get_node_or_null("HoeIcon") as TextureRect
+		var watering_can_icon := slot.get_node_or_null("WateringCanIcon") as TextureRect
+		var hand_icon := slot.get_node_or_null("HandIcon") as Label
+		if hoe_icon != null:
+			hoe_icon.visible = false
+		if watering_can_icon != null:
+			watering_can_icon.visible = false
+		if hand_icon != null:
+			hand_icon.visible = false
+		if index == INVENTORY_HAND_SLOT and _has_inventory_items():
 			label.text = ""
-			if icon == null:
-				icon = _create_hoe_inventory_icon(slot)
-			if icon != null:
-				icon.visible = true
+			if hand_icon == null:
+				hand_icon = _create_hand_inventory_icon(slot)
+			if hand_icon != null:
+				hand_icon.visible = true
+		elif index == INVENTORY_HOE_SLOT and _has_hoe:
+			label.text = ""
+			if hoe_icon == null:
+				hoe_icon = _create_hoe_inventory_icon(slot)
+			if hoe_icon != null:
+				hoe_icon.visible = true
+		elif index == INVENTORY_SEED_SLOT and _seed_count > 0:
+			label.text = "种子\nx%d" % _seed_count
+		elif index == INVENTORY_WATERING_CAN_SLOT and _has_watering_can:
+			label.text = ""
+			if watering_can_icon == null:
+				watering_can_icon = _create_watering_can_inventory_icon(slot)
+			if watering_can_icon != null:
+				watering_can_icon.visible = true
 		elif index >= 5:
-			if icon != null:
-				icon.visible = false
 			label.text = "锁"
 		else:
-			if icon != null:
-				icon.visible = false
 			label.text = ""
+
+func _has_inventory_items() -> bool:
+	return _has_hoe or _has_watering_can or _seed_count > 0
+
+func _create_hand_inventory_icon(slot: PanelContainer) -> Label:
+	var icon := Label.new()
+	icon.name = "HandIcon"
+	icon.text = "↖"
+	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	icon.add_theme_font_size_override("font_size", 34)
+	icon.add_theme_color_override("font_color", Color(0.28, 0.20, 0.10))
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	slot.add_child(icon)
+	slot.move_child(icon, 0)
+	return icon
 
 func _create_hoe_inventory_icon(slot: PanelContainer) -> TextureRect:
 	var icon := TextureRect.new()
@@ -1608,22 +1657,37 @@ func _create_hoe_inventory_icon(slot: PanelContainer) -> TextureRect:
 	_setup_hoe_preview_viewport(icon, Vector2i(320, 320), false)
 	return icon
 
+func _create_watering_can_inventory_icon(slot: PanelContainer) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.name = "WateringCanIcon"
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = -5.0
+	icon.offset_top = -5.0
+	icon.offset_right = 5.0
+	icon.offset_bottom = 5.0
+	slot.add_child(icon)
+	slot.move_child(icon, 0)
+	_setup_watering_can_preview_viewport(icon, Vector2i(320, 320), false)
+	return icon
+
 func _on_inventory_slot_gui_input(event: InputEvent, slot_index: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if slot_index < 5:
 			_selected_inventory_slot = slot_index
 			_update_inventory_bar()
-			_try_use_selected_tool()
 		get_viewport().set_input_as_handled()
 
 func _select_inventory_delta(delta: int) -> void:
-	if not _has_hoe:
+	if not _has_inventory_items():
 		return
 	_selected_inventory_slot = wrapi(_selected_inventory_slot + delta, 0, 5)
 	_update_inventory_bar()
 
 func _try_use_selected_tool() -> bool:
-	if not _has_hoe or _selected_inventory_slot != 0 or _dialogue_open or _map_open or _hoe_swinging:
+	if not _has_hoe or _selected_inventory_slot != INVENTORY_HOE_SLOT or _dialogue_open or _map_open or _hoe_swinging:
 		return false
 	_till_soil_in_front_of_player()
 	return true
@@ -1649,14 +1713,76 @@ func _till_soil_in_front_of_player() -> void:
 		if existing.distance_squared_to(center_2d) <= 0.25:
 			return
 	_tilled_soil_centers.append(center_2d)
-	_hoe_tutorial_active = false
-	if _notification_text == "按 F 或鼠标点击  锄一块地":
+	if _hoe_tutorial_active:
+		_hoe_tutorial_active = false
+		_return_to_mom_prompt_active = true
 		_notification_time = 0.0
 		_notification_text = ""
 		if _interaction_prompt != null:
 			_interaction_prompt.visible = false
+		_show_good_job_feedback()
 	var impact_timer := get_tree().create_timer(0.16)
 	impact_timer.timeout.connect(_create_soil_patch.bind(center))
+
+func _show_good_job_feedback() -> void:
+	if _hud_root == null:
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "GoodJobLayer"
+	_mark_generated(layer)
+	add_child(layer)
+
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(root)
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	var center := Vector2(viewport_size.x * 0.5, viewport_size.y * 0.36)
+	var label := Label.new()
+	label.text = "Good job!"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 42)
+	label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.38))
+	label.add_theme_color_override("font_shadow_color", Color(0.34, 0.22, 0.08, 0.55))
+	label.add_theme_constant_override("shadow_offset_x", 0)
+	label.add_theme_constant_override("shadow_offset_y", 4)
+	label.size = Vector2(320.0, 70.0)
+	label.position = center - label.size * 0.5
+	label.scale = Vector2(0.65, 0.65)
+	label.pivot_offset = label.size * 0.5
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(label)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = Time.get_ticks_msec()
+	var colors := [
+		Color(1.0, 0.54, 0.48),
+		Color(1.0, 0.84, 0.36),
+		Color(0.55, 0.86, 1.0),
+		Color(0.70, 0.94, 0.54),
+		Color(0.95, 0.61, 1.0),
+	]
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "position:y", label.position.y - 18.0, 1.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "modulate:a", 0.0, 0.36).set_delay(0.86)
+	for index in range(34):
+		var piece := ColorRect.new()
+		piece.color = colors[index % colors.size()]
+		piece.size = Vector2(rng.randf_range(5.0, 9.0), rng.randf_range(8.0, 14.0))
+		piece.position = center + Vector2(rng.randf_range(-20.0, 20.0), rng.randf_range(-8.0, 10.0))
+		piece.pivot_offset = piece.size * 0.5
+		piece.rotation = rng.randf_range(-PI, PI)
+		piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(piece)
+		var drift := Vector2(rng.randf_range(-190.0, 190.0), rng.randf_range(-165.0, 120.0))
+		tween.tween_property(piece, "position", piece.position + drift, rng.randf_range(0.62, 1.05)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(piece, "rotation", piece.rotation + rng.randf_range(-4.4, 4.4), 0.95)
+		tween.tween_property(piece, "modulate:a", 0.0, 0.32).set_delay(0.64)
+	tween.finished.connect(layer.queue_free)
 
 func _play_hoe_swing(yaw: float, target_center: Vector3) -> void:
 	var scene := load(HOE_SCENE_PATH)
@@ -1832,9 +1958,35 @@ func _make_round_style(fill: Color, border: Color, radius: float, border_width: 
 
 func _build_mom_dialogue() -> Array[Dictionary]:
 	if _chapter_one_active:
+		if _return_to_mom_prompt_active and not _starter_kit_collected:
+			return [
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "做得很好，这块地已经醒过来了。",
+				},
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "这里有 5 颗种子，还有水壶。先拿去试试吧。",
+				},
+			]
+		if _is_mom_soil_task_pending():
+			return [
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "别担心孩子，每个人都有第一次尝试",
+				},
+				{
+					"speaker": MOM_NAME,
+					"portrait": MOM_PORTRAIT_PATH,
+					"text": "我在这看着你呢，大胆去做吧",
+				},
+			]
 		return [
 			{
-				"speaker": "安提莉尔",
+				"speaker": MOM_NAME,
 				"portrait": MOM_PORTRAIT_PATH,
 				"text": "先给地松松土吧，我给你把锄头找出来了",
 			},
@@ -1957,10 +2109,10 @@ func _build_mom_dialogue() -> Array[Dictionary]:
 	]
 
 func _update_mom_interaction() -> void:
-	var mom_near := _is_player_near_mom() and not _dialogue_completed
+	var mom_near := _is_player_near_mom() and _can_talk_to_mom()
 	var camper_near := _is_player_near_camper() and not mom_near
 	if _interaction_prompt_label != null:
-		_interaction_prompt_label.text = "F / 点击  与 安提莉尔 对话" if mom_near else "F / 点击  进入房车地图"
+		_interaction_prompt_label.text = "F / 点击  与 %s 对话" % MOM_NAME if mom_near else "F / 点击  进入房车地图"
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = (mom_near or camper_near) and not _dialogue_open and not _map_open
 	if mom_near != _mom_is_highlighted:
@@ -1971,7 +2123,7 @@ func _update_mom_interaction() -> void:
 func _update_mom_exclamation(delta: float) -> void:
 	if _mom_exclamation == null:
 		return
-	var should_show := _mom != null and not _dialogue_completed and not _dialogue_open
+	var should_show := _mom != null and _can_talk_to_mom() and not _dialogue_open
 	_mom_exclamation.visible = should_show
 	if should_show:
 		var bob := sin(Time.get_ticks_msec() * 0.004) * 0.12
@@ -1995,7 +2147,7 @@ func _show_hoe_tutorial_prompt() -> void:
 	if not _hoe_tutorial_active or not _has_hoe:
 		return
 	_notification_time = 3.0
-	_notification_text = "按 F 或鼠标点击  锄一块地"
+	_notification_text = "F / 点击  锄一块地"
 	if _interaction_prompt_label != null:
 		_interaction_prompt_label.text = _notification_text
 	if _interaction_prompt != null:
@@ -2017,12 +2169,18 @@ func _capture_player_position() -> void:
 	_show_notification("已记录当前位置")
 
 func _show_hoe_reward_overlay() -> void:
+	_show_tool_reward_overlay("恭喜获得锄头", "HoePreview", "旋转查看锄头", Callable(self, "_setup_hoe_preview_viewport"), Callable(self, "_collect_hoe_reward"))
+
+func _show_watering_can_reward_overlay() -> void:
+	_show_tool_reward_overlay("恭喜获得水壶", "WateringCanPreview", "旋转查看水壶", Callable(self, "_setup_watering_can_preview_viewport"), Callable(self, "_collect_watering_can_reward"))
+
+func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_text: String, preview_setup: Callable, collect_callable: Callable) -> void:
 	if _hud_root == null:
-		_collect_hoe_reward()
+		collect_callable.call()
 		return
 	_reward_collecting = false
 	_reward_overlay = Control.new()
-	_reward_overlay.name = "HoeRewardOverlay"
+	_reward_overlay.name = "ToolRewardOverlay"
 	_reward_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_reward_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	_reward_overlay.gui_input.connect(_on_reward_overlay_gui_input)
@@ -2054,7 +2212,7 @@ func _show_hoe_reward_overlay() -> void:
 	panel.add_child(stack)
 
 	var title := Label.new()
-	title.text = "恭喜获得锄头"
+	title.text = title_text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color(0.24, 0.15, 0.07))
@@ -2062,7 +2220,7 @@ func _show_hoe_reward_overlay() -> void:
 	stack.add_child(title)
 
 	var view := TextureRect.new()
-	view.name = "HoePreview"
+	view.name = preview_name
 	var viewport_size := get_viewport().get_visible_rect().size
 	view.custom_minimum_size = Vector2(maxf(viewport_size.x - 140.0, 520.0), maxf(viewport_size.y - 210.0, 360.0))
 	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2072,10 +2230,10 @@ func _show_hoe_reward_overlay() -> void:
 	view.mouse_filter = Control.MOUSE_FILTER_STOP
 	view.gui_input.connect(_on_reward_overlay_gui_input)
 	stack.add_child(view)
-	_setup_hoe_preview_viewport(view, Vector2i(int(view.custom_minimum_size.x), int(view.custom_minimum_size.y)), true)
+	preview_setup.call(view, Vector2i(int(view.custom_minimum_size.x), int(view.custom_minimum_size.y)), true)
 
 	var hint := Label.new()
-	hint.text = "旋转查看锄头"
+	hint.text = hint_text
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 18)
 	hint.add_theme_color_override("font_color", Color(0.34, 0.28, 0.18))
@@ -2091,7 +2249,7 @@ func _show_hoe_reward_overlay() -> void:
 	collect_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.93, 0.80, 0.55, 0.96), Color(1.0, 0.94, 0.70, 1.0), 18.0, 2))
 	collect_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.98, 0.87, 0.62, 1.0), Color(1.0, 0.98, 0.80, 1.0), 18.0, 2))
 	collect_button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.82, 0.66, 0.40, 1.0), Color(0.98, 0.90, 0.66, 1.0), 18.0, 2))
-	collect_button.pressed.connect(_collect_hoe_reward)
+	collect_button.pressed.connect(collect_callable)
 	stack.add_child(collect_button)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
@@ -2144,6 +2302,55 @@ func _setup_hoe_preview_viewport(target: TextureRect, size: Vector2i, interactiv
 		_reward_viewport = sub_viewport
 		_reward_model_root = root
 
+func _setup_watering_can_preview_viewport(target: TextureRect, size: Vector2i, interactive: bool) -> void:
+	var sub_viewport := SubViewport.new()
+	sub_viewport.size = size
+	sub_viewport.transparent_bg = true
+	sub_viewport.world_3d = World3D.new()
+	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	target.add_child(sub_viewport)
+	target.texture = sub_viewport.get_texture()
+
+	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	if interactive:
+		camera.size = 6.4
+		camera.position = Vector3(0.0, 0.0, 8.0)
+	else:
+		camera.size = 3.2
+		camera.position = Vector3(0.0, 0.0, 7.0)
+	camera.current = true
+	sub_viewport.add_child(camera)
+	camera.look_at(Vector3.ZERO, Vector3.UP)
+
+	var light := DirectionalLight3D.new()
+	light.light_energy = 2.8
+	light.rotation_degrees = Vector3(-46.0, -35.0, 0.0)
+	sub_viewport.add_child(light)
+
+	var fill_light := OmniLight3D.new()
+	fill_light.light_energy = 0.8
+	fill_light.position = Vector3(1.6, 2.4, 2.2)
+	sub_viewport.add_child(fill_light)
+
+	var scene := load(WATERING_CAN_SCENE_PATH)
+	if not scene is PackedScene:
+		return
+	var root := Node3D.new()
+	root.name = "WateringCanPreviewRoot"
+	sub_viewport.add_child(root)
+	var model := scene.instantiate() as Node3D
+	if model == null:
+		return
+	root.add_child(model)
+	_fit_model_to_max_dimension(model, 4.8 if interactive else 3.7)
+	_center_model_on_origin(model)
+	model.rotation_degrees = Vector3(0.0 if interactive else 24.0, -32.0 if interactive else -36.0, 0.0 if interactive else 10.0)
+	root.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+	if interactive:
+		_reward_viewport = sub_viewport
+		_reward_model_root = root
+
 func _on_reward_overlay_gui_input(event: InputEvent) -> void:
 	_handle_reward_overlay_input(event)
 
@@ -2186,7 +2393,7 @@ func _collect_hoe_reward() -> void:
 		return
 	_reward_collecting = true
 	_has_hoe = true
-	_selected_inventory_slot = 0
+	_selected_inventory_slot = INVENTORY_HOE_SLOT
 	_update_inventory_bar()
 	if _inventory_bar != null:
 		_inventory_bar.visible = true
@@ -2194,7 +2401,7 @@ func _collect_hoe_reward() -> void:
 		var tween := create_tween()
 		tween.set_parallel(true)
 		if _reward_panel != null:
-			var target := _get_inventory_slot_center(0)
+			var target := _get_inventory_slot_center(INVENTORY_HOE_SLOT)
 			tween.tween_property(_reward_panel, "global_position", target - Vector2(26.0, 26.0), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 			tween.tween_property(_reward_panel, "scale", Vector2(0.12, 0.12), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		tween.tween_property(_reward_overlay, "modulate:a", 0.0, 0.34)
@@ -2224,6 +2431,48 @@ func _finish_collect_hoe_reward() -> void:
 	_show_notification("获得锄头")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
+func _grant_starter_kit() -> void:
+	_seed_count = max(_seed_count, 5)
+	_update_inventory_bar()
+	if _has_watering_can or _reward_overlay != null:
+		_show_notification("获得 5 颗种子和水壶")
+		return
+	_show_watering_can_reward_overlay()
+
+func _collect_watering_can_reward() -> void:
+	if _reward_collecting:
+		return
+	_reward_collecting = true
+	_has_watering_can = true
+	_selected_inventory_slot = INVENTORY_WATERING_CAN_SLOT
+	_update_inventory_bar()
+	if _inventory_bar != null:
+		_inventory_bar.visible = true
+	if _reward_overlay != null:
+		var tween := create_tween()
+		tween.set_parallel(true)
+		if _reward_panel != null:
+			var target := _get_inventory_slot_center(INVENTORY_WATERING_CAN_SLOT)
+			tween.tween_property(_reward_panel, "global_position", target - Vector2(26.0, 26.0), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+			tween.tween_property(_reward_panel, "scale", Vector2(0.12, 0.12), 0.36).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		tween.tween_property(_reward_overlay, "modulate:a", 0.0, 0.34)
+		tween.finished.connect(_finish_collect_watering_can_reward)
+		return
+	_finish_collect_watering_can_reward()
+
+func _finish_collect_watering_can_reward() -> void:
+	if _reward_overlay != null:
+		_reward_overlay.queue_free()
+	_reward_overlay = null
+	_reward_panel = null
+	_reward_viewport = null
+	_reward_model_root = null
+	_reward_dragging = false
+	_reward_press_position = Vector2.ZERO
+	_reward_collecting = false
+	_show_notification("获得 5 颗种子和水壶")
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
 func _update_notification(delta: float) -> void:
 	if _notification_time <= 0.0:
 		return
@@ -2240,14 +2489,20 @@ func _update_notification(delta: float) -> void:
 func _refresh_interaction_prompt_text() -> void:
 	if _interaction_prompt_label == null or _notification_time > 0.0 or _dialogue_open or _map_open:
 		return
-	var mom_near := _is_player_near_mom() and not _dialogue_completed
+	var mom_near := _is_player_near_mom() and _can_talk_to_mom()
 	if mom_near:
-		_interaction_prompt_label.text = "F / 点击  与 安提莉尔 对话"
+		_interaction_prompt_label.text = "F / 点击  与 %s 对话" % MOM_NAME
 	elif _is_player_near_camper():
 		_interaction_prompt_label.text = "F / 点击  进入房车地图"
 
-	if _hoe_tutorial_active and _has_hoe and not mom_near and not _is_player_near_camper():
-		_interaction_prompt_label.text = "按 F 或鼠标点击  锄一块地"
+	if _return_to_mom_prompt_active and not mom_near and not _is_player_near_camper():
+		_interaction_prompt_label.text = "返回和%s对话" % MOM_NAME
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = true
+			_interaction_prompt.move_to_front()
+
+	if _hoe_tutorial_active and _has_hoe and _selected_inventory_slot == INVENTORY_HOE_SLOT and not mom_near and not _is_player_near_camper():
+		_interaction_prompt_label.text = "F / 点击  锄一块地"
 		if _interaction_prompt != null:
 			_interaction_prompt.visible = true
 			_interaction_prompt.move_to_front()
@@ -2271,7 +2526,7 @@ func _is_player_near_camper() -> bool:
 	return player_point.distance_squared_to(camper_point) <= CAMPER_INTERACT_RADIUS * CAMPER_INTERACT_RADIUS
 
 func _try_enter_camper() -> bool:
-	if not _dialogue_completed and _is_player_near_mom():
+	if _can_talk_to_mom() and _is_player_near_mom():
 		return false
 	if not _is_player_near_camper():
 		return false
@@ -2540,7 +2795,11 @@ func _build_chapter_one_scene() -> void:
 	_map_open = false
 	_camper_is_highlighted = false
 	_has_hoe = false
+	_has_watering_can = false
+	_seed_count = 0
 	_hoe_tutorial_active = false
+	_return_to_mom_prompt_active = false
+	_starter_kit_collected = false
 	_selected_inventory_slot = 0
 	_reward_overlay = null
 	_reward_panel = null
@@ -2604,6 +2863,12 @@ func _is_player_near_mom() -> bool:
 	var mom_point := Vector2(_mom.global_position.x, _mom.global_position.z)
 	return player_point.distance_squared_to(mom_point) <= MOM_INTERACT_RADIUS * MOM_INTERACT_RADIUS
 
+func _is_mom_soil_task_pending() -> bool:
+	return _chapter_one_active and _dialogue_completed and _has_hoe and _tilled_soil_centers.is_empty()
+
+func _can_talk_to_mom() -> bool:
+	return not _dialogue_completed or _is_mom_soil_task_pending() or (_return_to_mom_prompt_active and not _starter_kit_collected)
+
 func _set_mom_highlight(enabled: bool) -> void:
 	_mom_is_highlighted = enabled
 	if _mom_model == null:
@@ -2612,7 +2877,7 @@ func _set_mom_highlight(enabled: bool) -> void:
 		mesh_instance.material_overlay = _highlight_material if enabled else null
 
 func _try_start_mom_dialogue() -> bool:
-	if _dialogue_completed:
+	if not _can_talk_to_mom():
 		return false
 	if _dialogue_open:
 		_advance_dialogue()
@@ -2625,6 +2890,7 @@ func _try_start_mom_dialogue() -> bool:
 func _start_mom_dialogue() -> void:
 	_dialogue_open = true
 	_dialogue_index = 0
+	_dialogue_steps = _build_mom_dialogue()
 	_set_mom_highlight(false)
 	if _dialogue_panel != null:
 		_dialogue_panel.visible = true
@@ -2638,7 +2904,11 @@ func _close_dialogue(completed: bool = false) -> void:
 	if completed:
 		_dialogue_completed = true
 		_set_mom_highlight(false)
-		if _chapter_one_active and not _has_hoe:
+		if _chapter_one_active and _return_to_mom_prompt_active and not _starter_kit_collected:
+			_return_to_mom_prompt_active = false
+			_starter_kit_collected = true
+			_grant_starter_kit()
+		elif _chapter_one_active and not _has_hoe:
 			_grant_hoe()
 	if _dialogue_panel != null:
 		_dialogue_panel.visible = false
