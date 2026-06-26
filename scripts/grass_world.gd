@@ -101,11 +101,11 @@ const CHAPTER_ONE_HOUSE_INTERIOR_SIZE := Vector2(9.2, 6.0)
 const CHAPTER_ONE_HOUSE_DOORWAY_CENTER := Vector2(-4.2, -0.35)
 const CHAPTER_ONE_HOUSE_DOORWAY_SIZE := Vector2(4.8, 2.8)
 const CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y := 0.08
-const CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER := Vector2(0.0, 1.10)
-const CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER := Vector2(0.0, -1.55)
+const CHAPTER_ONE_HOUSE_ENTRY_TRIGGER_CENTER := Vector2(-4.2, 1.10)
+const CHAPTER_ONE_HOUSE_EXIT_TRIGGER_CENTER := Vector2(-4.2, -1.55)
 const CHAPTER_ONE_HOUSE_OUTSIDE_SPAWN := Vector2(-4.2, 2.35)
 const CHAPTER_ONE_HOUSE_INSIDE_SPAWN := Vector2(-4.2, -2.75)
-const CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE := Vector2(18.0, 4.6)
+const CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE := Vector2(5.6, 4.6)
 const CHAPTER_ONE_HOUSE_PORTAL_DELAY := 0.16
 const CHAPTER_ONE_HOUSE_PORTAL_COOLDOWN := 0.65
 const CHAPTER_ONE_HOUSE_PORTAL_FADE_TIME := 0.18
@@ -1431,7 +1431,7 @@ func _update_chapter_one_house_portal(delta: float) -> void:
 func _is_player_inside_house_portal_area(player_position: Vector3, center_local: Vector2) -> bool:
 	var center := _house_local_to_world(center_local, CHAPTER_ONE_HOUSE_INTERIOR_FLOOR_Y)
 	var point := Vector2(player_position.x, player_position.z)
-	var local := (point - Vector2(center.x, center.z)).rotated(-_chapter_one_house.rotation.y)
+	var local := (point - Vector2(center.x, center.z)).rotated(_chapter_one_house.rotation.y)
 	var half_extents := CHAPTER_ONE_HOUSE_PORTAL_TRIGGER_SIZE * 0.5
 	return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
 
@@ -1522,7 +1522,7 @@ func _clear_grass_in_interior_area(area: Dictionary) -> void:
 	for index in range(_grass_multimesh.instance_count):
 		var transform := _grass_multimesh.get_instance_transform(index)
 		var origin := transform.origin
-		var local := (Vector2(origin.x, origin.z) - center).rotated(-yaw)
+		var local := (Vector2(origin.x, origin.z) - center).rotated(yaw)
 		if absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y:
 			transform.basis = transform.basis.scaled(Vector3.ZERO)
 			_grass_multimesh.set_instance_transform(index, transform)
@@ -3709,7 +3709,7 @@ func _is_point_inside_interior_area(point: Vector2, area: Dictionary) -> bool:
 	var center := Vector2(center_3d.x, center_3d.z)
 	var yaw: float = area["yaw"]
 	var half_extents: Vector2 = area["half_extents"]
-	var local := (point - center).rotated(-yaw)
+	var local := (point - center).rotated(yaw)
 	return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
 
 func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
