@@ -2474,18 +2474,19 @@ func _create_coin_hud(root: Control) -> void:
 	_coin_hud.name = "CoinHud"
 	_coin_hud.visible = _chapter_one_active
 	_coin_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coin_hud.z_index = 5
 	_coin_hud.anchor_left = 0.5
 	_coin_hud.anchor_top = 0.0
 	_coin_hud.anchor_right = 0.5
 	_coin_hud.anchor_bottom = 0.0
-	_coin_hud.offset_left = -398.0
+	_coin_hud.offset_left = -292.0
 	_coin_hud.offset_top = 10.0
-	_coin_hud.offset_right = 398.0
-	_coin_hud.offset_bottom = 140.0
+	_coin_hud.offset_right = 292.0
+	_coin_hud.offset_bottom = 104.0
 	root.add_child(_coin_hud)
 
-	_coop_coin_label = _create_coin_bar(_coin_hud, "CoopCoinBar", COOP_COIN_BAR_PATH, Vector2(0.0, 0.0), Vector2(390.0, 132.0), "合作金币")
-	_personal_coin_label = _create_coin_bar(_coin_hud, "PersonalCoinBar", PERSONAL_COIN_BAR_PATH, Vector2(404.0, 13.0), Vector2(390.0, 113.0), "个人金币")
+	_coop_coin_label = _create_coin_bar(_coin_hud, "CoopCoinBar", COOP_COIN_BAR_PATH, Vector2(0.0, 0.0), Vector2(280.0, 94.0), "合作金币")
+	_personal_coin_label = _create_coin_bar(_coin_hud, "PersonalCoinBar", PERSONAL_COIN_BAR_PATH, Vector2(294.0, 9.0), Vector2(280.0, 81.0), "个人金币")
 	_update_coin_hud()
 
 func _create_coin_bar(parent: Control, node_name: String, texture_path: String, position: Vector2, size: Vector2, title_text: String) -> Label:
@@ -2508,11 +2509,11 @@ func _create_coin_bar(parent: Control, node_name: String, texture_path: String, 
 	var title := Label.new()
 	title.name = "Title"
 	title.text = title_text
-	title.position = Vector2(128.0, size.y * 0.29)
-	title.size = Vector2(size.x - 154.0, 24.0)
+	title.position = Vector2(size.x * 0.33, size.y * 0.28)
+	title.size = Vector2(size.x * 0.56, 20.0)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_font_size_override("font_size", 15)
 	title.add_theme_color_override("font_color", Color(0.58, 0.38, 0.13, 0.92))
 	title.add_theme_color_override("font_shadow_color", Color(1.0, 0.98, 0.86, 0.72))
 	title.add_theme_constant_override("shadow_offset_x", 0)
@@ -2521,11 +2522,11 @@ func _create_coin_bar(parent: Control, node_name: String, texture_path: String, 
 
 	var value := Label.new()
 	value.name = "Value"
-	value.position = Vector2(128.0, size.y * 0.47)
-	value.size = Vector2(size.x - 154.0, 42.0)
+	value.position = Vector2(size.x * 0.33, size.y * 0.46)
+	value.size = Vector2(size.x * 0.56, 32.0)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	value.add_theme_font_size_override("font_size", 31)
+	value.add_theme_font_size_override("font_size", 25)
 	value.add_theme_color_override("font_color", Color(0.27, 0.17, 0.06, 1.0))
 	value.add_theme_color_override("font_shadow_color", Color(1.0, 0.94, 0.72, 0.82))
 	value.add_theme_constant_override("shadow_offset_x", 0)
@@ -2547,9 +2548,20 @@ func _update_coin_hud() -> void:
 		return
 	if _coop_coin_label != null and is_instance_valid(_coop_coin_label):
 		_coop_coin_label.text = "%d" % _coop_coins
+		var coop_holder := _coop_coin_label.get_parent() as Control
+		if coop_holder != null:
+			coop_holder.visible = _is_coop_coin_available()
 	if _personal_coin_label != null and is_instance_valid(_personal_coin_label):
 		_personal_coin_label.text = "%d" % _coins
-	_coin_hud.move_to_front()
+		var personal_holder := _personal_coin_label.get_parent() as Control
+		if personal_holder != null:
+			personal_holder.position.x = 147.0 if not _is_coop_coin_available() else 294.0
+	if _reward_overlay == null or not _reward_overlay.visible:
+		_coin_hud.move_to_front()
+
+func _is_coop_coin_available() -> bool:
+	var game_manager := get_node_or_null("/root/GameManager")
+	return game_manager != null and game_manager.network_session != null and game_manager.network_session.is_online()
 
 func _create_pickup_feed(root: Control) -> void:
 	_pickup_feed = VBoxContainer.new()
@@ -8131,8 +8143,10 @@ func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_te
 	_reward_overlay.name = "ToolRewardOverlay"
 	_reward_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_reward_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_reward_overlay.z_index = 100
 	_reward_overlay.gui_input.connect(_on_reward_overlay_gui_input)
 	_hud_root.add_child(_reward_overlay)
+	_reward_overlay.move_to_front()
 
 	var dim := ColorRect.new()
 	dim.color = Color(0.70, 0.78, 0.78, 0.36)
