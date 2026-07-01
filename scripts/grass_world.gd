@@ -334,6 +334,7 @@ var _map_codex_crop_red_dot: Label
 var _map_codex_crop_claim_button: Button
 var _map_codex_cooking_red_dot: Label
 var _map_codex_cooking_claim_button: Button
+var _map_codex_detail_popup: PanelContainer
 var _map_page_locked_time := 0.0
 var _map_page_locked_side := 0
 var _map_camper_pos := MAP_CAMPER_START
@@ -516,6 +517,7 @@ func _rebuild_scene() -> void:
 	_camper_model = null
 	_map_camper_model = null
 	_map_codex_panel = null
+	_map_codex_detail_popup = null
 	_mom = null
 	_mom_model = null
 	_mom_exclamation = null
@@ -3454,10 +3456,14 @@ func _create_map_codex_panel() -> void:
 		return
 	_map_codex_panel = Control.new()
 	_map_codex_panel.name = "MapCodexPanel"
-	_map_codex_panel.anchor_left = 0.122
-	_map_codex_panel.anchor_top = 0.150
-	_map_codex_panel.anchor_right = 0.360
-	_map_codex_panel.anchor_bottom = 0.245
+	_map_codex_panel.anchor_left = 0.5
+	_map_codex_panel.anchor_top = 0.0
+	_map_codex_panel.anchor_right = 0.5
+	_map_codex_panel.anchor_bottom = 0.0
+	_map_codex_panel.offset_left = -128.0
+	_map_codex_panel.offset_top = 86.0
+	_map_codex_panel.offset_right = 128.0
+	_map_codex_panel.offset_bottom = 158.0
 	_map_codex_panel.z_index = 40
 	_map_codex_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_map_panel.add_child(_map_codex_panel)
@@ -3474,18 +3480,21 @@ func _create_map_codex_panel() -> void:
 	var cooking_controls := _create_map_codex_text_row(box, "料理", "cooking")
 	_map_codex_cooking_claim_button = cooking_controls["button"] as Button
 	_map_codex_cooking_red_dot = cooking_controls["red_dot"] as Label
+	_create_map_codex_detail_popup()
 	_update_map_codex_panel()
 
 func _create_map_codex_text_row(parent: VBoxContainer, title_text: String, kind: String) -> Dictionary:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 4)
 	parent.add_child(row)
 
 	var button := Button.new()
 	button.text = "%s 0/10 奖励" % title_text
 	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(112.0, 30.0)
+	button.custom_minimum_size = Vector2(142.0, 30.0)
+	button.text = "%s 0/10  🎁" % title_text
 	button.add_theme_font_size_override("font_size", 20)
 	button.add_theme_color_override("font_color", Color(0.24, 0.15, 0.06))
 	button.add_theme_color_override("font_hover_color", Color(0.42, 0.24, 0.06))
@@ -3499,6 +3508,7 @@ func _create_map_codex_text_row(parent: VBoxContainer, title_text: String, kind:
 	var red_dot := Label.new()
 	red_dot.text = "●"
 	red_dot.visible = false
+	red_dot.text = "●"
 	red_dot.add_theme_font_size_override("font_size", 15)
 	red_dot.add_theme_color_override("font_color", Color(0.92, 0.08, 0.05, 1.0))
 	red_dot.add_theme_color_override("font_shadow_color", Color(1.0, 0.82, 0.62, 0.85))
@@ -3511,6 +3521,49 @@ func _create_map_codex_text_row(parent: VBoxContainer, title_text: String, kind:
 		"red_dot": red_dot,
 	}
 
+func _create_map_codex_detail_popup() -> void:
+	if _map_panel == null:
+		return
+	_map_codex_detail_popup = PanelContainer.new()
+	_map_codex_detail_popup.name = "MapCodexDetailPopup"
+	_map_codex_detail_popup.visible = false
+	_map_codex_detail_popup.anchor_left = 0.5
+	_map_codex_detail_popup.anchor_top = 0.5
+	_map_codex_detail_popup.anchor_right = 0.5
+	_map_codex_detail_popup.anchor_bottom = 0.5
+	_map_codex_detail_popup.offset_left = -180.0
+	_map_codex_detail_popup.offset_top = -92.0
+	_map_codex_detail_popup.offset_right = 180.0
+	_map_codex_detail_popup.offset_bottom = 92.0
+	_map_codex_detail_popup.mouse_filter = Control.MOUSE_FILTER_STOP
+	_map_codex_detail_popup.add_theme_stylebox_override("panel", _make_round_style(Color(0.96, 0.88, 0.68, 0.96), Color(0.54, 0.38, 0.16, 0.38), 18.0, 1))
+	_map_panel.add_child(_map_codex_detail_popup)
+
+	var label := Label.new()
+	label.name = "DetailLabel"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_color", Color(0.22, 0.15, 0.07))
+	_map_codex_detail_popup.add_child(label)
+
+func _show_map_codex_detail_popup(kind: String) -> void:
+	if _map_codex_detail_popup == null:
+		return
+	var is_crop := kind == "crop"
+	var title := "作物图鉴" if is_crop else "料理图鉴"
+	var count := _codex_discovered_crops.size() if is_crop else _codex_discovered_cooking.size()
+	var total := CODEX_CROP_TOTAL if is_crop else CODEX_COOKING_TOTAL
+	var rewards := CODEX_CROP_REWARDS if is_crop else CODEX_COOKING_REWARDS
+	var reward := _find_next_codex_reward(kind, rewards)
+	var reward_text := "奖励已全部领取" if reward.is_empty() else "下一奖励：%s" % str(reward.get("label", "奖励"))
+	var label := _map_codex_detail_popup.get_node_or_null("DetailLabel") as Label
+	if label != null:
+		label.text = "%s\n%d/%d\n%s" % [title, count, total, reward_text]
+	_map_codex_detail_popup.visible = true
+	_map_codex_detail_popup.move_to_front()
+
 func _update_map_codex_panel() -> void:
 	_update_map_codex_text_row("作物", _codex_discovered_crops.size(), CODEX_CROP_TOTAL, CODEX_CROP_REWARDS, "crop", _map_codex_crop_claim_button, _map_codex_crop_red_dot)
 	_update_map_codex_text_row("料理", _codex_discovered_cooking.size(), CODEX_COOKING_TOTAL, CODEX_COOKING_REWARDS, "cooking", _map_codex_cooking_claim_button, _map_codex_cooking_red_dot)
@@ -3520,6 +3573,7 @@ func _update_map_codex_text_row(title_text: String, count: int, total: int, rewa
 		return
 	count = clampi(count, 0, total)
 	button.text = "%s %d/%d 奖励" % [title_text, count, total]
+	button.text = "%s %d/%d  🎁" % [title_text, count, total]
 	var reward := _find_next_codex_reward(kind, rewards)
 	if reward.is_empty():
 		red_dot.visible = false
@@ -3535,6 +3589,8 @@ func _find_next_codex_reward(kind: String, rewards: Array) -> Dictionary:
 	return {}
 
 func _on_map_codex_text_pressed(kind: String) -> void:
+	_show_map_codex_detail_popup(kind)
+	return
 	var count := _codex_discovered_crops.size() if kind == "crop" else _codex_discovered_cooking.size()
 	var total := CODEX_CROP_TOTAL if kind == "crop" else CODEX_COOKING_TOTAL
 	var rewards := CODEX_CROP_REWARDS if kind == "crop" else CODEX_COOKING_REWARDS
@@ -7618,9 +7674,8 @@ func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_te
 	hint.add_theme_color_override("font_color", Color(0.34, 0.28, 0.18))
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(hint)
-
 	var collect_button := Button.new()
-	collect_button.text = "鏀惰繘鑳屽寘"
+	collect_button.text = "收进背包"
 	collect_button.custom_minimum_size = Vector2(132.0, 42.0)
 	collect_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	collect_button.add_theme_font_size_override("font_size", 18)
