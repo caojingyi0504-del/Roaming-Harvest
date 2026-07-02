@@ -135,6 +135,8 @@ const CHAPTER_ONE_CAMPER_PATH_GRASS_CLEAR_WIDTH := 3.0
 const START_CAMPER_PATH_WIDTH := 3.8
 const START_CAMPER_PATH_GRASS_CLEAR_WIDTH := 5.8
 const START_CAMPER_PATH_CORE_CLEAR_WIDTH := 3.2
+const RECORDED_NO_GRASS_CENTER := Vector2(7.514, 3.214)
+const RECORDED_NO_GRASS_RADIUS := 3.6
 const CHAPTER_ONE_HOUSE_TARGET_LENGTH := 24.0
 const CHAPTER_ONE_REBAS_TARGET_HEIGHT := 3.15
 const CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS := 30.0
@@ -216,8 +218,23 @@ const KITCHEN_COOK_SOUP_SECONDS := 10.0
 const KITCHEN_COOK_GRILL_SECONDS := 12.0
 const KITCHEN_READY_SECONDS := 10.0
 const KITCHEN_BURN_SECONDS := 12.0
+const KITCHEN_HEAT_CURSOR_SPEED := 1.45
+const KITCHEN_HEAT_BLUE_SPEED := 0.7
+const KITCHEN_HEAT_GREEN_SPEED := 1.0
+const KITCHEN_HEAT_RED_SPEED := 1.4
+const KITCHEN_HEAT_BLUE_DONE_HOLD_SECONDS := 12.0
+const KITCHEN_HEAT_GREEN_DONE_HOLD_SECONDS := 9.0
+const KITCHEN_HEAT_RED_DONE_HOLD_SECONDS := 4.5
+const KITCHEN_HEAT_BLUE_BURN_SECONDS := 15.0
+const KITCHEN_HEAT_GREEN_BURN_SECONDS := 12.0
+const KITCHEN_HEAT_RED_BURN_SECONDS := 7.0
 const KITCHEN_ORDER_URGENT_SECONDS := 18.0
 const KITCHEN_PREP_SECONDS := 2.0
+const OPENING_PACKAGE_COINS := 150
+const OPENING_PACKAGE_COOP_COINS := 20
+const OPENING_PACKAGE_PEA_SEEDS := 3
+const OPENING_PACKAGE_EQUIPMENT_ID := "cutting_table"
+const OPENING_SIGN_DAILY_BONUS_COINS := 5
 const KITCHEN_UPGRADE_COSTS := {
 	"sink": 80,
 	"cutting_table": 80,
@@ -297,6 +314,16 @@ var _coop_coin_label: Label
 var _personal_coin_label: Label
 var _post_tutorial_objective: PanelContainer
 var _post_tutorial_objective_label: Label
+var _post_tutorial_reward_label: Label
+var _post_tutorial_dropdown: PanelContainer
+var _post_tutorial_dropdown_label: Label
+var _post_tutorial_claim_button: Button
+var _post_tutorial_alt_guide: PanelContainer
+var _post_tutorial_progress_fill: ColorRect
+var _post_tutorial_gift_button: Button
+var _post_tutorial_objective_expanded := false
+var _post_tutorial_alt_guide_completed := false
+var _post_tutorial_visible_goal_text := ""
 var _pickup_feed: VBoxContainer
 var _held_crop_quality_panel: PanelContainer
 var _held_crop_quality_label: Label
@@ -408,10 +435,15 @@ var _crop_types: Dictionary = {}
 var _crop_qualities: Dictionary = {}
 var _empty_soil_decay_remaining: Dictionary = {}
 var _matured_carrot_count := 0
+var _tutorial_harvested_carrot_count := 0
 var _crop_future_talk_completed := false
 var _find_food_chests_prompt_active := false
 var _food_chests_found := false
 var _chest_lesson_completed := false
+var _post_tutorial_grand_reward_claimed := false
+var _opening_sign_placed := false
+var _opening_sign: Node3D
+var _opening_sign_bonus_day_key := ""
 var _food_chest_nodes: Array[Node3D] = []
 var _placed_food_chests: Array[Node3D] = []
 var _food_chest_preview: Node3D
@@ -537,6 +569,18 @@ func _rebuild_scene() -> void:
 	_coin_hud = null
 	_coop_coin_label = null
 	_personal_coin_label = null
+	_post_tutorial_objective = null
+	_post_tutorial_objective_label = null
+	_post_tutorial_reward_label = null
+	_post_tutorial_dropdown = null
+	_post_tutorial_dropdown_label = null
+	_post_tutorial_claim_button = null
+	_post_tutorial_alt_guide = null
+	_post_tutorial_progress_fill = null
+	_post_tutorial_gift_button = null
+	_post_tutorial_objective_expanded = false
+	_post_tutorial_alt_guide_completed = false
+	_post_tutorial_visible_goal_text = ""
 	_camper = null
 	_camper_model = null
 	_map_camper_model = null
@@ -616,10 +660,15 @@ func _rebuild_scene() -> void:
 	_crop_qualities.clear()
 	_empty_soil_decay_remaining.clear()
 	_matured_carrot_count = 0
+	_tutorial_harvested_carrot_count = 0
 	_crop_future_talk_completed = false
 	_find_food_chests_prompt_active = false
 	_food_chests_found = false
 	_chest_lesson_completed = false
+	_post_tutorial_grand_reward_claimed = false
+	_opening_sign_placed = false
+	_opening_sign = null
+	_opening_sign_bonus_day_key = ""
 	_food_chest_nodes.clear()
 	_placed_food_chests.clear()
 	_food_chest_preview = null
@@ -1342,7 +1391,12 @@ func _can_place_grass_at(x: float, z: float) -> bool:
 		return false
 	if _is_inside_house_interior_grass_clear(x, z):
 		return false
+	if _is_inside_recorded_no_grass_clear(x, z):
+		return false
 	return true
+
+func _is_inside_recorded_no_grass_clear(x: float, z: float) -> bool:
+	return Vector2(x, z).distance_squared_to(RECORDED_NO_GRASS_CENTER) <= RECORDED_NO_GRASS_RADIUS * RECORDED_NO_GRASS_RADIUS
 
 func _is_inside_house_interior_grass_clear(x: float, z: float) -> bool:
 	var point := Vector2(x, z)
@@ -2259,6 +2313,43 @@ func _create_camper(camper_position: Vector3 = CAMPER_POSITION, camper_yaw: floa
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_camper_blocker(camper, model)
 
+func _create_opening_sign() -> void:
+	if _opening_sign_placed and _opening_sign != null and is_instance_valid(_opening_sign):
+		return
+	if _camper == null or not is_instance_valid(_camper):
+		return
+	var root := Node3D.new()
+	root.name = "OpeningWoodSign"
+	var offset := Vector3(-2.25, 0.0, -1.72).rotated(Vector3.UP, _camper.rotation.y)
+	var position := _camper.global_position + offset
+	position.y = _height_at(position.x, position.z)
+	root.global_position = position
+	root.rotation.y = _camper.rotation.y + deg_to_rad(8.0)
+	_mark_generated(root)
+	add_child(root)
+
+	var post_mat := _make_material(Color(0.62, 0.42, 0.22, 1.0), 0.82)
+	var board_mat := _make_material(Color(0.86, 0.65, 0.34, 1.0), 0.78)
+	var paint_mat := _make_material(Color(0.94, 0.42, 0.16, 1.0), 0.7)
+	_create_box_mesh(root, "OpeningSignPost", Vector3(0.0, 0.35, 0.0), Vector3(0.10, 0.70, 0.10), post_mat)
+	_create_box_mesh(root, "OpeningSignBoard", Vector3(0.0, 0.86, 0.0), Vector3(1.15, 0.42, 0.08), board_mat)
+	_create_box_mesh(root, "OpeningSignCarrot", Vector3(-0.33, 0.87, -0.055), Vector3(0.24, 0.08, 0.025), paint_mat)
+
+	var label := Label3D.new()
+	label.name = "OpeningSignLabel"
+	label.text = "OPEN"
+	label.pixel_size = 0.012
+	label.font_size = 42
+	label.modulate = Color(0.35, 0.20, 0.08, 1.0)
+	label.outline_size = 2
+	label.outline_modulate = Color(1.0, 0.86, 0.50, 0.85)
+	label.position = Vector3(0.18, 0.84, -0.071)
+	label.rotation_degrees = Vector3.ZERO
+	root.add_child(label)
+
+	_opening_sign = root
+	_opening_sign_placed = true
+
 func _create_mom(mom_position: Vector3 = MOM_POSITION, face_target: Vector3 = PLAYER_START) -> void:
 	var scene := load(MOM_SCENE_PATH)
 	if not scene is PackedScene:
@@ -2370,6 +2461,7 @@ func _create_dialogue_ui() -> void:
 	_dialogue_panel = Control.new()
 	_dialogue_panel.name = "DialoguePanel"
 	_dialogue_panel.visible = false
+	_dialogue_panel.z_index = 20
 	_dialogue_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dialogue_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dialogue_panel.gui_input.connect(_on_dialogue_panel_gui_input)
@@ -2474,19 +2566,19 @@ func _create_coin_hud(root: Control) -> void:
 	_coin_hud.name = "CoinHud"
 	_coin_hud.visible = _chapter_one_active
 	_coin_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_coin_hud.z_index = 5
+	_coin_hud.z_index = 1
 	_coin_hud.anchor_left = 0.5
 	_coin_hud.anchor_top = 0.0
 	_coin_hud.anchor_right = 0.5
 	_coin_hud.anchor_bottom = 0.0
-	_coin_hud.offset_left = -292.0
-	_coin_hud.offset_top = 10.0
-	_coin_hud.offset_right = 292.0
-	_coin_hud.offset_bottom = 104.0
+	_coin_hud.offset_left = -260.0
+	_coin_hud.offset_top = 6.0
+	_coin_hud.offset_right = 260.0
+	_coin_hud.offset_bottom = 66.0
 	root.add_child(_coin_hud)
 
-	_coop_coin_label = _create_coin_bar(_coin_hud, "CoopCoinBar", COOP_COIN_BAR_PATH, Vector2(0.0, 0.0), Vector2(280.0, 94.0), "合作金币")
-	_personal_coin_label = _create_coin_bar(_coin_hud, "PersonalCoinBar", PERSONAL_COIN_BAR_PATH, Vector2(294.0, 9.0), Vector2(280.0, 81.0), "个人金币")
+	_coop_coin_label = _create_coin_bar(_coin_hud, "CoopCoinBar", COOP_COIN_BAR_PATH, Vector2(264.0, 0.0), Vector2(170.0, 50.0), "合作金币")
+	_personal_coin_label = _create_coin_bar(_coin_hud, "PersonalCoinBar", PERSONAL_COIN_BAR_PATH, Vector2(88.0, 0.0), Vector2(170.0, 50.0), "个人金币")
 	_update_coin_hud()
 
 func _create_coin_bar(parent: Control, node_name: String, texture_path: String, position: Vector2, size: Vector2, title_text: String) -> Label:
@@ -2509,11 +2601,12 @@ func _create_coin_bar(parent: Control, node_name: String, texture_path: String, 
 	var title := Label.new()
 	title.name = "Title"
 	title.text = title_text
-	title.position = Vector2(size.x * 0.33, size.y * 0.28)
-	title.size = Vector2(size.x * 0.56, 20.0)
+	title.visible = false
+	title.position = Vector2(size.x * 0.34, size.y * 0.24)
+	title.size = Vector2(size.x * 0.56, 18.0)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_font_size_override("font_size", 13)
 	title.add_theme_color_override("font_color", Color(0.58, 0.38, 0.13, 0.92))
 	title.add_theme_color_override("font_shadow_color", Color(1.0, 0.98, 0.86, 0.72))
 	title.add_theme_constant_override("shadow_offset_x", 0)
@@ -2522,11 +2615,11 @@ func _create_coin_bar(parent: Control, node_name: String, texture_path: String, 
 
 	var value := Label.new()
 	value.name = "Value"
-	value.position = Vector2(size.x * 0.33, size.y * 0.46)
-	value.size = Vector2(size.x * 0.56, 32.0)
+	value.position = Vector2(size.x * 0.36, size.y * 0.25)
+	value.size = Vector2(size.x * 0.48, size.y * 0.46)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	value.add_theme_font_size_override("font_size", 25)
+	value.add_theme_font_size_override("font_size", 24)
 	value.add_theme_color_override("font_color", Color(0.27, 0.17, 0.06, 1.0))
 	value.add_theme_color_override("font_shadow_color", Color(1.0, 0.94, 0.72, 0.82))
 	value.add_theme_constant_override("shadow_offset_x", 0)
@@ -2550,14 +2643,13 @@ func _update_coin_hud() -> void:
 		_coop_coin_label.text = "%d" % _coop_coins
 		var coop_holder := _coop_coin_label.get_parent() as Control
 		if coop_holder != null:
-			coop_holder.visible = _is_coop_coin_available()
+			coop_holder.position.x = 264.0
+			coop_holder.visible = true
 	if _personal_coin_label != null and is_instance_valid(_personal_coin_label):
 		_personal_coin_label.text = "%d" % _coins
 		var personal_holder := _personal_coin_label.get_parent() as Control
 		if personal_holder != null:
-			personal_holder.position.x = 147.0 if not _is_coop_coin_available() else 294.0
-	if _reward_overlay == null or not _reward_overlay.visible:
-		_coin_hud.move_to_front()
+			personal_holder.position.x = 88.0
 
 func _is_coop_coin_available() -> bool:
 	var game_manager := get_node_or_null("/root/GameManager")
@@ -2730,33 +2822,199 @@ func _create_held_crop_quality_panel(root: Control) -> void:
 
 func _create_post_tutorial_objective(root: Control) -> void:
 	_post_tutorial_objective = PanelContainer.new()
-	_post_tutorial_objective.name = "PostTutorialObjective"
+	_post_tutorial_objective.name = "TutorialRewardHUD"
 	_post_tutorial_objective.visible = false
-	_post_tutorial_objective.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_post_tutorial_objective.mouse_filter = Control.MOUSE_FILTER_STOP
 	_post_tutorial_objective.anchor_left = 1.0
-	_post_tutorial_objective.anchor_top = 1.0
+	_post_tutorial_objective.anchor_top = 0.0
 	_post_tutorial_objective.anchor_right = 1.0
-	_post_tutorial_objective.anchor_bottom = 1.0
-	_post_tutorial_objective.offset_left = -362.0
-	_post_tutorial_objective.offset_top = -216.0
-	_post_tutorial_objective.offset_right = -24.0
-	_post_tutorial_objective.offset_bottom = -162.0
-	_post_tutorial_objective.add_theme_stylebox_override("panel", _make_round_style(Color(0.31, 0.26, 0.18, 0.78), Color(1.0, 0.86, 0.46, 0.72), 10.0, 1))
+	_post_tutorial_objective.anchor_bottom = 0.0
+	_post_tutorial_objective.offset_left = -236.0
+	_post_tutorial_objective.offset_top = 92.0
+	_post_tutorial_objective.offset_right = -20.0
+	_post_tutorial_objective.offset_bottom = 144.0
+	_post_tutorial_objective.z_index = 8
+	_post_tutorial_objective.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.92, 0.72, 0.68), Color(0.86, 0.70, 0.42, 0.76), 15.0, 1))
+	_post_tutorial_objective.gui_input.connect(_on_post_tutorial_objective_input)
 	root.add_child(_post_tutorial_objective)
 
+	var icon := Label.new()
+	icon.name = "ObjectiveIcon"
+	icon.text = "礼"
+	icon.anchor_left = 0.0
+	icon.anchor_top = 0.0
+	icon.anchor_right = 0.0
+	icon.anchor_bottom = 0.0
+	icon.offset_left = 10.0
+	icon.offset_top = 8.0
+	icon.offset_right = 34.0
+	icon.offset_bottom = 32.0
+	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	icon.add_theme_font_size_override("font_size", 15)
+	icon.add_theme_color_override("font_color", Color(0.72, 0.46, 0.12, 0.96))
+	_post_tutorial_objective.add_child(icon)
+
 	_post_tutorial_objective_label = Label.new()
-	_post_tutorial_objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_post_tutorial_objective_label.name = "PackageTitle"
+	_post_tutorial_objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_post_tutorial_objective_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_post_tutorial_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_post_tutorial_objective_label.add_theme_font_size_override("font_size", 18)
-	_post_tutorial_objective_label.add_theme_color_override("font_color", Color(1.0, 0.93, 0.70, 1.0))
-	_post_tutorial_objective_label.add_theme_color_override("font_shadow_color", Color(0.12, 0.08, 0.04, 0.72))
-	_post_tutorial_objective_label.add_theme_constant_override("shadow_offset_x", 1)
-	_post_tutorial_objective_label.add_theme_constant_override("shadow_offset_y", 2)
-	_post_tutorial_objective_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_post_tutorial_objective_label.offset_left = 16.0
-	_post_tutorial_objective_label.offset_right = -16.0
+	_post_tutorial_objective_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_post_tutorial_objective_label.add_theme_font_size_override("font_size", 14)
+	_post_tutorial_objective_label.add_theme_color_override("font_color", Color(0.26, 0.17, 0.07, 0.98))
+	_post_tutorial_objective_label.anchor_left = 0.0
+	_post_tutorial_objective_label.anchor_top = 0.0
+	_post_tutorial_objective_label.anchor_right = 1.0
+	_post_tutorial_objective_label.anchor_bottom = 0.0
+	_post_tutorial_objective_label.offset_left = 38.0
+	_post_tutorial_objective_label.offset_top = 8.0
+	_post_tutorial_objective_label.offset_right = -30.0
+	_post_tutorial_objective_label.offset_bottom = 30.0
 	_post_tutorial_objective.add_child(_post_tutorial_objective_label)
+
+	_post_tutorial_reward_label = Label.new()
+	_post_tutorial_reward_label.name = "CurrentGoal"
+	_post_tutorial_reward_label.visible = false
+	_post_tutorial_reward_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_post_tutorial_reward_label.anchor_left = 0.0
+	_post_tutorial_reward_label.anchor_top = 0.0
+	_post_tutorial_reward_label.anchor_right = 1.0
+	_post_tutorial_reward_label.anchor_bottom = 0.0
+	_post_tutorial_reward_label.offset_left = 14.0
+	_post_tutorial_reward_label.offset_top = 30.0
+	_post_tutorial_reward_label.offset_right = -14.0
+	_post_tutorial_reward_label.offset_bottom = 48.0
+	_post_tutorial_reward_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_post_tutorial_reward_label.add_theme_font_size_override("font_size", 12)
+	_post_tutorial_reward_label.add_theme_color_override("font_color", Color(0.38, 0.24, 0.08, 0.95))
+	_post_tutorial_objective.add_child(_post_tutorial_reward_label)
+
+	var progress_back := PanelContainer.new()
+	progress_back.name = "RewardProgressBack"
+	progress_back.anchor_left = 0.0
+	progress_back.anchor_top = 1.0
+	progress_back.anchor_right = 1.0
+	progress_back.anchor_bottom = 1.0
+	progress_back.offset_left = 14.0
+	progress_back.offset_top = -9.0
+	progress_back.offset_right = -14.0
+	progress_back.offset_bottom = -5.0
+	progress_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	progress_back.add_theme_stylebox_override("panel", _make_round_style(Color(0.73, 0.62, 0.40, 0.32), Color(1.0, 0.95, 0.74, 0.62), 4.0, 0))
+	_post_tutorial_objective.add_child(progress_back)
+
+	_post_tutorial_progress_fill = ColorRect.new()
+	_post_tutorial_progress_fill.name = "RewardProgressFill"
+	_post_tutorial_progress_fill.color = Color(0.96, 0.70, 0.26, 0.82)
+	_post_tutorial_progress_fill.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_post_tutorial_progress_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_post_tutorial_progress_fill.scale.x = 0.0
+	progress_back.add_child(_post_tutorial_progress_fill)
+
+	_post_tutorial_gift_button = Button.new()
+	_post_tutorial_gift_button.name = "GiftButton"
+	_post_tutorial_gift_button.text = "▼"
+	_post_tutorial_gift_button.anchor_left = 1.0
+	_post_tutorial_gift_button.anchor_top = 0.0
+	_post_tutorial_gift_button.anchor_right = 1.0
+	_post_tutorial_gift_button.anchor_bottom = 0.0
+	_post_tutorial_gift_button.offset_left = -29.0
+	_post_tutorial_gift_button.offset_top = 9.0
+	_post_tutorial_gift_button.offset_right = -7.0
+	_post_tutorial_gift_button.offset_bottom = 33.0
+	_post_tutorial_gift_button.focus_mode = Control.FOCUS_NONE
+	_post_tutorial_gift_button.tooltip_text = ""
+	_post_tutorial_gift_button.add_theme_font_size_override("font_size", 12)
+	_post_tutorial_gift_button.add_theme_color_override("font_color", Color(0.42, 0.25, 0.07, 0.95))
+	_post_tutorial_gift_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.96, 0.86, 0.62, 0.64), Color(0.88, 0.70, 0.38, 0.58), 14.0, 1))
+	_post_tutorial_gift_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.91, 0.66, 0.90), Color(1.0, 0.80, 0.35, 0.90), 14.0, 2))
+	_post_tutorial_gift_button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.86, 0.70, 0.44, 0.90), Color(1.0, 0.84, 0.42, 0.95), 14.0, 2))
+	_post_tutorial_gift_button.pressed.connect(_toggle_post_tutorial_dropdown)
+	_post_tutorial_objective.add_child(_post_tutorial_gift_button)
+
+	_create_post_tutorial_dropdown()
+	_create_post_tutorial_alt_guide()
+
+func _create_post_tutorial_alt_guide() -> void:
+	if _post_tutorial_objective == null:
+		return
+	_post_tutorial_alt_guide = PanelContainer.new()
+	_post_tutorial_alt_guide.name = "AltMouseGuide"
+	_post_tutorial_alt_guide.visible = false
+	_post_tutorial_alt_guide.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_post_tutorial_alt_guide.anchor_left = 1.0
+	_post_tutorial_alt_guide.anchor_top = 0.0
+	_post_tutorial_alt_guide.anchor_right = 1.0
+	_post_tutorial_alt_guide.anchor_bottom = 0.0
+	_post_tutorial_alt_guide.offset_left = -230.0
+	_post_tutorial_alt_guide.offset_top = 58.0
+	_post_tutorial_alt_guide.offset_right = 0.0
+	_post_tutorial_alt_guide.offset_bottom = 86.0
+	_post_tutorial_alt_guide.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.94, 0.76, 0.78), Color(0.86, 0.70, 0.42, 0.62), 11.0, 1))
+	_post_tutorial_objective.add_child(_post_tutorial_alt_guide)
+
+	var label := Label.new()
+	label.name = "AltMouseGuideText"
+	label.text = "按住 ALT 呼出鼠标，点击展开任务板"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", Color(0.34, 0.22, 0.08, 0.96))
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.offset_left = 8.0
+	label.offset_right = -8.0
+	_post_tutorial_alt_guide.add_child(label)
+
+func _create_post_tutorial_dropdown() -> void:
+	if _post_tutorial_objective == null:
+		return
+	_post_tutorial_dropdown = PanelContainer.new()
+	_post_tutorial_dropdown.name = "OpeningPackageDropdown"
+	_post_tutorial_dropdown.visible = false
+	_post_tutorial_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
+	_post_tutorial_dropdown.anchor_left = 1.0
+	_post_tutorial_dropdown.anchor_top = 0.0
+	_post_tutorial_dropdown.anchor_right = 1.0
+	_post_tutorial_dropdown.anchor_bottom = 0.0
+	_post_tutorial_dropdown.offset_left = -252.0
+	_post_tutorial_dropdown.offset_top = 58.0
+	_post_tutorial_dropdown.offset_right = 0.0
+	_post_tutorial_dropdown.offset_bottom = 236.0
+	_post_tutorial_dropdown.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.92, 0.72, 0.82), Color(0.86, 0.70, 0.42, 0.82), 14.0, 1))
+	_post_tutorial_dropdown.gui_input.connect(_on_post_tutorial_dropdown_input)
+	_post_tutorial_objective.add_child(_post_tutorial_dropdown)
+
+	var box := VBoxContainer.new()
+	box.name = "DropdownContent"
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 12.0
+	box.offset_top = 10.0
+	box.offset_right = -12.0
+	box.offset_bottom = -12.0
+	box.add_theme_constant_override("separation", 5)
+	_post_tutorial_dropdown.add_child(box)
+
+	_post_tutorial_dropdown_label = Label.new()
+	_post_tutorial_dropdown_label.name = "DropdownText"
+	_post_tutorial_dropdown_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_post_tutorial_dropdown_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_post_tutorial_dropdown_label.add_theme_font_size_override("font_size", 12)
+	_post_tutorial_dropdown_label.add_theme_color_override("font_color", Color(0.26, 0.17, 0.07, 0.98))
+	box.add_child(_post_tutorial_dropdown_label)
+
+	_post_tutorial_claim_button = Button.new()
+	_post_tutorial_claim_button.name = "ClaimOpeningPackage"
+	_post_tutorial_claim_button.text = "领取"
+	_post_tutorial_claim_button.custom_minimum_size = Vector2(0.0, 30.0)
+	_post_tutorial_claim_button.focus_mode = Control.FOCUS_NONE
+	_post_tutorial_claim_button.add_theme_font_size_override("font_size", 14)
+	_post_tutorial_claim_button.add_theme_color_override("font_color", Color(0.25, 0.15, 0.05))
+	_post_tutorial_claim_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.96, 0.82, 0.50, 0.86), Color(0.82, 0.62, 0.28, 0.86), 12.0, 1))
+	_post_tutorial_claim_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.88, 0.56, 0.96), Color(0.94, 0.70, 0.30, 0.96), 12.0, 1))
+	_post_tutorial_claim_button.gui_input.connect(_on_post_tutorial_claim_button_input)
+	_post_tutorial_claim_button.pressed.connect(_on_post_tutorial_gift_pressed)
+	box.add_child(_post_tutorial_claim_button)
 
 func _create_crop_throw_charge_bar(root: Control) -> void:
 	_crop_throw_charge_bar = PanelContainer.new()
@@ -3811,10 +4069,10 @@ func _create_map_codex_detail_popup() -> void:
 	_map_codex_detail_popup.anchor_top = 0.5
 	_map_codex_detail_popup.anchor_right = 0.5
 	_map_codex_detail_popup.anchor_bottom = 0.5
-	_map_codex_detail_popup.offset_left = -220.0
-	_map_codex_detail_popup.offset_top = -170.0
-	_map_codex_detail_popup.offset_right = 220.0
-	_map_codex_detail_popup.offset_bottom = 170.0
+	_map_codex_detail_popup.offset_left = -245.0
+	_map_codex_detail_popup.offset_top = -220.0
+	_map_codex_detail_popup.offset_right = 245.0
+	_map_codex_detail_popup.offset_bottom = 220.0
 	_map_codex_detail_popup.z_index = 80
 	_map_codex_detail_popup.mouse_filter = Control.MOUSE_FILTER_STOP
 	_map_codex_detail_popup.add_theme_stylebox_override("panel", _make_round_style(Color(0.94, 0.84, 0.60, 0.96), Color(1.0, 0.96, 0.76, 1.0), 10.0, 2))
@@ -3840,7 +4098,7 @@ func _show_map_codex_detail_popup(kind: String) -> void:
 	box.offset_top = 14.0
 	box.offset_right = -18.0
 	box.offset_bottom = -16.0
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 8)
 	_map_codex_detail_popup.add_child(box)
 
 	var header := HBoxContainer.new()
@@ -3868,16 +4126,19 @@ func _show_map_codex_detail_popup(kind: String) -> void:
 	entry_grid.add_theme_constant_override("h_separation", 8)
 	entry_grid.add_theme_constant_override("v_separation", 6)
 	box.add_child(entry_grid)
-	_fill_map_codex_entries(entry_grid, kind, total)
+	var detail_label := Label.new()
+	detail_label.text = "点击格子查看线索"
+	detail_label.custom_minimum_size = Vector2(0.0, 40.0)
+	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	detail_label.add_theme_font_size_override("font_size", 14)
+	detail_label.add_theme_color_override("font_color", Color(0.33, 0.22, 0.10))
+	_fill_map_codex_entries(entry_grid, kind, total, detail_label)
 
-	var reward_title := Label.new()
-	reward_title.text = "奖励进度"
-	reward_title.add_theme_font_size_override("font_size", 18)
-	reward_title.add_theme_color_override("font_color", Color(0.25, 0.16, 0.07))
-	box.add_child(reward_title)
+	var reward_line := _create_map_codex_reward_line(kind, rewards, count, total)
+	box.add_child(reward_line)
 
-	for reward in rewards:
-		_create_map_codex_reward_row(box, kind, reward, count, total)
+	box.add_child(detail_label)
 
 	_map_codex_detail_popup.visible = true
 	_map_codex_detail_popup.move_to_front()
@@ -3886,73 +4147,153 @@ func _hide_map_codex_detail_popup() -> void:
 	if _map_codex_detail_popup != null:
 		_map_codex_detail_popup.visible = false
 
-func _fill_map_codex_entries(parent: GridContainer, kind: String, total: int) -> void:
+func _fill_map_codex_entries(parent: GridContainer, kind: String, total: int, detail_label: Label) -> void:
 	var ids := _codex_known_ids(kind)
 	for index in range(total):
 		var id := str(ids[index]) if index < ids.size() else ""
 		var discovered := _is_codex_id_discovered(kind, id)
-		var label := Label.new()
-		label.text = "%02d  %s" % [index + 1, _codex_entry_name(kind, id) if discovered else "未发现"]
-		label.custom_minimum_size = Vector2(188.0, 28.0)
-		label.add_theme_font_size_override("font_size", 16)
-		label.add_theme_color_override("font_color", Color(0.24, 0.16, 0.07) if discovered else Color(0.58, 0.50, 0.38))
-		parent.add_child(label)
+		parent.add_child(_create_map_codex_entry_card(kind, id, index, discovered, detail_label))
 
-func _create_map_codex_reward_row(parent: VBoxContainer, kind: String, reward: Dictionary, count: int, total: int) -> void:
-	var threshold := int(reward.get("count", 0))
-	var claimed := bool(_codex_claimed_rewards.get("%s:%d" % [kind, threshold], false))
-	var can_claim := count >= threshold and not claimed
+func _create_map_codex_entry_card(kind: String, id: String, index: int, discovered: bool, detail_label: Label) -> Button:
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(218.0, 38.0)
+	card.focus_mode = Control.FOCUS_NONE
+	card.clip_contents = true
+	card.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.92, 0.70, 0.34), Color(0.70, 0.52, 0.22, 0.22), 8.0, 1))
+	card.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.94, 0.72, 0.58), Color(0.88, 0.66, 0.28, 0.48), 8.0, 1))
+	card.add_theme_stylebox_override("pressed", _make_round_style(Color(0.95, 0.82, 0.55, 0.62), Color(0.72, 0.50, 0.18, 0.55), 8.0, 1))
+	card.pressed.connect(_on_map_codex_entry_pressed.bind(kind, id, index, discovered, detail_label))
 
 	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 8.0
+	row.offset_top = 5.0
+	row.offset_right = -8.0
+	row.offset_bottom = -5.0
 	row.add_theme_constant_override("separation", 8)
-	parent.add_child(row)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
 
-	var progress := ProgressBar.new()
-	progress.min_value = 0.0
-	progress.max_value = float(maxi(threshold, 1))
-	progress.value = float(clampi(count, 0, threshold))
-	progress.show_percentage = false
-	progress.custom_minimum_size = Vector2(238.0, 22.0)
-	progress.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(progress)
+	var icon := Label.new()
+	icon.text = _codex_entry_icon_text(kind, id, discovered)
+	icon.custom_minimum_size = Vector2(30.0, 30.0)
+	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	icon.add_theme_font_size_override("font_size", 20)
+	icon.add_theme_color_override("font_color", Color(0.34, 0.24, 0.11) if discovered else Color(0.48, 0.45, 0.39, 0.62))
+	row.add_child(icon)
 
-	var label := Label.new()
-	label.text = "%d/%d  %s" % [mini(count, threshold), threshold, str(reward.get("label", "奖励"))]
-	label.custom_minimum_size = Vector2(110.0, 24.0)
-	label.add_theme_font_size_override("font_size", 14)
-	label.add_theme_color_override("font_color", Color(0.25, 0.17, 0.08))
-	row.add_child(label)
+	var text_box := VBoxContainer.new()
+	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_box.add_theme_constant_override("separation", 0)
+	row.add_child(text_box)
 
-	var gift_wrap := Control.new()
-	gift_wrap.custom_minimum_size = Vector2(42.0, 30.0)
-	row.add_child(gift_wrap)
+	var number := Label.new()
+	number.text = "%02d" % [index + 1]
+	number.add_theme_font_size_override("font_size", 12)
+	number.add_theme_color_override("font_color", Color(0.50, 0.38, 0.18, 0.86))
+	text_box.add_child(number)
 
-	var gift := Button.new()
-	gift.text = "🎁"
-	gift.disabled = not can_claim
-	gift.focus_mode = Control.FOCUS_NONE
-	gift.set_anchors_preset(Control.PRESET_FULL_RECT)
-	gift.add_theme_font_size_override("font_size", 18)
-	gift.pressed.connect(_on_map_codex_reward_pressed.bind(kind))
-	gift_wrap.add_child(gift)
+	var name := Label.new()
+	name.text = _codex_entry_name(kind, id) if discovered else "未发现"
+	name.add_theme_font_size_override("font_size", 15)
+	name.add_theme_color_override("font_color", Color(0.24, 0.16, 0.07) if discovered else Color(0.58, 0.50, 0.38))
+	text_box.add_child(name)
+	return card
 
-	var red_dot := Label.new()
-	red_dot.text = "●"
-	red_dot.visible = can_claim
-	red_dot.anchor_left = 1.0
-	red_dot.anchor_top = 0.0
-	red_dot.anchor_right = 1.0
-	red_dot.anchor_bottom = 0.0
-	red_dot.offset_left = -10.0
-	red_dot.offset_top = -5.0
-	red_dot.offset_right = 8.0
-	red_dot.offset_bottom = 13.0
-	red_dot.add_theme_font_size_override("font_size", 15)
-	red_dot.add_theme_color_override("font_color", Color(0.92, 0.06, 0.04, 1.0))
-	gift_wrap.add_child(red_dot)
+func _on_map_codex_entry_pressed(kind: String, id: String, index: int, discovered: bool, detail_label: Label) -> void:
+	if detail_label == null or not is_instance_valid(detail_label):
+		return
+	if discovered:
+		detail_label.text = "%s：%s" % [_codex_entry_name(kind, id), _codex_entry_detail_text(kind, id)]
+	else:
+		detail_label.text = _codex_entry_unlock_hint(kind, id, index)
 
-func _on_map_codex_reward_pressed(kind: String) -> void:
-	_claim_map_codex_reward(kind)
+func _create_map_codex_reward_line(kind: String, rewards: Array, count: int, total: int) -> Control:
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(0.0, 72.0)
+	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrap.draw.connect(_draw_map_codex_reward_line.bind(wrap, count, total))
+
+	var progress_text := Label.new()
+	progress_text.text = "奖励进度  %d/%d" % [clampi(count, 0, total), total]
+	progress_text.anchor_left = 0.0
+	progress_text.anchor_top = 0.0
+	progress_text.anchor_right = 1.0
+	progress_text.anchor_bottom = 0.0
+	progress_text.offset_bottom = 20.0
+	progress_text.add_theme_font_size_override("font_size", 14)
+	progress_text.add_theme_color_override("font_color", Color(0.30, 0.20, 0.08))
+	wrap.add_child(progress_text)
+
+	for reward in rewards:
+		var threshold := int(reward.get("count", 0))
+		var ratio := float(threshold) / float(maxi(total, 1))
+		var state := _codex_reward_state(kind, threshold, count)
+
+		var node := Button.new()
+		node.text = "✓" if state == "claimed" else ("🎁" if state == "claimable" else "锁")
+		node.disabled = state != "claimable"
+		node.focus_mode = Control.FOCUS_NONE
+		node.anchor_left = ratio
+		node.anchor_right = ratio
+		node.anchor_top = 0.0
+		node.anchor_bottom = 0.0
+		node.offset_left = -16.0
+		node.offset_top = 22.0
+		node.offset_right = 16.0
+		node.offset_bottom = 54.0
+		if threshold >= total:
+			node.offset_left = -32.0
+			node.offset_right = 0.0
+		node.add_theme_font_size_override("font_size", 15)
+		node.add_theme_color_override("font_color", Color(0.94, 0.34, 0.12) if state == "claimable" else Color(0.55, 0.49, 0.39, 0.92))
+		node.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.58, 0.95) if state == "claimable" else Color(0.76, 0.70, 0.58, 0.54), Color(0.95, 0.72, 0.30, 0.7), 16.0, 1))
+		node.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.95, 0.68, 1.0), Color(1.0, 0.78, 0.32, 0.95), 16.0, 1))
+		node.pressed.connect(_on_map_codex_reward_pressed.bind(kind, threshold))
+		wrap.add_child(node)
+
+		var label := Label.new()
+		label.text = "%d/10 %s" % [threshold, str(reward.get("label", "奖励"))]
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.anchor_left = ratio
+		label.anchor_right = ratio
+		label.anchor_top = 0.0
+		label.anchor_bottom = 0.0
+		label.offset_left = -54.0
+		label.offset_top = 52.0
+		label.offset_right = 54.0
+		label.offset_bottom = 72.0
+		if threshold >= total:
+			label.offset_left = -108.0
+			label.offset_right = 0.0
+		elif threshold <= 1:
+			label.offset_left = -18.0
+			label.offset_right = 90.0
+		label.add_theme_font_size_override("font_size", 11)
+		label.add_theme_color_override("font_color", Color(0.32, 0.22, 0.10, 0.9) if state != "locked" else Color(0.48, 0.43, 0.36, 0.72))
+		wrap.add_child(label)
+	return wrap
+
+func _draw_map_codex_reward_line(control: Control, count: int, total: int) -> void:
+	if control == null:
+		return
+	var width := maxf(control.size.x, 1.0)
+	var y := 38.0
+	var left := 18.0
+	var right := maxf(width - 18.0, left + 1.0)
+	var bar_width := right - left
+	var fill_ratio := clampf(float(count) / float(maxi(total, 1)), 0.0, 1.0)
+	control.draw_rect(Rect2(Vector2(left, y - 5.0), Vector2(bar_width, 10.0)), Color(0.62, 0.55, 0.41, 0.35), true, 5.0)
+	control.draw_rect(Rect2(Vector2(left, y - 5.0), Vector2(bar_width * fill_ratio, 10.0)), Color(0.98, 0.76, 0.32, 0.74), true, 5.0)
+
+func _codex_reward_state(kind: String, threshold: int, count: int) -> String:
+	if bool(_codex_claimed_rewards.get("%s:%d" % [kind, threshold], false)):
+		return "claimed"
+	return "claimable" if count >= threshold else "locked"
+
+func _on_map_codex_reward_pressed(kind: String, threshold: int) -> void:
+	_claim_map_codex_reward_at(kind, threshold)
 	_show_map_codex_detail_popup(kind)
 
 func _codex_count(kind: String) -> int:
@@ -3979,6 +4320,59 @@ func _codex_entry_name(kind: String, id: String) -> String:
 		return "未发现"
 	return _crop_display_name(id) if kind == "crop" else _recipe_name(id)
 
+func _codex_entry_icon_text(kind: String, id: String, discovered: bool) -> String:
+	if not discovered:
+		return "?"
+	if kind == "cooking":
+		match id:
+			KITCHEN_RECIPE_SOUP:
+				return "汤"
+			KITCHEN_RECIPE_GRILLED:
+				return "烤"
+		return "菜"
+	match id:
+		CROP_CARROT:
+			return "胡"
+		CROP_EGGPLANT:
+			return "茄"
+		CROP_PEA:
+			return "豆"
+		CROP_BELL_PEPPER:
+			return "椒"
+		CROP_MARSHMALLOW:
+			return "糖"
+	return "芽"
+
+func _codex_entry_unlock_hint(kind: String, id: String, index: int) -> String:
+	if kind == "cooking":
+		if id == "":
+			return "继续升级房车厨房，完成更多料理委托后解锁"
+		return "完成对应料理后解锁"
+	if id == "":
+		return "继续探索村庄区域，收集新的种子和食材"
+	return "收集并收获对应食材后解锁"
+
+func _codex_entry_detail_text(kind: String, id: String) -> String:
+	if kind == "cooking":
+		match id:
+			KITCHEN_RECIPE_SOUP:
+				return "基础热汤料理。需要胡萝卜清洗、切好后下锅，完成后可提交给订单。"
+			KITCHEN_RECIPE_GRILLED:
+				return "简单烧烤料理。需要把胡萝卜放上烧烤架，注意火候后出餐。"
+		return "这道料理已经记录在房车厨房里。"
+	match id:
+		CROP_CARROT:
+			return "最早学会种植的基础食材，也是第一次经营订单的核心原料。"
+		CROP_EGGPLANT:
+			return "村庄阶段可获得的作物，可通过草地掉落或瑞巴斯商店扩展种植。"
+		CROP_PEA:
+			return "村庄阶段可获得的作物，可用于后续更多轻食订单。"
+		CROP_BELL_PEPPER:
+			return "摇树时可能发现的作物种子，偏向探索奖励。"
+		CROP_MARSHMALLOW:
+			return "神秘种子长出的特殊食材，主要来自瑞巴斯商店。"
+	return "这项作物已经被记录进图鉴。"
+
 func _claim_map_codex_reward(kind: String) -> void:
 	var count := _codex_discovered_crops.size() if kind == "crop" else _codex_discovered_cooking.size()
 	var rewards := CODEX_CROP_REWARDS if kind == "crop" else CODEX_COOKING_REWARDS
@@ -3986,6 +4380,17 @@ func _claim_map_codex_reward(kind: String) -> void:
 	if reward.is_empty():
 		return
 	var threshold := int(reward.get("count", 0))
+	_claim_map_codex_reward_at(kind, threshold)
+
+func _claim_map_codex_reward_at(kind: String, threshold: int) -> void:
+	var count := _codex_discovered_crops.size() if kind == "crop" else _codex_discovered_cooking.size()
+	var rewards := CODEX_CROP_REWARDS if kind == "crop" else CODEX_COOKING_REWARDS
+	var reward := _find_codex_reward_by_threshold(rewards, threshold)
+	if reward.is_empty():
+		return
+	if bool(_codex_claimed_rewards.get("%s:%d" % [kind, threshold], false)):
+		_show_side_toast("这个图鉴奖励已经领取过了")
+		return
 	if count < threshold:
 		_show_side_toast("图鉴进度还不够")
 		return
@@ -3996,6 +4401,12 @@ func _claim_map_codex_reward(kind: String) -> void:
 		_add_seed_to_inventory(str(reward["seed_crop"]), int(reward.get("seed_quality", 0)), int(reward.get("seed_count", 1)), true)
 	_show_side_toast(str(reward.get("toast", "领取图鉴奖励：%s" % str(reward.get("label", "奖励")))))
 	_update_map_codex_panel()
+
+func _find_codex_reward_by_threshold(rewards: Array, threshold: int) -> Dictionary:
+	for reward in rewards:
+		if int(reward.get("count", 0)) == threshold:
+			return reward
+	return {}
 
 func _record_codex_crop(crop_type: String) -> void:
 	if crop_type == "" or _codex_discovered_crops.has(crop_type):
@@ -5162,7 +5573,7 @@ func _update_kitchen_button() -> void:
 		_kitchen_button.move_to_front()
 
 func _should_show_kitchen_button() -> bool:
-	return _chapter_one_active and _chest_lesson_completed and not _kitchen_first_day_completed
+	return false
 
 func _close_kitchen_equipment_panel() -> void:
 	_kitchen_equipment_panel_open = false
@@ -5397,8 +5808,7 @@ func _create_kitchen_equipment_model(parent: Node3D, equipment_id: String, root_
 			_fit_model_to_max_dimension(model, 2.0)
 			_center_model_on_origin(model)
 			_ground_model(model)
-			_snap_model_to_world_ground(root, model, position.y)
-			root.global_position.y += _kitchen_equipment_ground_lift(equipment_id)
+			_seat_kitchen_equipment_model(model, equipment_id)
 			_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 			if preview:
 				_apply_preview_material(model, Color(0.78, 0.72, 0.56, 0.42))
@@ -5436,15 +5846,16 @@ func _add_kitchen_equipment_blocker(root: Node3D, equipment_id: String) -> void:
 func _kitchen_equipment_ground_lift(equipment_id: String) -> float:
 	match equipment_id:
 		"sink":
-			return 0.24
+			return 0.72
 	return 0.0
 
-func _snap_model_to_world_ground(root: Node3D, model: Node3D, ground_y: float) -> void:
+func _seat_kitchen_equipment_model(model: Node3D, equipment_id: String) -> void:
 	var bounds := _get_model_bounds(model)
 	if bounds.size == Vector3.ZERO:
 		return
+	var target_bottom := 0.08 + _kitchen_equipment_ground_lift(equipment_id)
 	var world_bottom := model.global_transform * Vector3(bounds.get_center().x, bounds.position.y, bounds.get_center().z)
-	root.global_position.y += ground_y - world_bottom.y + 0.03
+	model.global_position.y += target_bottom - world_bottom.y
 
 func _create_kitchen_equipment_base(root: Node3D) -> void:
 	var base_mat := _make_material(Color(0.88, 0.78, 0.54, 0.96), 0.78)
@@ -5534,7 +5945,7 @@ func _use_kitchen_pot() -> bool:
 		if _kitchen_held_item != "chopped_carrot":
 			_show_notification("胡萝卜清汤需要切好的胡萝卜")
 			return true
-		_kitchen_pot_state = {"recipe": KITCHEN_RECIPE_SOUP, "time": 0.0, "stage": "cooking"}
+		_kitchen_pot_state = _create_kitchen_cook_state("pot", KITCHEN_RECIPE_SOUP, "chopped_carrot", KITCHEN_COOK_SOUP_SECONDS)
 		_clear_kitchen_held_item()
 		_show_side_toast("胡萝卜清汤下锅了")
 		return true
@@ -5545,7 +5956,7 @@ func _use_kitchen_grill() -> bool:
 		if _kitchen_held_item != "raw_carrot":
 			_show_notification("烤胡萝卜需要从食材箱拿胡萝卜")
 			return true
-		_kitchen_grill_state = {"recipe": KITCHEN_RECIPE_GRILLED, "time": 0.0, "stage": "cooking"}
+		_kitchen_grill_state = _create_kitchen_cook_state("grill", KITCHEN_RECIPE_GRILLED, "raw_carrot", KITCHEN_COOK_GRILL_SECONDS)
 		_clear_kitchen_held_item()
 		_show_side_toast("胡萝卜放上烤架了")
 		return true
@@ -5560,9 +5971,123 @@ func _use_kitchen_prep_shelf() -> bool:
 	_show_notification("备菜架暂无可出的菜：" + _kitchen_order_summary())
 	return true
 
+func _create_kitchen_cook_state(station: String, recipe: String, item_id: String, cook_duration: float) -> Dictionary:
+	return {
+		"station_type": station,
+		"current_item_id": item_id,
+		"target_recipe_id": recipe,
+		"recipe": recipe,
+		"state": "HeatSelecting",
+		"stage": "heat_selecting",
+		"heat_level": "",
+		"heat_cursor": randf(),
+		"heat_dir": 1.0 if randf() >= 0.5 else -1.0,
+		"cook_progress": 0.0,
+		"burn_progress": 0.0,
+		"done_hold_progress": 0.0,
+		"cook_duration": cook_duration,
+		"done_hold_duration": KITCHEN_HEAT_GREEN_DONE_HOLD_SECONDS,
+		"burn_duration": KITCHEN_HEAT_GREEN_BURN_SECONDS,
+		"is_interactable": true,
+	}
+
+func _lock_kitchen_heat(state: Dictionary, station: String) -> void:
+	var cursor := clampf(float(state.get("heat_cursor", 0.5)), 0.0, 1.0)
+	var heat := _kitchen_heat_level_for_cursor(cursor)
+	state["heat_level"] = heat
+	state["state"] = "Cooking"
+	state["stage"] = "cooking"
+	state["done_hold_duration"] = _kitchen_done_hold_duration_for_heat(heat)
+	state["burn_duration"] = _kitchen_burn_duration_for_heat(heat)
+	if station == "pot":
+		_kitchen_pot_state = state
+	else:
+		_kitchen_grill_state = state
+	_show_side_toast("%s：%s" % [_equipment_name(station), _kitchen_heat_label(heat)])
+
+func _kitchen_heat_level_for_cursor(cursor: float) -> String:
+	if cursor < 0.32:
+		return "blue"
+	if cursor <= 0.68:
+		return "green"
+	return "red"
+
+func _kitchen_heat_label(heat: String) -> String:
+	match heat:
+		"blue":
+			return "火候偏小，慢慢做"
+		"green":
+			return "火候刚好"
+		"red":
+			return "火候过大，容易烧焦"
+	return "火候未定"
+
+func _kitchen_heat_speed(heat: String) -> float:
+	match heat:
+		"blue":
+			return KITCHEN_HEAT_BLUE_SPEED
+		"red":
+			return KITCHEN_HEAT_RED_SPEED
+	return KITCHEN_HEAT_GREEN_SPEED
+
+func _kitchen_done_hold_duration_for_heat(heat: String) -> float:
+	match heat:
+		"blue":
+			return KITCHEN_HEAT_BLUE_DONE_HOLD_SECONDS
+		"red":
+			return KITCHEN_HEAT_RED_DONE_HOLD_SECONDS
+	return KITCHEN_HEAT_GREEN_DONE_HOLD_SECONDS
+
+func _kitchen_burn_duration_for_heat(heat: String) -> float:
+	match heat:
+		"blue":
+			return KITCHEN_HEAT_BLUE_BURN_SECONDS
+		"red":
+			return KITCHEN_HEAT_RED_BURN_SECONDS
+	return KITCHEN_HEAT_GREEN_BURN_SECONDS
+
+func _create_kitchen_burnt_waste(station: String, recipe: String) -> void:
+	var station_root := _kitchen_equipment_roots.get(station) as Node3D
+	if station_root == null or not is_instance_valid(station_root):
+		return
+	var waste := Node3D.new()
+	waste.name = "BurntKitchenWaste"
+	var offset := Vector3(0.75, 0.0, 0.55).rotated(Vector3.UP, station_root.rotation.y)
+	waste.global_position = station_root.global_position + offset
+	waste.global_position.y = _height_at(waste.global_position.x, waste.global_position.z) + 0.08
+	_mark_generated(waste)
+	add_child(waste)
+	var body := MeshInstance3D.new()
+	body.name = "BurntWasteBody"
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.16
+	mesh.height = 0.09
+	body.mesh = mesh
+	body.material_override = _make_material(Color(0.055, 0.04, 0.03, 1.0), 0.9)
+	body.scale = Vector3(1.3, 0.55, 0.92)
+	waste.add_child(body)
+	var label := Label3D.new()
+	label.name = "BurntWasteLabel"
+	label.text = "焦糊废弃物"
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.font_size = 20
+	label.position = Vector3(0.0, 0.42, 0.0)
+	label.modulate = Color(0.38, 0.08, 0.04, 1.0)
+	label.outline_size = 6
+	label.outline_modulate = Color(1.0, 0.78, 0.52, 0.86)
+	waste.add_child(label)
+	var tween := create_tween()
+	tween.tween_interval(4.0)
+	tween.tween_property(waste, "scale", Vector3.ZERO, 0.35)
+	tween.finished.connect(waste.queue_free)
+
 func _finish_kitchen_cook_state(state: Dictionary, station: String) -> bool:
 	var stage := str(state.get("stage", "cooking"))
 	var recipe := str(state.get("recipe", ""))
+	if stage == "heat_selecting":
+		_lock_kitchen_heat(state, station)
+		return true
 	if stage == "cooking":
 		_show_notification("还没熟，先去忙别的")
 		return true
@@ -5572,7 +6097,7 @@ func _finish_kitchen_cook_state(state: Dictionary, station: String) -> bool:
 		else:
 			_kitchen_grill_state.clear()
 		_kitchen_failed_count += 1
-		_kitchen_scrap_dishes[recipe] = int(_kitchen_scrap_dishes.get(recipe, 0)) + 1
+		_create_kitchen_burnt_waste(station, recipe)
 		_show_notification("糊掉了，端到备菜架低价处理")
 		return true
 	_kitchen_ready_dishes[recipe] = int(_kitchen_ready_dishes.get(recipe, 0)) + 1
@@ -5707,12 +6232,32 @@ func _create_kitchen_equipment_bubble(root: Node3D, equipment_id: String) -> voi
 	bubble.outline_modulate = Color(0.98, 0.86, 0.55, 0.92)
 	bubble.position = Vector3(0.0, 2.25, 0.0)
 	root.add_child(bubble)
+	var panel_mat := _make_material(Color(0.98, 0.91, 0.70, 0.82), 0.72)
+	panel_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_create_box_mesh(root, "KitchenBubblePanel", Vector3(0.0, 2.20, -0.015), Vector3(1.55, 0.82, 0.045), panel_mat).visible = false
+	var icon_mat := _make_material(Color(1.0, 0.72, 0.30, 0.96), 0.68)
+	var icon := MeshInstance3D.new()
+	icon.name = "KitchenBubbleIcon"
+	var icon_mesh := SphereMesh.new()
+	icon_mesh.radius = 0.13
+	icon_mesh.height = 0.10
+	icon.mesh = icon_mesh
+	icon.material_override = icon_mat
+	icon.position = Vector3(-0.55, 2.38, 0.0)
+	icon.visible = false
+	root.add_child(icon)
 	var bar_back_mat := _make_material(Color(0.30, 0.21, 0.11, 0.72), 0.8)
 	var bar_fill_mat := _make_material(Color(0.98, 0.72, 0.26, 0.95), 0.65)
-	var bar_back := _create_box_mesh(root, "KitchenProgressBack", Vector3(0.0, 2.02, 0.0), Vector3(1.15, 0.055, 0.055), bar_back_mat)
-	var bar_fill := _create_box_mesh(root, "KitchenProgressFill", Vector3(0.0, 2.025, 0.0), Vector3(1.08, 0.065, 0.065), bar_fill_mat)
+	var bar_back := _create_box_mesh(root, "KitchenProgressBack", Vector3(0.0, 1.94, 0.0), Vector3(1.18, 0.08, 0.055), bar_back_mat)
+	var bar_fill := _create_box_mesh(root, "KitchenProgressFill", Vector3(0.0, 1.945, 0.0), Vector3(1.08, 0.07, 0.065), bar_fill_mat)
 	bar_back.visible = false
 	bar_fill.visible = false
+	var heat_blue := _create_box_mesh(root, "KitchenHeatBlue", Vector3(-0.365, 2.02, 0.0), Vector3(0.36, 0.055, 0.06), _make_material(Color(0.38, 0.70, 1.0, 0.88), 0.6))
+	var heat_green := _create_box_mesh(root, "KitchenHeatGreen", Vector3(0.0, 2.02, 0.0), Vector3(0.39, 0.055, 0.06), _make_material(Color(0.50, 0.92, 0.48, 0.88), 0.6))
+	var heat_red := _create_box_mesh(root, "KitchenHeatRed", Vector3(0.385, 2.02, 0.0), Vector3(0.39, 0.055, 0.06), _make_material(Color(1.0, 0.36, 0.24, 0.88), 0.6))
+	var heat_pointer := _create_box_mesh(root, "KitchenHeatPointer", Vector3(0.0, 2.09, 0.0), Vector3(0.035, 0.19, 0.075), _make_material(Color(0.26, 0.15, 0.06, 1.0), 0.5))
+	for node in [heat_blue, heat_green, heat_red, heat_pointer]:
+		node.visible = false
 	_kitchen_equipment_bubbles[equipment_id] = bubble
 
 func _update_kitchen_equipment_bubbles() -> void:
@@ -5725,28 +6270,144 @@ func _update_kitchen_equipment_bubbles() -> void:
 		bubble.text = text
 		bubble.visible = text != ""
 		_update_kitchen_equipment_progress_bar(equipment_id)
+		_update_kitchen_station_visual(equipment_id)
 	_update_food_chest_order_bubble()
+
+func _update_kitchen_station_visual(equipment_id: String) -> void:
+	if equipment_id != "pot" and equipment_id != "grill":
+		return
+	var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
+	if root == null or not is_instance_valid(root):
+		return
+	var state := _kitchen_state_for_station(equipment_id)
+	var visual := root.get_node_or_null("KitchenStationFoodVisual") as Node3D
+	if state.is_empty():
+		if visual != null:
+			visual.queue_free()
+		return
+	if visual == null:
+		visual = Node3D.new()
+		visual.name = "KitchenStationFoodVisual"
+		visual.position = Vector3(0.0, 0.98, 0.0)
+		root.add_child(visual)
+		var food := MeshInstance3D.new()
+		food.name = "Food"
+		var food_mesh := SphereMesh.new()
+		food_mesh.radius = 0.22
+		food_mesh.height = 0.11
+		food.mesh = food_mesh
+		visual.add_child(food)
+		var steam := MeshInstance3D.new()
+		steam.name = "Steam"
+		var steam_mesh := SphereMesh.new()
+		steam_mesh.radius = 0.075
+		steam_mesh.height = 0.10
+		steam.mesh = steam_mesh
+		steam.position = Vector3(0.0, 0.34, 0.0)
+		visual.add_child(steam)
+	var food_mesh_instance := visual.get_node_or_null("Food") as MeshInstance3D
+	var steam_mesh_instance := visual.get_node_or_null("Steam") as MeshInstance3D
+	var station_state := str(state.get("state", "Cooking"))
+	var food_color := Color(1.0, 0.66, 0.26, 1.0)
+	var steam_color := Color(0.92, 0.88, 0.78, 0.55)
+	match station_state:
+		"HeatSelecting":
+			food_color = Color(1.0, 0.56, 0.22, 1.0)
+		"Cooking":
+			food_color = Color(1.0, 0.74, 0.34, 1.0)
+		"Done":
+			food_color = Color(1.0, 0.86, 0.36, 1.0)
+			steam_color = Color(1.0, 0.95, 0.70, 0.68)
+		"Burning":
+			food_color = Color(0.45, 0.22, 0.10, 1.0)
+			steam_color = Color(0.16, 0.12, 0.10, 0.68)
+		"Burnt":
+			food_color = Color(0.06, 0.045, 0.035, 1.0)
+			steam_color = Color(0.04, 0.035, 0.03, 0.78)
+	if food_mesh_instance != null:
+		_update_mesh_color(food_mesh_instance, food_color)
+	if steam_mesh_instance != null:
+		_update_mesh_color(steam_mesh_instance, steam_color)
+		steam_mesh_instance.visible = station_state != "HeatSelecting"
+		steam_mesh_instance.position.y = 0.34 + sin(Time.get_ticks_msec() * 0.006) * 0.045
+		steam_mesh_instance.scale = Vector3.ONE * (1.0 + sin(Time.get_ticks_msec() * 0.004) * 0.15)
 
 func _update_kitchen_equipment_progress_bar(equipment_id: String) -> void:
 	var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
 	if root == null or not is_instance_valid(root):
 		return
+	var panel := root.get_node_or_null("KitchenBubblePanel") as MeshInstance3D
+	var icon := root.get_node_or_null("KitchenBubbleIcon") as MeshInstance3D
 	var back := root.get_node_or_null("KitchenProgressBack") as MeshInstance3D
 	var fill := root.get_node_or_null("KitchenProgressFill") as MeshInstance3D
+	var heat_blue := root.get_node_or_null("KitchenHeatBlue") as MeshInstance3D
+	var heat_green := root.get_node_or_null("KitchenHeatGreen") as MeshInstance3D
+	var heat_red := root.get_node_or_null("KitchenHeatRed") as MeshInstance3D
+	var heat_pointer := root.get_node_or_null("KitchenHeatPointer") as MeshInstance3D
 	if back == null or fill == null:
 		return
-	var show_bar := _kitchen_equipment_progress.has(equipment_id)
+	var cook_state := _kitchen_state_for_station(equipment_id)
+	var has_cook_state := not cook_state.is_empty()
+	var show_bar := _kitchen_equipment_progress.has(equipment_id) or has_cook_state
+	if panel != null:
+		panel.visible = show_bar
+	if icon != null:
+		icon.visible = show_bar
 	back.visible = show_bar
 	fill.visible = show_bar
+	var show_heat := has_cook_state and str(cook_state.get("state", "")) == "HeatSelecting"
+	for node in [heat_blue, heat_green, heat_red, heat_pointer]:
+		if node != null:
+			node.visible = show_heat
 	if not show_bar:
 		return
-	var progress := _kitchen_equipment_progress[equipment_id] as Dictionary
-	var duration := maxf(float(progress.get("duration", 1.0)), 0.01)
-	var ratio := 1.0 - clampf(float(progress.get("time", 0.0)) / duration, 0.0, 1.0)
-	if bool(progress.get("done", false)):
-		ratio = 1.0
+	var ratio := 0.0
+	var fill_color := Color(0.98, 0.72, 0.26, 0.95)
+	if has_cook_state:
+		var station_state := str(cook_state.get("state", "Cooking"))
+		if station_state == "HeatSelecting":
+			ratio = 0.0
+			var cursor := clampf(float(cook_state.get("heat_cursor", 0.5)), 0.0, 1.0)
+			if heat_pointer != null:
+				heat_pointer.position.x = lerpf(-0.56, 0.56, cursor)
+		elif station_state == "Cooking":
+			ratio = clampf(float(cook_state.get("cook_progress", 0.0)), 0.0, 1.0)
+			fill_color = Color(0.88, 1.0, 0.66, 0.96)
+		elif station_state == "Done":
+			ratio = 1.0
+			fill_color = Color(0.48, 0.94, 0.48, 1.0)
+		elif station_state == "Burning":
+			ratio = clampf(float(cook_state.get("burn_progress", 0.0)), 0.0, 1.0)
+			fill_color = Color(1.0, 0.25, 0.16, 1.0)
+		elif station_state == "Burnt":
+			ratio = 1.0
+			fill_color = Color(0.18, 0.08, 0.04, 1.0)
+	else:
+		var progress := _kitchen_equipment_progress[equipment_id] as Dictionary
+		var duration := maxf(float(progress.get("duration", 1.0)), 0.01)
+		ratio = 1.0 - clampf(float(progress.get("time", 0.0)) / duration, 0.0, 1.0)
+		if bool(progress.get("done", false)):
+			ratio = 1.0
+	_update_mesh_color(fill, fill_color)
 	fill.scale.x = maxf(ratio, 0.04)
 	fill.position.x = -0.54 + 0.54 * ratio
+
+func _kitchen_state_for_station(equipment_id: String) -> Dictionary:
+	match equipment_id:
+		"pot":
+			return _kitchen_pot_state
+		"grill":
+			return _kitchen_grill_state
+	return {}
+
+func _update_mesh_color(mesh: MeshInstance3D, color: Color) -> void:
+	var mat := mesh.material_override as StandardMaterial3D
+	if mat == null:
+		mat = StandardMaterial3D.new()
+		mesh.material_override = mat
+	mat.albedo_color = color
+	if color.a < 1.0:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
 func _kitchen_equipment_bubble_text(equipment_id: String) -> String:
 	if _kitchen_equipment_progress.has(equipment_id):
@@ -5893,16 +6554,58 @@ func _update_kitchen_business(delta: float) -> void:
 func _update_kitchen_cook_state(state: Dictionary, cook_seconds: float, delta: float) -> void:
 	if state.is_empty():
 		return
-	var time := float(state.get("time", 0.0)) + delta
-	state["time"] = time
-	if time >= cook_seconds + KITCHEN_READY_SECONDS + KITCHEN_BURN_SECONDS:
-		state["stage"] = "burnt"
-	elif time >= cook_seconds + KITCHEN_READY_SECONDS:
-		state["stage"] = "over"
-	elif time >= cook_seconds:
+	var station_state := str(state.get("state", "Cooking"))
+	if station_state == "HeatSelecting":
+		var cursor := float(state.get("heat_cursor", 0.5))
+		var direction := float(state.get("heat_dir", 1.0))
+		cursor += direction * KITCHEN_HEAT_CURSOR_SPEED * delta
+		if cursor >= 1.0:
+			cursor = 1.0
+			direction = -1.0
+		elif cursor <= 0.0:
+			cursor = 0.0
+			direction = 1.0
+		state["heat_cursor"] = cursor
+		state["heat_dir"] = direction
+		state["stage"] = "heat_selecting"
+		return
+	if station_state == "Cooking":
+		var cook_duration := maxf(float(state.get("cook_duration", cook_seconds)), 0.01)
+		var heat := str(state.get("heat_level", "green"))
+		var progress := clampf(float(state.get("cook_progress", 0.0)) + delta * _kitchen_heat_speed(heat) / cook_duration, 0.0, 1.0)
+		state["cook_progress"] = progress
+		state["time"] = progress * cook_duration
+		if progress >= 1.0:
+			state["state"] = "Done"
+			state["stage"] = "ready"
+			state["done_hold_progress"] = 0.0
+			_show_side_toast("%s 完成，快取下" % _recipe_name(str(state.get("recipe", ""))))
+		else:
+			state["stage"] = "cooking"
+		return
+	if station_state == "Done":
+		var hold_duration := maxf(float(state.get("done_hold_duration", KITCHEN_READY_SECONDS)), 0.01)
+		var hold_progress := clampf(float(state.get("done_hold_progress", 0.0)) + delta / hold_duration, 0.0, 1.0)
+		state["done_hold_progress"] = hold_progress
 		state["stage"] = "ready"
-	else:
-		state["stage"] = "cooking"
+		if hold_progress >= 1.0:
+			state["state"] = "Burning"
+			state["stage"] = "over"
+			state["burn_progress"] = 0.0
+			_show_side_toast("%s 开始烧焦，快取下" % _recipe_name(str(state.get("recipe", ""))))
+		return
+	if station_state == "Burning":
+		var burn_duration := maxf(float(state.get("burn_duration", KITCHEN_BURN_SECONDS)), 0.01)
+		var burn_progress := clampf(float(state.get("burn_progress", 0.0)) + delta / burn_duration, 0.0, 1.0)
+		state["burn_progress"] = burn_progress
+		state["stage"] = "over"
+		if burn_progress >= 1.0:
+			state["state"] = "Burnt"
+			state["stage"] = "burnt"
+			_show_notification("已经烧焦，无法使用。请按 F 清理")
+		return
+	if station_state == "Burnt":
+		state["stage"] = "burnt"
 
 func _complete_kitchen_order(recipe: String) -> void:
 	for index in range(_kitchen_orders.size()):
@@ -5911,6 +6614,8 @@ func _complete_kitchen_order(recipe: String) -> void:
 			_kitchen_served_count += 1
 			_kitchen_total_orders_served += 1
 			var price := _recipe_price(recipe)
+			var bonus := _opening_sign_order_bonus()
+			price += bonus
 			_coins += price
 			_codex_discovered_cooking[recipe] = true
 			_show_side_toast("%s 出餐 +%d" % [_recipe_name(recipe), price])
@@ -5960,6 +6665,15 @@ func _sell_kitchen_scrap_dish(recipe: String, label: String) -> void:
 	_coins += price
 	_kitchen_scrap_income += price
 	_show_side_toast("%s：%s +%d" % [label, _recipe_name(recipe), price])
+
+func _opening_sign_order_bonus() -> int:
+	if not _opening_sign_placed:
+		return 0
+	var day_key := _shop_day_key()
+	if _opening_sign_bonus_day_key == day_key:
+		return 0
+	_opening_sign_bonus_day_key = day_key
+	return OPENING_SIGN_DAILY_BONUS_COINS
 
 func _finish_kitchen_business() -> void:
 	if not _kitchen_business_active:
@@ -6053,6 +6767,23 @@ func _has_urgent_kitchen_order() -> bool:
 
 func _cook_state_text(state: Dictionary, cook_seconds: float) -> String:
 	var stage := str(state.get("stage", "cooking"))
+	var station_state := str(state.get("state", "Cooking"))
+	var recipe := str(state.get("recipe", ""))
+	if stage == "heat_selecting":
+		return "%s\n选火候：F 锁定" % _recipe_name(recipe)
+	if stage == "cooking":
+		var heat := str(state.get("heat_level", "green"))
+		var progress := clampf(float(state.get("cook_progress", 0.0)), 0.0, 1.0)
+		var duration := maxf(float(state.get("cook_duration", cook_seconds)), 0.01)
+		var remaining := maxf((1.0 - progress) * duration / _kitchen_heat_speed(heat), 0.0)
+		return "%s\n%s %.0fs" % [_recipe_name(recipe), _kitchen_heat_label(heat), remaining]
+	if stage == "ready":
+		return "%s\n完成  F 取下" % _recipe_name(recipe)
+	if stage == "over":
+		var burn_progress := int(round(clampf(float(state.get("burn_progress", 0.0)), 0.0, 1.0) * 100.0))
+		return "%s\n烧焦中 %d%%" % [_recipe_name(recipe), burn_progress]
+	if stage == "burnt" or station_state == "Burnt":
+		return "已烧焦\nF 清理丢弃"
 	var time := float(state.get("time", 0.0))
 	match stage:
 		"cooking":
@@ -6406,7 +7137,7 @@ func _update_crop_countdown(key: String) -> void:
 		label.modulate = Color(1.0, 0.56, 0.38, 1.0) if blocked_by_weeds else Color(1.0, 0.96, 0.72, 1.0)
 	else:
 		if _is_crop_rotten(key):
-			label.text = "鑵愮儌"
+			label.text = "腐烂"
 			label.modulate = Color(0.62, 0.48, 0.34, 1.0)
 		else:
 			var rot_remaining := float(_crop_rot_remaining.get(key, CROP_ROT_SECONDS))
@@ -6534,6 +7265,8 @@ func _try_harvest_crop() -> bool:
 	var center := Vector2(crop.global_position.x, crop.global_position.z)
 	var crop_type := str(_crop_types.get(crop_key, CROP_CARROT))
 	var quality := int(_crop_qualities.get(crop_key, 0))
+	if crop_type == CROP_CARROT:
+		_tutorial_harvested_carrot_count = mini(_tutorial_harvested_carrot_count + 1, 5)
 	_crop_nodes.erase(crop_key)
 	_crop_growth_remaining.erase(crop_key)
 	_crop_countdown_labels.erase(crop_key)
@@ -7371,6 +8104,9 @@ func _regrow_grass_instance(index: int) -> void:
 	if _grass_multimesh == null or not _cut_grass_transforms.has(index):
 		return
 	var transform := _cut_grass_transforms[index] as Transform3D
+	if _is_inside_recorded_no_grass_clear(transform.origin.x, transform.origin.z):
+		_cut_grass_transforms.erase(index)
+		return
 	var sprout := transform
 	sprout.basis = transform.basis.scaled(Vector3(0.18, 0.18, 0.18))
 	_grass_multimesh.set_instance_transform(index, sprout)
@@ -8642,8 +9378,8 @@ func _update_post_tutorial_objective() -> void:
 	elif _return_after_weeding_prompt_active and not _weeding_lesson_completed:
 		text = "目标：回去和%s聊聊杂草" % MOM_NAME
 		hide_when_mom_interactable = true
-	elif _are_guided_tutorials_complete() and _seed_count > 0 and _matured_carrot_count < 5:
-		text = "目标：种完 5 颗胡萝卜种子，并让它们成熟（%d/5）" % _matured_carrot_count
+	elif _are_guided_tutorials_complete() and _tutorial_harvested_carrot_count < 5:
+		text = "目标：种完 5 颗胡萝卜种子，并收获胡萝卜（%d/5）" % _tutorial_harvested_carrot_count
 	elif _is_crop_future_talk_pending():
 		text = "目标：回去和%s聊聊接下来要做什么" % MOM_NAME
 		hide_when_mom_interactable = true
@@ -8668,7 +9404,14 @@ func _update_post_tutorial_objective() -> void:
 	elif _can_start_first_kitchen_business():
 		text = "目标：在房车旁开始第一次营业"
 		hide_when_camper_interactable = true
-	var should_show := text != "" and not _dialogue_open and not _map_open and _reward_overlay == null
+	var show_grand_reward_progress := _chapter_one_active and not _post_tutorial_grand_reward_claimed
+	if show_grand_reward_progress:
+		text = _build_post_tutorial_objective_text(text, _post_tutorial_objective_expanded)
+		hide_when_mom_interactable = false
+		hide_when_house_interactable = false
+		hide_when_food_chest_interactable = false
+		hide_when_camper_interactable = false
+	var should_show := show_grand_reward_progress and text != "" and not _dialogue_open and not _map_open and _reward_overlay == null
 	if should_show and hide_when_mom_interactable and _is_player_near_mom() and _can_talk_to_mom():
 		should_show = false
 	if should_show and hide_when_house_interactable and (_is_player_near_house_entry() or _is_player_near_house_exit()):
@@ -8680,14 +9423,189 @@ func _update_post_tutorial_objective() -> void:
 	_post_tutorial_objective.visible = should_show
 	if not should_show:
 		return
-	_post_tutorial_objective_label.text = text
+	_post_tutorial_visible_goal_text = text
+	_update_post_tutorial_objective_layout(show_grand_reward_progress)
 	_post_tutorial_objective.move_to_front()
+
+func _build_post_tutorial_objective_text(current_goal: String, expanded: bool = false) -> String:
+	var compact_goal := _compact_objective_text(current_goal)
+	if compact_goal == "":
+		compact_goal = _next_post_tutorial_goal_text()
+	return compact_goal
+	var compact_progress := _post_tutorial_grand_reward_progress()
+	var compact_total := _post_tutorial_grand_reward_total()
+	var detail_lines: Array[String] = [compact_goal, "房车开业礼包 %d/%d" % [compact_progress, compact_total]]
+	for compact_task in _post_tutorial_grand_reward_tasks():
+		var compact_done := bool(compact_task.get("done", false))
+		detail_lines.append("%s %s" % ["√" if compact_done else "□", str(compact_task.get("text", ""))])
+	if _post_tutorial_grand_reward_claimed:
+		detail_lines.append("已领取：房车开业礼包")
+	return "\n".join(detail_lines)
+	var progress := _post_tutorial_grand_reward_progress()
+	var total := _post_tutorial_grand_reward_total()
+	var lines: Array[String] = []
+	lines.append("目标板")
+	if current_goal.strip_edges() != "":
+		lines.append(current_goal)
+	else:
+		lines.append("目标：建设房车厨房，准备第一次营业")
+	lines.append("礼包：房车开业礼包  %d/%d" % [progress, total])
+	lines.append("奖励：个人金币 +%d  合作金币 +%d" % [OPENING_PACKAGE_COINS, OPENING_PACKAGE_COOP_COINS])
+	for task in _post_tutorial_grand_reward_tasks():
+		var done := bool(task.get("done", false))
+		lines.append("%s %s" % ["✓" if done else "□", str(task.get("text", ""))])
+	if _post_tutorial_grand_reward_claimed:
+		lines.append("已领取：新的生活启动啦")
+	return "\n".join(lines)
+
+func _post_tutorial_grand_reward_tasks() -> Array[Dictionary]:
+	return [
+		{"text": "学会松土", "done": _hoe_guide_completed},
+		{"text": "学会浇水", "done": _watering_guide_completed},
+		{"text": "种下并收获 5 个胡萝卜", "done": _tutorial_harvested_carrot_count >= 5},
+		{"text": "摆好食材箱和厨房设备", "done": not _placed_food_chests.is_empty() and _has_all_first_day_kitchen_equipment()},
+		{"text": "完成第一次房车营业", "done": _kitchen_first_day_completed and _kitchen_total_orders_served > 0},
+	]
+	return [
+		{"text": "种熟 5 颗胡萝卜", "done": _matured_carrot_count >= 5},
+		{"text": "和妈妈聊下一步", "done": _crop_future_talk_completed},
+		{"text": "找到食材箱", "done": _food_chests_found or _chest_lesson_completed or not _placed_food_chests.is_empty()},
+		{"text": "把食材箱摆到房车旁", "done": not _placed_food_chests.is_empty()},
+		{"text": "摆好第一天厨房设备", "done": _has_all_first_day_kitchen_equipment()},
+	]
+
+func _post_tutorial_grand_reward_progress() -> int:
+	var progress := 0
+	for task in _post_tutorial_grand_reward_tasks():
+		if bool(task.get("done", false)):
+			progress += 1
+	return progress
+
+func _post_tutorial_grand_reward_total() -> int:
+	return _post_tutorial_grand_reward_tasks().size()
+
+func _grant_post_tutorial_grand_reward_if_ready() -> void:
+	if _post_tutorial_grand_reward_claimed:
+		return
+	if _post_tutorial_grand_reward_progress() < _post_tutorial_grand_reward_total():
+		return
+	_post_tutorial_grand_reward_claimed = true
+	_coins += OPENING_PACKAGE_COINS
+	_coop_coins += OPENING_PACKAGE_COOP_COINS
+	if not _add_seed_to_inventory(CROP_PEA, 0, OPENING_PACKAGE_PEA_SEEDS, true):
+		var seed_origin := _player.global_position if _player != null else Vector3.ZERO
+		_create_spilled_seed_drop(seed_origin, CROP_PEA, 0, OPENING_PACKAGE_PEA_SEEDS)
+	_kitchen_upgrade_levels[OPENING_PACKAGE_EQUIPMENT_ID] = maxi(int(_kitchen_upgrade_levels.get(OPENING_PACKAGE_EQUIPMENT_ID, 1)), 2)
+	_kitchen_popularity_level = maxi(_kitchen_popularity_level, 2)
+	_create_opening_sign()
+	_show_notification("房车开业礼包已领取")
+	_show_side_toast("房车开业礼包：金币、豌豆种子、料理台 Lv2、小木牌")
+	_update_coin_hud()
+	_update_kitchen_upgrade_buttons()
+	_post_tutorial_objective_expanded = false
+	if _post_tutorial_objective != null:
+		_post_tutorial_objective.visible = false
+
+func _compact_objective_text(text: String) -> String:
+	var result := text.strip_edges()
+	result = result.replace("目标：", "")
+	result = result.replace("\n", " ")
+	return result
+
+func _next_post_tutorial_goal_text() -> String:
+	for task in _post_tutorial_grand_reward_tasks():
+		if not bool(task.get("done", false)):
+			return str(task.get("text", "继续前进"))
+	return "房车开业礼包可以领取"
+
+func _toggle_post_tutorial_dropdown() -> void:
+	_post_tutorial_objective_expanded = not _post_tutorial_objective_expanded
+	if _post_tutorial_objective_expanded:
+		_post_tutorial_alt_guide_completed = true
+	_update_post_tutorial_objective()
+
+func _post_tutorial_dropdown_text(progress: int, total: int) -> String:
+	var goal := _compact_objective_text(_post_tutorial_visible_goal_text)
+	if goal == "":
+		goal = _next_post_tutorial_goal_text()
+	return "房车开业礼包 %d/%d\n当前目标：%s\n\n奖励预览：\n个人金币 x150\n合作金币 x20\n豌豆种子 x3\n简易料理台 Lv2\n房车开业小木牌 x1" % [progress, total, goal]
+
+func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
+	if _post_tutorial_objective == null:
+		return
+	_post_tutorial_objective.anchor_left = 1.0
+	_post_tutorial_objective.anchor_top = 0.0
+	_post_tutorial_objective.anchor_right = 1.0
+	_post_tutorial_objective.anchor_bottom = 0.0
+	_post_tutorial_objective.offset_left = -236.0
+	_post_tutorial_objective.offset_top = 92.0
+	_post_tutorial_objective.offset_right = -20.0
+	_post_tutorial_objective.offset_bottom = 144.0
+	var progress := _post_tutorial_grand_reward_progress()
+	var total := maxi(_post_tutorial_grand_reward_total(), 1)
+	var fill_ratio := clampf(float(progress) / float(total), 0.0, 1.0) if show_reward else 0.0
+	var progress_back := _post_tutorial_objective.get_node_or_null("RewardProgressBack") as Control
+	if progress_back != null:
+		progress_back.visible = show_reward
+	if _post_tutorial_progress_fill != null:
+		_post_tutorial_progress_fill.visible = show_reward
+		_post_tutorial_progress_fill.scale.x = fill_ratio
+	if _post_tutorial_reward_label != null:
+		_post_tutorial_reward_label.visible = false
+		_post_tutorial_reward_label.text = _compact_objective_text(_post_tutorial_visible_goal_text)
+	if _post_tutorial_gift_button != null:
+		_post_tutorial_gift_button.visible = show_reward
+		var ready := show_reward and progress >= total and not _post_tutorial_grand_reward_claimed
+		_post_tutorial_gift_button.modulate = Color(1.0, 0.96, 0.74, 1.0) if ready else Color(1.0, 1.0, 1.0, 0.62)
+		_post_tutorial_gift_button.tooltip_text = ""
+		_post_tutorial_gift_button.text = "▲" if _post_tutorial_objective_expanded else "▼"
+	if _post_tutorial_objective_label != null:
+		_post_tutorial_objective_label.visible = show_reward
+		var title_state := "可领取" if progress >= total and not _post_tutorial_grand_reward_claimed else "%d/%d" % [progress, total]
+		_post_tutorial_objective_label.text = "开业礼包 %s" % title_state
+	if _post_tutorial_dropdown != null:
+		_post_tutorial_dropdown.visible = show_reward and _post_tutorial_objective_expanded
+	if _post_tutorial_alt_guide != null:
+		_post_tutorial_alt_guide.visible = show_reward and not _post_tutorial_objective_expanded and not _post_tutorial_alt_guide_completed
+	if _post_tutorial_dropdown_label != null:
+		_post_tutorial_dropdown_label.text = _post_tutorial_dropdown_text(progress, total)
+	if _post_tutorial_claim_button != null:
+		var claimable := show_reward and progress >= total and not _post_tutorial_grand_reward_claimed
+		_post_tutorial_claim_button.visible = _post_tutorial_objective_expanded
+		_post_tutorial_claim_button.disabled = not claimable
+		_post_tutorial_claim_button.text = "领取" if claimable else "未达成"
+
+func _on_post_tutorial_objective_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_toggle_post_tutorial_dropdown()
+		get_viewport().set_input_as_handled()
+
+func _on_post_tutorial_dropdown_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_post_tutorial_objective_expanded = false
+		_update_post_tutorial_objective()
+		get_viewport().set_input_as_handled()
+
+func _on_post_tutorial_claim_button_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		get_viewport().set_input_as_handled()
+
+func _on_post_tutorial_gift_pressed() -> void:
+	var progress := _post_tutorial_grand_reward_progress()
+	var total := _post_tutorial_grand_reward_total()
+	if _post_tutorial_grand_reward_claimed:
+		_show_side_toast("房车开业礼包已经领取")
+		return
+	if progress < total:
+		_show_side_toast("房车开业礼包 %d/%d：完成第一天教学和营业后领取" % [progress, total])
+		return
+	_grant_post_tutorial_grand_reward_if_ready()
 
 func _are_guided_tutorials_complete() -> bool:
 	return _chapter_one_active and _dialogue_completed and _starter_kit_collected and _watering_task_active and _scythe_collected and _weeding_lesson_completed and not _return_to_mom_prompt_active and not _watering_task_prompt_active and not _scythe_task_prompt_active and not _return_after_weeding_prompt_active
 
 func _is_crop_future_talk_pending() -> bool:
-	return _are_guided_tutorials_complete() and _matured_carrot_count >= 5 and not _crop_future_talk_completed
+	return _are_guided_tutorials_complete() and _tutorial_harvested_carrot_count >= 5 and not _crop_future_talk_completed
 
 func _is_chest_lesson_pending() -> bool:
 	return _crop_future_talk_completed and _food_chests_found and not _chest_lesson_completed
@@ -9293,6 +10211,16 @@ func _build_chapter_one_scene() -> void:
 	_personal_coin_label = null
 	_post_tutorial_objective = null
 	_post_tutorial_objective_label = null
+	_post_tutorial_reward_label = null
+	_post_tutorial_dropdown = null
+	_post_tutorial_dropdown_label = null
+	_post_tutorial_claim_button = null
+	_post_tutorial_alt_guide = null
+	_post_tutorial_progress_fill = null
+	_post_tutorial_gift_button = null
+	_post_tutorial_objective_expanded = false
+	_post_tutorial_alt_guide_completed = false
+	_post_tutorial_visible_goal_text = ""
 	_camper = null
 	_camper_model = null
 	_map_camper_model = null
@@ -9354,10 +10282,15 @@ func _build_chapter_one_scene() -> void:
 	_crop_qualities.clear()
 	_empty_soil_decay_remaining.clear()
 	_matured_carrot_count = 0
+	_tutorial_harvested_carrot_count = 0
 	_crop_future_talk_completed = false
 	_find_food_chests_prompt_active = false
 	_food_chests_found = false
 	_chest_lesson_completed = false
+	_post_tutorial_grand_reward_claimed = false
+	_opening_sign_placed = false
+	_opening_sign = null
+	_opening_sign_bonus_day_key = ""
 	_food_chest_nodes.clear()
 	_placed_food_chests.clear()
 	_food_chest_preview = null
