@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ddx86heysnkmp"
+path="res://.godot/imported/mx_rotate_vector3.glsl-eed56c4dfb21e5194519a42618be9e04.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_rotate_vector3.glsl"
+dest_files=["res://.godot/imported/mx_rotate_vector3.glsl-eed56c4dfb21e5194519a42618be9e04.res"]
+
+[params]
+

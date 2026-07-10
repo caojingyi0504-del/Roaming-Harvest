@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://dcvplbxqcji7h"
+path="res://.godot/imported/mx_luminance_color4.glsl-cc38412783d2af12543a1819972b99e2.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_luminance_color4.glsl"
+dest_files=["res://.godot/imported/mx_luminance_color4.glsl-cc38412783d2af12543a1819972b99e2.res"]
+
+[params]
+

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://b1jde777xkcf1"
+path="res://.godot/imported/mx_dodge_color4.glsl-4affc2c66bfdfd76ef3dbaad7152f7ef.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_dodge_color4.glsl"
+dest_files=["res://.godot/imported/mx_dodge_color4.glsl-4affc2c66bfdfd76ef3dbaad7152f7ef.res"]
+
+[params]
+

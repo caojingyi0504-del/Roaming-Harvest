@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://c1uuha55ky0ko"
+path="res://.godot/imported/mx_microfacet_sheen.glsl-f12f67bc1929634569b658c7f55904a6.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/lib/mx_microfacet_sheen.glsl"
+dest_files=["res://.godot/imported/mx_microfacet_sheen.glsl-f12f67bc1929634569b658c7f55904a6.res"]
+
+[params]
+

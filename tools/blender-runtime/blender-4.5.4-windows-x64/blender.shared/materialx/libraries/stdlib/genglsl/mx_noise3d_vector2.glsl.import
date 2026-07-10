@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cav6kapr8wa7h"
+path="res://.godot/imported/mx_noise3d_vector2.glsl-ab34a1b33de101aea16a0e4d83f289a1.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_noise3d_vector2.glsl"
+dest_files=["res://.godot/imported/mx_noise3d_vector2.glsl-ab34a1b33de101aea16a0e4d83f289a1.res"]
+
+[params]
+

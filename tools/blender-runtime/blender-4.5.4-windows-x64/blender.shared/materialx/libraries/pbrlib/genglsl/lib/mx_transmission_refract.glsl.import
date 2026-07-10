@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://caqj5r11knnet"
+path="res://.godot/imported/mx_transmission_refract.glsl-89cda3ffb50d9ccc66660b9fc3a2589a.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/lib/mx_transmission_refract.glsl"
+dest_files=["res://.godot/imported/mx_transmission_refract.glsl-89cda3ffb50d9ccc66660b9fc3a2589a.res"]
+
+[params]
+

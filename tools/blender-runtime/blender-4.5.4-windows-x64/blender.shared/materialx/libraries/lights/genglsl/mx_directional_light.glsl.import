@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://2pufvsajmje4"
+path="res://.godot/imported/mx_directional_light.glsl-3d4926655da959fe1a1b928cb5887adf.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/lights/genglsl/mx_directional_light.glsl"
+dest_files=["res://.godot/imported/mx_directional_light.glsl-3d4926655da959fe1a1b928cb5887adf.res"]
+
+[params]
+

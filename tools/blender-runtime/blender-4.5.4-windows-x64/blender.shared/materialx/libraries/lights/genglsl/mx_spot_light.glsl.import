@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://drvcr7un0pq7n"
+path="res://.godot/imported/mx_spot_light.glsl-a61be38f6f5e714e0aaa3c3f676d3b3e.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/lights/genglsl/mx_spot_light.glsl"
+dest_files=["res://.godot/imported/mx_spot_light.glsl-a61be38f6f5e714e0aaa3c3f676d3b3e.res"]
+
+[params]
+

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cipfo0oace6fn"
+path="res://.godot/imported/mx_hsvtorgb_color4.glsl-336841b2180618462557f88106f98e87.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_hsvtorgb_color4.glsl"
+dest_files=["res://.godot/imported/mx_hsvtorgb_color4.glsl-336841b2180618462557f88106f98e87.res"]
+
+[params]
+

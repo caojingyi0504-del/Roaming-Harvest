@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://jrcg7okw2ej7"
+path="res://.godot/imported/mx_cellnoise3d_float.glsl-d67df3f1633fd5060501681d5039da19.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_cellnoise3d_float.glsl"
+dest_files=["res://.godot/imported/mx_cellnoise3d_float.glsl-d67df3f1633fd5060501681d5039da19.res"]
+
+[params]
+

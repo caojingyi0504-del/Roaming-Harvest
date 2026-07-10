@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://chbl17sdq1p4k"
+path="res://.godot/imported/mx_creatematrix_vector3_matrix33.glsl-895da541b6fd1d45fdfd6d4aa890e5b6.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_creatematrix_vector3_matrix33.glsl"
+dest_files=["res://.godot/imported/mx_creatematrix_vector3_matrix33.glsl-895da541b6fd1d45fdfd6d4aa890e5b6.res"]
+
+[params]
+

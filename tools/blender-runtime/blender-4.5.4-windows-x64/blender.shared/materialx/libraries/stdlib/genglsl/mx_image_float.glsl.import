@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bcvowr8pgarta"
+path="res://.godot/imported/mx_image_float.glsl-1fd6248eaf1190fac74d834d687f1ad3.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_image_float.glsl"
+dest_files=["res://.godot/imported/mx_image_float.glsl-1fd6248eaf1190fac74d834d687f1ad3.res"]
+
+[params]
+

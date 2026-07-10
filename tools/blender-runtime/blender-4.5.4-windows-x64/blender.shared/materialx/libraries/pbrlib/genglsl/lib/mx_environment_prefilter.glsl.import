@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cpanno8kg7fq7"
+path="res://.godot/imported/mx_environment_prefilter.glsl-f7afeebf1773b9de04449843a22d686a.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/lib/mx_environment_prefilter.glsl"
+dest_files=["res://.godot/imported/mx_environment_prefilter.glsl-f7afeebf1773b9de04449843a22d686a.res"]
+
+[params]
+

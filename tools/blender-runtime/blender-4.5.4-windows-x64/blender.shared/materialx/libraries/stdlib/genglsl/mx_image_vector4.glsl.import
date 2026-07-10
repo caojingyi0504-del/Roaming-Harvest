@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cj2m0yncf3i30"
+path="res://.godot/imported/mx_image_vector4.glsl-1dff17453e7193149dca4d0a882a7c43.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_image_vector4.glsl"
+dest_files=["res://.godot/imported/mx_image_vector4.glsl-1dff17453e7193149dca4d0a882a7c43.res"]
+
+[params]
+

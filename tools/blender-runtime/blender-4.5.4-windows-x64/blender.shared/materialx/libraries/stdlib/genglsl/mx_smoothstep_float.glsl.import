@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://c4sk5mcptt6bk"
+path="res://.godot/imported/mx_smoothstep_float.glsl-1d24d2fe5c896f660a29a81eadc25c96.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_smoothstep_float.glsl"
+dest_files=["res://.godot/imported/mx_smoothstep_float.glsl-1d24d2fe5c896f660a29a81eadc25c96.res"]
+
+[params]
+

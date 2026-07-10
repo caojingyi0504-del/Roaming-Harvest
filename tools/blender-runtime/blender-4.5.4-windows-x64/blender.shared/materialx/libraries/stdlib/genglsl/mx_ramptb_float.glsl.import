@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://b4blpba02ssxk"
+path="res://.godot/imported/mx_ramptb_float.glsl-1f71b35954277d575c9838ac42c42ee4.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_ramptb_float.glsl"
+dest_files=["res://.godot/imported/mx_ramptb_float.glsl-1f71b35954277d575c9838ac42c42ee4.res"]
+
+[params]
+

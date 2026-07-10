@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cv6ggnpixkcn2"
+path="res://.godot/imported/mx_worleynoise2d_float.glsl-8c3894ad7d4e094f03686b6ee9c80fce.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_worleynoise2d_float.glsl"
+dest_files=["res://.godot/imported/mx_worleynoise2d_float.glsl-8c3894ad7d4e094f03686b6ee9c80fce.res"]
+
+[params]
+

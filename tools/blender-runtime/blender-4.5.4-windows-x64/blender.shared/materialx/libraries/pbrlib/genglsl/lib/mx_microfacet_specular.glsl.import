@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ctal5b2u6v6wy"
+path="res://.godot/imported/mx_microfacet_specular.glsl-2065dced04b94613ae00a090737f442c.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/lib/mx_microfacet_specular.glsl"
+dest_files=["res://.godot/imported/mx_microfacet_specular.glsl-2065dced04b94613ae00a090737f442c.res"]
+
+[params]
+

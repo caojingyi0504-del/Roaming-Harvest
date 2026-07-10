@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://c3c276btjvn7n"
+path="res://.godot/imported/mx_premult_color4.glsl-c75ba0a58e21d28e5ea126af1ea3671c.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_premult_color4.glsl"
+dest_files=["res://.godot/imported/mx_premult_color4.glsl-c75ba0a58e21d28e5ea126af1ea3671c.res"]
+
+[params]
+

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bofyfes3tlaps"
+path="res://.godot/imported/mx_uniform_edf.glsl-4a3bf4fd2561c8fba93c29565da54b80.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/mx_uniform_edf.glsl"
+dest_files=["res://.godot/imported/mx_uniform_edf.glsl-4a3bf4fd2561c8fba93c29565da54b80.res"]
+
+[params]
+

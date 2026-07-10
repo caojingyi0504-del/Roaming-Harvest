@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://c6wrni6sovggd"
+path="res://.godot/imported/mx_burn_color3.glsl-946ee875bf2dafb5936f44a52302dc1c.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_burn_color3.glsl"
+dest_files=["res://.godot/imported/mx_burn_color3.glsl-946ee875bf2dafb5936f44a52302dc1c.res"]
+
+[params]
+

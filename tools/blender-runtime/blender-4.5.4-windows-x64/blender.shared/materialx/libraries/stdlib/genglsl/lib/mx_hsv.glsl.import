@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://517pmx03gi2h"
+path="res://.godot/imported/mx_hsv.glsl-a0dbf65cece86dbcec9718fa8225f42b.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/lib/mx_hsv.glsl"
+dest_files=["res://.godot/imported/mx_hsv.glsl-a0dbf65cece86dbcec9718fa8225f42b.res"]
+
+[params]
+

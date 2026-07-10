@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://wucw57qjtt8v"
+path="res://.godot/imported/mx_transform_uv.glsl-134abc6c331799dc94464a4eb8eba377.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/lib/mx_transform_uv.glsl"
+dest_files=["res://.godot/imported/mx_transform_uv.glsl-134abc6c331799dc94464a4eb8eba377.res"]
+
+[params]
+

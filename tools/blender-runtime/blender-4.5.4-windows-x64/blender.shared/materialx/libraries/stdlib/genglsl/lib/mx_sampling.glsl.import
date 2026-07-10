@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://clqj2xgiii00g"
+path="res://.godot/imported/mx_sampling.glsl-8ff4fa57800d93d5a67a748dc42f08ec.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/lib/mx_sampling.glsl"
+dest_files=["res://.godot/imported/mx_sampling.glsl-8ff4fa57800d93d5a67a748dc42f08ec.res"]
+
+[params]
+

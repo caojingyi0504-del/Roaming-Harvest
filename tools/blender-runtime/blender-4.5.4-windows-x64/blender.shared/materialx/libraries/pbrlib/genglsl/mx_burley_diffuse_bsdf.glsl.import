@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://dx67pin57eey1"
+path="res://.godot/imported/mx_burley_diffuse_bsdf.glsl-af1745cf064a637357c88097e7687ca0.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/mx_burley_diffuse_bsdf.glsl"
+dest_files=["res://.godot/imported/mx_burley_diffuse_bsdf.glsl-af1745cf064a637357c88097e7687ca0.res"]
+
+[params]
+

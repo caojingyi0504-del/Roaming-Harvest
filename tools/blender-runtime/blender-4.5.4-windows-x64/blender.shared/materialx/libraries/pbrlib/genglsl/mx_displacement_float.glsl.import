@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://gdb10notpxqx"
+path="res://.godot/imported/mx_displacement_float.glsl-1cc9b72e3dd8db3fe32f5a4340edeb76.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/mx_displacement_float.glsl"
+dest_files=["res://.godot/imported/mx_displacement_float.glsl-1cc9b72e3dd8db3fe32f5a4340edeb76.res"]
+
+[params]
+

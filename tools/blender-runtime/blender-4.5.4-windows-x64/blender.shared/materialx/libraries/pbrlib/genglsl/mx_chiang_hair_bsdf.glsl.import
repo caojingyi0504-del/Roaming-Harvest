@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bixpyyrfbla0f"
+path="res://.godot/imported/mx_chiang_hair_bsdf.glsl-36f8d413b2606fbe8fced4271cb91b9e.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/mx_chiang_hair_bsdf.glsl"
+dest_files=["res://.godot/imported/mx_chiang_hair_bsdf.glsl-36f8d413b2606fbe8fced4271cb91b9e.res"]
+
+[params]
+

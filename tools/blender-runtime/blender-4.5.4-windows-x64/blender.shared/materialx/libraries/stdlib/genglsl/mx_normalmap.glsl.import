@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://0l5dguvdijnh"
+path="res://.godot/imported/mx_normalmap.glsl-e721b6cbf3b43be657ddff17d3bc1934.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_normalmap.glsl"
+dest_files=["res://.godot/imported/mx_normalmap.glsl-e721b6cbf3b43be657ddff17d3bc1934.res"]
+
+[params]
+

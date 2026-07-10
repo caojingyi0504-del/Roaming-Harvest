@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://dgreeb08yeqjd"
+path="res://.godot/imported/mx_splitlr_float.glsl-24e3ef9d9d5ea9e48dd5e5d2767ec327.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/stdlib/genglsl/mx_splitlr_float.glsl"
+dest_files=["res://.godot/imported/mx_splitlr_float.glsl-24e3ef9d9d5ea9e48dd5e5d2767ec327.res"]
+
+[params]
+

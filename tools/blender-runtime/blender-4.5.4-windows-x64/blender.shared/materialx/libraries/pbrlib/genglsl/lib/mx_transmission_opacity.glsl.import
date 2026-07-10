@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://btpf5x2y7xi38"
+path="res://.godot/imported/mx_transmission_opacity.glsl-adfff29a8f1d0e8d9245c4d93d7adb15.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/lib/mx_transmission_opacity.glsl"
+dest_files=["res://.godot/imported/mx_transmission_opacity.glsl-adfff29a8f1d0e8d9245c4d93d7adb15.res"]
+
+[params]
+

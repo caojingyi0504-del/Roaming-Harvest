@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cid0ri1wk2whv"
+path="res://.godot/imported/mx_generate_albedo_table.glsl-49faa9b19379e471b411916de21e2065.res"
+
+[deps]
+
+source_file="res://tools/blender-runtime/blender-4.5.4-windows-x64/blender.shared/materialx/libraries/pbrlib/genglsl/lib/mx_generate_albedo_table.glsl"
+dest_files=["res://.godot/imported/mx_generate_albedo_table.glsl-49faa9b19379e471b411916de21e2065.res"]
+
+[params]
+
