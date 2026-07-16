@@ -29,13 +29,15 @@ func _run() -> void:
 		manager.set("unlocked", original_unlocked)
 		quit(2)
 		return
-	controller.set("inside", true)
-	var spawn := Vector3(52.0, 0.0, -39.8)
-	spawn.y = float(world.call("_height_at", spawn.x, spawn.z))
-	player.global_position = spawn
-	world.set("_orbit", Vector2(PI, 0.44))
-	world.set("_zoom", 14.5)
-	world.call("_apply_camera")
+	var gate := Vector3(-132.0, 0.0, -132.0)
+	gate.y = float(world.call("_height_at", gate.x, gate.z))
+	player.global_position = gate
+	controller.call("enter_garden", "preview")
+	await create_timer(1.15).timeout
+	if not bool(controller.call("is_inside_garden")) or controller.get("garden_scene_instance") == null:
+		manager.set("unlocked", original_unlocked)
+		quit(3)
+		return
 	print("FLOWER_GARDEN_PREVIEW: camera placed")
 	for _frame in range(3):
 		await process_frame

@@ -4,11 +4,11 @@ extends Node3D
 signal startup_progress_changed(progress: float, stage: String)
 signal startup_completed
 
-@export_range(4000, 60000, 1000) var grass_count: int = 26000:
+@export_range(4000, 60000, 1000) var grass_count: int = 36000:
 	set(value):
 		grass_count = value
 		_queue_editor_rebuild()
-@export_range(20.0, 160.0, 1.0) var field_radius: float = 72.0:
+@export_range(20.0, 210.0, 1.0) var field_radius: float = 188.0:
 	set(value):
 		field_radius = value
 		_queue_editor_rebuild()
@@ -29,8 +29,8 @@ signal startup_completed
 		refresh_grass_preview = false
 		_queue_editor_rebuild()
 
-const TERRAIN_SIZE := 160.0
-const TERRAIN_STEPS := 80
+const TERRAIN_SIZE := 400.0
+const TERRAIN_STEPS := 160
 const STARTUP_SLICE_BUDGET_USEC := 4000
 const GRASS_SHADER := preload("res://shaders/grass_wind.gdshader")
 const FLOWER_GARDEN_CONTROLLER_SCRIPT := preload("res://scripts/flower_garden_controller.gd")
@@ -112,9 +112,10 @@ const CAMPER_DRIVE_REVERSE_SPEED := 3.2
 const CAMPER_DRIVE_ACCELERATION := 8.5
 const CAMPER_DRIVE_BRAKE := 11.0
 const CAMPER_DRIVE_TURN_SPEED := 1.25
-const CAMPER_DRIVE_FIELD_LIMIT := 66.0
+const CAMPER_DRIVE_FIELD_LIMIT := 190.0
 const CAMPER_DRIVE_HALF_EXTENTS := Vector2(4.35, 1.85)
-const CAMPER_EXIT_SIDE_OFFSET := 3.2
+const CAMPER_EXIT_PLAYER_RADIUS := 0.55
+const CAMPER_EXIT_CLEARANCE := 0.45
 const CAMPER_DRIVE_FORWARD_YAW_OFFSET := -PI * 0.5
 const CAMPER_COMPASS_FADE_SECONDS := 0.16
 const CAMPER_COMPASS_WARM_DISTANCE := 25.0
@@ -201,6 +202,30 @@ const CHAPTER_ONE_CAMPER_PATH_GRASS_CLEAR_WIDTH := 3.0
 const START_CAMPER_PATH_WIDTH := 3.8
 const START_CAMPER_PATH_GRASS_CLEAR_WIDTH := 5.8
 const START_CAMPER_PATH_CORE_CLEAR_WIDTH := 3.2
+const WORLD_ROAD_WIDTH := 6.4
+const WORLD_ROAD_GRASS_CLEAR_WIDTH := 9.0
+const WORLD_ROAD_ROUTES := [
+	[Vector2(15.0, 8.0), Vector2(34.0, -5.0), Vector2(56.0, -28.0), Vector2(85.0, -68.0), Vector2(112.0, -94.0), Vector2(145.0, -130.0)],
+	[Vector2(8.0, 5.0), Vector2(-30.0, -6.0), Vector2(-44.0, -58.0), Vector2(-75.0, -95.0), Vector2(-108.0, -112.0), Vector2(-150.0, -150.0)],
+	[Vector2(-8.0, 9.0), Vector2(-42.0, 18.0), Vector2(-82.0, 24.0), Vector2(-118.0, 24.0), Vector2(-150.0, 25.0)],
+	[Vector2(4.0, 14.0), Vector2(9.0, 48.0), Vector2(14.0, 88.0), Vector2(17.0, 124.0), Vector2(20.0, 155.0)],
+	[Vector2(15.0, 18.0), Vector2(50.0, 38.0), Vector2(96.0, 57.0), Vector2(145.0, 75.0)],
+	[Vector2(-25.0, -7.0), Vector2(-58.0, -30.0), Vector2(-100.0, -57.0), Vector2(-145.0, -85.0)],
+	[Vector2(-18.0, 18.0), Vector2(-45.0, 52.0), Vector2(-72.0, 91.0), Vector2(-105.0, 125.0)],
+]
+const WORLD_FLAT_PADS := [
+	Vector3(7.0, 4.0, 28.0),
+	Vector3(85.0, -68.0, 18.0),
+	Vector3(-75.0, -95.0, 18.0),
+	Vector3(-150.0, 25.0, 18.0),
+	Vector3(20.0, 155.0, 18.0),
+	Vector3(145.0, -130.0, 18.0),
+	Vector3(145.0, 75.0, 18.0),
+	Vector3(-145.0, -85.0, 18.0),
+	Vector3(-105.0, 125.0, 18.0),
+	Vector3(-150.0, -150.0, 18.0),
+	Vector3(-132.0, -132.0, 9.0),
+]
 const RECORDED_NO_GRASS_CENTER := Vector2(7.514, 3.214)
 const RECORDED_NO_GRASS_RADIUS := 3.6
 const CHAPTER_ONE_HOUSE_TARGET_LENGTH := 24.0
@@ -441,6 +466,21 @@ const CHAPTER_ONE_PONDS := [
 		"position": Vector2(-34.0, 25.0),
 		"radius": Vector2(4.8, 3.1),
 		"rotation": 0.72,
+	},
+	{
+		"position": Vector2(112.0, 22.0),
+		"radius": Vector2(10.5, 6.4),
+		"rotation": -0.24,
+	},
+	{
+		"position": Vector2(72.0, 122.0),
+		"radius": Vector2(8.8, 5.1),
+		"rotation": 0.46,
+	},
+	{
+		"position": Vector2(-120.0, 78.0),
+		"radius": Vector2(9.6, 5.7),
+		"rotation": -0.68,
 	},
 ]
 
@@ -848,8 +888,10 @@ var _kitchen_equipment_panel: PanelContainer
 var _kitchen_equipment_grid: GridContainer
 var _kitchen_instance_selector: PanelContainer
 var _kitchen_instance_selector_title: Label
+var _kitchen_instance_selector_hint: Label
 var _kitchen_instance_selector_buttons: GridContainer
 var _kitchen_instance_selector_equipment := ""
+var _kitchen_instance_selector_action := ""
 var _kitchen_upgrade_panel: PanelContainer
 var _kitchen_upgrade_grid: GridContainer
 var _kitchen_upgrade_tab := "equipment"
@@ -2155,7 +2197,7 @@ void fragment() {
 		fly.set_meta("base_y", fly.position.y)
 		fly.set_meta("phase", rng.randf_range(0.0, TAU))
 		_firefly_root.add_child(fly)
-	var light_positions := [Vector3(6.0, 3.2, -7.0), Vector3(15.8, 3.2, 8.8), Vector3(-43.0, 3.0, -28.0), Vector3(35.0, 3.0, 31.0), Vector3(-24.0, 3.0, 36.0), Vector3(49.0, 3.0, -22.0)]
+	var light_positions := [Vector3(6.0, 3.2, -7.0), Vector3(15.8, 3.2, 8.8), Vector3(-145.0, 3.0, -85.0), Vector3(145.0, 3.0, 75.0), Vector3(-105.0, 3.0, 125.0), Vector3(145.0, 3.0, -130.0)]
 	var light_event_ids := ["", "", LocalEventCatalog.FOREST_MARKET, LocalEventCatalog.BIRD_MARKET, LocalEventCatalog.CAMPFIRE_STORY, LocalEventCatalog.RABBIT_PARTY]
 	for index in range(light_positions.size()):
 		var lamp := OmniLight3D.new()
@@ -2186,20 +2228,23 @@ func _update_day_night(delta: float) -> void:
 	var dawn_glow := maxf(1.0 - absf(hours - 6.0) / 1.5, 0.0)
 	var warm_glow := maxf(sunset_glow, dawn_glow)
 	var night_alpha := 1.0 - daylight
+	var inside_flower_garden := _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden"))
 	if _world_sky_material != null:
 		var night_top := Color(0.025, 0.045, 0.12)
-		var day_top := Color(0.46, 0.72, 0.96)
-		var horizon := Color(0.12, 0.16, 0.28).lerp(Color(0.75, 0.88, 0.96), daylight)
+		var day_top := Color(0.52, 0.77, 0.94) if inside_flower_garden else Color(0.46, 0.72, 0.96)
+		var day_horizon := Color(0.88, 0.94, 0.86) if inside_flower_garden else Color(0.75, 0.88, 0.96)
+		var horizon := Color(0.12, 0.16, 0.28).lerp(day_horizon, daylight)
 		horizon = horizon.lerp(Color(1.0, 0.42, 0.20), warm_glow * 0.48)
 		_world_sky_material.sky_top_color = night_top.lerp(day_top, daylight)
 		_world_sky_material.sky_horizon_color = horizon
-		_world_sky_material.ground_bottom_color = Color(0.04, 0.07, 0.10).lerp(Color(0.72, 0.80, 0.68), daylight)
-		_world_sky_material.ground_horizon_color = Color(0.09, 0.12, 0.18).lerp(Color(0.83, 0.89, 0.80), daylight)
+		_world_sky_material.ground_bottom_color = Color(0.04, 0.07, 0.10).lerp(Color(0.65, 0.82, 0.64) if inside_flower_garden else Color(0.72, 0.80, 0.68), daylight)
+		_world_sky_material.ground_horizon_color = Color(0.09, 0.12, 0.18).lerp(Color(0.82, 0.92, 0.78) if inside_flower_garden else Color(0.83, 0.89, 0.80), daylight)
 	if _world_environment != null:
-		_world_environment.ambient_light_energy = lerpf(0.20, 0.72, daylight)
-		_world_environment.tonemap_exposure = lerpf(0.82, 1.08, daylight)
-		_world_environment.fog_light_color = Color(0.10, 0.14, 0.24).lerp(Color(0.78, 0.88, 0.94), daylight).lerp(Color(0.88, 0.42, 0.24), warm_glow * 0.28)
-		_world_environment.fog_density = lerpf(0.0031, 0.0018, daylight)
+		_world_environment.ambient_light_energy = lerpf(0.24, 0.84 if inside_flower_garden else 0.72, daylight)
+		_world_environment.tonemap_exposure = lerpf(0.82, 1.13 if inside_flower_garden else 1.08, daylight)
+		var fog_day := Color(0.78, 0.91, 0.84) if inside_flower_garden else Color(0.78, 0.88, 0.94)
+		_world_environment.fog_light_color = Color(0.10, 0.14, 0.24).lerp(fog_day, daylight).lerp(Color(0.88, 0.42, 0.24), warm_glow * 0.28)
+		_world_environment.fog_density = lerpf(0.0031, 0.0026 if inside_flower_garden else 0.0018, daylight)
 	if _world_cloud_material != null:
 		_world_cloud_material.albedo_color = Color(0.20, 0.25, 0.38, 0.52).lerp(Color(0.96, 0.98, 0.94, 0.88), daylight).lerp(Color(0.96, 0.58, 0.38, 0.82), warm_glow * 0.28)
 	var solar_angle := (hours - 6.0) / 24.0 * TAU
@@ -2682,7 +2727,9 @@ func _is_inside_chapter_one_house_grass_clear(x: float, z: float) -> bool:
 	return absf(door_local.x) <= 4.4 and absf(door_local.y) <= 3.0
 
 func _is_inside_chapter_one_camper_path_clear(x: float, z: float) -> bool:
-	return false
+	if not _chapter_one_active:
+		return false
+	return _distance_to_world_roads(Vector2(x, z)) <= WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.5
 
 func _is_inside_start_camper_path_clear(x: float, z: float) -> bool:
 	if _chapter_one_active:
@@ -2691,7 +2738,14 @@ func _is_inside_start_camper_path_clear(x: float, z: float) -> bool:
 
 func _start_camper_path_grass_density_multiplier(x: float, z: float) -> float:
 	if _chapter_one_active:
-		return 1.0
+		var world_distance := _distance_to_world_roads(Vector2(x, z))
+		var world_core := WORLD_ROAD_WIDTH * 0.52
+		var world_outer := WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.72
+		if world_distance <= world_core:
+			return 0.0
+		if world_distance >= world_outer:
+			return 1.0
+		return lerpf(0.10, 1.0, smoothstep(world_core, world_outer, world_distance))
 	var distance := _distance_to_polyline(Vector2(x, z), _start_camper_path_points())
 	var core := START_CAMPER_PATH_CORE_CLEAR_WIDTH * 0.5
 	var outer := START_CAMPER_PATH_GRASS_CLEAR_WIDTH * 0.5
@@ -2723,6 +2777,15 @@ func _start_camper_path_points() -> Array[Vector2]:
 		Vector2(0.0, 8.7),
 	]
 
+func _distance_to_world_roads(point: Vector2) -> float:
+	var best := INF
+	for raw_route in WORLD_ROAD_ROUTES:
+		var route: Array[Vector2] = []
+		for raw_point in raw_route:
+			route.append(raw_point as Vector2)
+		best = minf(best, _distance_to_polyline(point, route))
+	return best
+
 func _distance_to_polyline(point: Vector2, points: Array[Vector2]) -> float:
 	if points.is_empty():
 		return INF
@@ -2742,6 +2805,8 @@ func _distance_to_polyline(point: Vector2, points: Array[Vector2]) -> float:
 	return best
 
 func _is_inside_pond(x: float, z: float, padding: float = 0.0) -> bool:
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden")):
+		return false
 	var effective_padding := padding
 	if _chapter_one_active:
 		var camper_point := Vector2(CHAPTER_ONE_CAMPER_POSITION.x, CHAPTER_ONE_CAMPER_POSITION.z)
@@ -2789,6 +2854,7 @@ func _create_ponds() -> void:
 
 func _create_chapter_one_camper_path() -> void:
 	if _chapter_one_active:
+		_create_world_road_network()
 		return
 	var points := _chapter_one_camper_path_points() if _chapter_one_active else _start_camper_path_points()
 	if points.size() < 2:
@@ -2844,6 +2910,48 @@ func _create_chapter_one_camper_path() -> void:
 		stone.material_override = edge_mat if rng.randf() < (0.55 if not _chapter_one_active else 0.62) else pebble_mat
 		stone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(stone)
+
+func _create_world_road_network() -> void:
+	var root := Node3D.new()
+	root.name = "WorldRoadNetwork"
+	_mark_generated(root)
+	add_child(root)
+	var road_mat := StandardMaterial3D.new()
+	road_mat.albedo_color = Color(0.78, 0.72, 0.55, 1.0)
+	road_mat.roughness = 0.96
+	road_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var verge_mat := StandardMaterial3D.new()
+	verge_mat.albedo_color = Color(0.88, 0.83, 0.65, 1.0)
+	verge_mat.roughness = 0.98
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260716
+	for route_index in range(WORLD_ROAD_ROUTES.size()):
+		var points: Array[Vector2] = []
+		for raw_point in WORLD_ROAD_ROUTES[route_index]:
+			points.append(raw_point as Vector2)
+		var render_points := _subdivide_polyline(points, 2.1)
+		var path := MeshInstance3D.new()
+		path.name = "CountryRoad_%02d" % route_index
+		path.mesh = _create_path_strip_mesh(render_points, WORLD_ROAD_WIDTH, 0.055)
+		path.material_override = road_mat
+		path.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(path)
+		for marker_index in range(16):
+			var sample := _sample_polyline(points, (float(marker_index) + rng.randf_range(0.15, 0.85)) / 16.0)
+			var tangent := _polyline_tangent_at(points, sample)
+			var normal := Vector2(-tangent.y, tangent.x) * (-1.0 if (marker_index + route_index) % 2 == 0 else 1.0)
+			var point := sample + normal * rng.randf_range(WORLD_ROAD_WIDTH * 0.38, WORLD_ROAD_WIDTH * 0.52)
+			if _is_inside_pond(point.x, point.y, 0.5):
+				continue
+			var verge := MeshInstance3D.new()
+			verge.name = "RoadsideStone"
+			var verge_mesh := BoxMesh.new()
+			verge_mesh.size = Vector3(rng.randf_range(0.26, 0.62), rng.randf_range(0.08, 0.16), rng.randf_range(0.20, 0.46))
+			verge.mesh = verge_mesh
+			verge.position = Vector3(point.x, _height_at(point.x, point.y) + verge_mesh.size.y * 0.5, point.y)
+			verge.rotation.y = rng.randf_range(0.0, TAU)
+			verge.material_override = verge_mat
+			root.add_child(verge)
 
 func _create_path_strip_mesh(points: Array[Vector2], width: float, height_offset: float = 0.035, natural_width: bool = false) -> ArrayMesh:
 	var vertices := PackedVector3Array()
@@ -3185,7 +3293,7 @@ func _create_background_trees() -> void:
 
 	for i in range(72):
 		var a := rng.randf_range(0.0, TAU)
-		var r := rng.randf_range(82.0, 122.0)
+		var r := rng.randf_range(164.0, 190.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3220,7 +3328,7 @@ func _create_background_trees() -> void:
 
 	for i in range(44):
 		var a := TAU * float(i) / 44.0 + rng.randf_range(-0.035, 0.035)
-		var r := rng.randf_range(128.0, 150.0)
+		var r := rng.randf_range(192.0, 207.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3255,7 +3363,7 @@ func _create_background_trees_staged() -> void:
 
 	for i in range(72):
 		var a := rng.randf_range(0.0, TAU)
-		var r := rng.randf_range(82.0, 122.0)
+		var r := rng.randf_range(164.0, 190.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3295,7 +3403,7 @@ func _create_background_trees_staged() -> void:
 
 	for i in range(44):
 		var a := TAU * float(i) / 44.0 + rng.randf_range(-0.035, 0.035)
-		var r := rng.randf_range(128.0, 150.0)
+		var r := rng.randf_range(192.0, 207.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3347,6 +3455,26 @@ func _create_asset_trees() -> void:
 		Vector3(-52.0, 0.0, 40.0),
 		Vector3(55.0, 0.0, -30.0),
 		Vector3(-48.0, 0.0, -44.0),
+		Vector3(74.0, 0.0, -44.0),
+		Vector3(104.0, 0.0, -78.0),
+		Vector3(128.0, 0.0, -108.0),
+		Vector3(82.0, 0.0, 48.0),
+		Vector3(119.0, 0.0, 61.0),
+		Vector3(152.0, 0.0, 94.0),
+		Vector3(45.0, 0.0, 94.0),
+		Vector3(34.0, 0.0, 138.0),
+		Vector3(5.0, 0.0, 174.0),
+		Vector3(-62.0, 0.0, 70.0),
+		Vector3(-88.0, 0.0, 112.0),
+		Vector3(-124.0, 0.0, 143.0),
+		Vector3(-92.0, 0.0, 12.0),
+		Vector3(-132.0, 0.0, 8.0),
+		Vector3(-169.0, 0.0, 42.0),
+		Vector3(-86.0, 0.0, -70.0),
+		Vector3(-122.0, 0.0, -101.0),
+		Vector3(-165.0, 0.0, -76.0),
+		Vector3(-92.0, 0.0, -139.0),
+		Vector3(-169.0, 0.0, -164.0),
 	]
 
 	var rng := RandomNumberGenerator.new()
@@ -3413,6 +3541,26 @@ func _create_asset_trees_staged() -> void:
 		Vector3(-52.0, 0.0, 40.0),
 		Vector3(55.0, 0.0, -30.0),
 		Vector3(-48.0, 0.0, -44.0),
+		Vector3(74.0, 0.0, -44.0),
+		Vector3(104.0, 0.0, -78.0),
+		Vector3(128.0, 0.0, -108.0),
+		Vector3(82.0, 0.0, 48.0),
+		Vector3(119.0, 0.0, 61.0),
+		Vector3(152.0, 0.0, 94.0),
+		Vector3(45.0, 0.0, 94.0),
+		Vector3(34.0, 0.0, 138.0),
+		Vector3(5.0, 0.0, 174.0),
+		Vector3(-62.0, 0.0, 70.0),
+		Vector3(-88.0, 0.0, 112.0),
+		Vector3(-124.0, 0.0, 143.0),
+		Vector3(-92.0, 0.0, 12.0),
+		Vector3(-132.0, 0.0, 8.0),
+		Vector3(-169.0, 0.0, 42.0),
+		Vector3(-86.0, 0.0, -70.0),
+		Vector3(-122.0, 0.0, -101.0),
+		Vector3(-165.0, 0.0, -76.0),
+		Vector3(-92.0, 0.0, -139.0),
+		Vector3(-169.0, 0.0, -164.0),
 	]
 
 	var rng := RandomNumberGenerator.new()
@@ -3455,9 +3603,14 @@ func _create_asset_trees_staged() -> void:
 		await get_tree().process_frame
 
 func _should_skip_asset_tree(point: Vector3) -> bool:
+	var point_2d := Vector2(point.x, point.z)
+	if _chapter_one_active and _distance_to_world_roads(point_2d) <= WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.78:
+		return true
+	for pad in WORLD_FLAT_PADS:
+		if point_2d.distance_to(Vector2(pad.x, pad.y)) <= pad.z + 2.0:
+			return true
 	if not _chapter_one_active:
 		return false
-	var point_2d := Vector2(point.x, point.z)
 	var house_point := Vector2(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z)
 	return point_2d.distance_squared_to(house_point) <= CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS * CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS
 
@@ -3509,6 +3662,7 @@ func _create_player() -> void:
 		return
 	_player.name = "Player"
 	_player.add_to_group("player")
+	_player.set("field_limit", CAMPER_DRIVE_FIELD_LIMIT)
 	_player.position = Vector3(PLAYER_START.x, _height_at(PLAYER_START.x, PLAYER_START.z) + 0.04, PLAYER_START.z)
 	_mark_generated(_player)
 	add_child(_player)
@@ -3524,6 +3678,7 @@ func _create_chapter_one_player() -> void:
 		return
 	_player.name = "Player"
 	_player.add_to_group("player")
+	_player.set("field_limit", CAMPER_DRIVE_FIELD_LIMIT)
 	_player.position = Vector3(CHAPTER_ONE_PLAYER_START.x, _height_at(CHAPTER_ONE_PLAYER_START.x, CHAPTER_ONE_PLAYER_START.z) + 0.04, CHAPTER_ONE_PLAYER_START.z)
 	_player.rotation.y = 0.0
 	var visual_root := _player.get_node_or_null("VisualRoot") as Node3D
@@ -3860,6 +4015,8 @@ func _create_camper(camper_position: Vector3 = CAMPER_POSITION, camper_yaw: floa
 	camper.add_child(model)
 	_fit_model_to_footprint_length(model, CAMPER_TARGET_LENGTH)
 	_ground_model(model)
+	model.set_meta("ground_base_rotation", model.rotation)
+	_update_camper_ground_alignment(1.0)
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_camper_blocker(camper, model)
 
@@ -3929,6 +4086,13 @@ func _camper_drive_forward() -> Vector3:
 	var yaw := _camper.rotation.y + CAMPER_DRIVE_FORWARD_YAW_OFFSET
 	return Vector3(sin(yaw), 0.0, cos(yaw)).normalized()
 
+func _camper_turn_yaw(current_yaw: float, steering: float, drive_speed: float, delta: float) -> float:
+	if absf(drive_speed) <= 0.08 or is_zero_approx(steering):
+		return current_yaw
+	var reverse_sign := 1.0 if drive_speed >= 0.0 else -1.0
+	var speed_ratio := clampf(absf(drive_speed) / CAMPER_DRIVE_FORWARD_SPEED, 0.25, 1.0)
+	return wrapf(current_yaw - steering * CAMPER_DRIVE_TURN_SPEED * speed_ratio * reverse_sign * maxf(delta, 0.0), -PI, PI)
+
 func _update_camper_driving(delta: float) -> void:
 	if not _camper_driving or _camper == null or not is_instance_valid(_camper):
 		return
@@ -3947,10 +4111,7 @@ func _update_camper_driving(delta: float) -> void:
 	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		steering += 1.0
 	var previous_yaw := _camper.rotation.y
-	if absf(_camper_drive_speed) > 0.08 and steering != 0.0:
-		var reverse_sign := 1.0 if _camper_drive_speed >= 0.0 else -1.0
-		var speed_ratio := clampf(absf(_camper_drive_speed) / CAMPER_DRIVE_FORWARD_SPEED, 0.25, 1.0)
-		_camper.rotation.y = wrapf(_camper.rotation.y + steering * CAMPER_DRIVE_TURN_SPEED * speed_ratio * reverse_sign * delta, -PI, PI)
+	_camper.rotation.y = _camper_turn_yaw(_camper.rotation.y, steering, _camper_drive_speed, delta)
 	var next_position := _camper.global_position + _camper_drive_forward() * _camper_drive_speed * delta
 	next_position.y = _height_at(next_position.x, next_position.z)
 	if _is_camper_drive_position_valid(next_position, _camper.rotation.y):
@@ -3963,7 +4124,20 @@ func _update_camper_driving(delta: float) -> void:
 			_show_side_toast("前方无法通行")
 	if _player != null and is_instance_valid(_player):
 		_player.global_position = _camper.global_position
+	_update_camper_ground_alignment(delta)
 	_update_camper_business_location_discovery()
+
+func _update_camper_ground_alignment(delta: float) -> void:
+	if _camper == null or _camper_model == null or not is_instance_valid(_camper_model):
+		return
+	var world_normal := _normal_at(_camper.global_position.x, _camper.global_position.z)
+	var local_normal := (_camper.global_basis.inverse() * world_normal).normalized()
+	var base_rotation: Vector3 = _camper_model.get_meta("ground_base_rotation", Vector3.ZERO)
+	var target_pitch := clampf(atan2(local_normal.z, maxf(local_normal.y, 0.001)), -0.20, 0.20)
+	var target_roll := clampf(-atan2(local_normal.x, maxf(local_normal.y, 0.001)), -0.20, 0.20)
+	var blend := 1.0 if delta >= 1.0 else 1.0 - exp(-8.0 * maxf(delta, 0.0))
+	_camper_model.rotation.x = lerp_angle(_camper_model.rotation.x, base_rotation.x + target_pitch, blend)
+	_camper_model.rotation.z = lerp_angle(_camper_model.rotation.z, base_rotation.z + target_roll, blend)
 
 func _is_camper_drive_position_valid(position: Vector3, yaw: float) -> bool:
 	var center := Vector2(position.x, position.z)
@@ -3992,10 +4166,17 @@ func _try_exit_camper_driving() -> bool:
 	if exit_position.x == INF:
 		_show_notification("车门旁没有安全的下车位置，请稍微挪动车辆")
 		return true
-	_camper_driving = false
-	_camper_drive_speed = 0.0
 	_unpack_camper_travel_attachments()
 	_rebuild_camper_blocker()
+	if not _is_safe_camper_exit_position(exit_position):
+		exit_position = _find_safe_camper_exit_position()
+	if exit_position.x == INF:
+		_pack_camper_travel_attachments()
+		_remove_camper_blocker()
+		_show_notification("展开厨房后没有安全的下车位置，请稍微挪动车辆")
+		return true
+	_camper_driving = false
+	_camper_drive_speed = 0.0
 	if _player != null and is_instance_valid(_player):
 		_player.global_position = exit_position
 	_set_player_camper_driving_state(false)
@@ -4003,20 +4184,58 @@ func _try_exit_camper_driving() -> bool:
 	return true
 
 func _find_safe_camper_exit_position() -> Vector3:
-	if _camper == null:
+	if _camper == null or _camper_model == null or not is_instance_valid(_camper_model):
 		return Vector3(INF, INF, INF)
+	var camper_blocker := _camper_blocker_data(_camper, _camper_model)
+	if camper_blocker.is_empty():
+		return Vector3(INF, INF, INF)
+	for position in _camper_exit_candidate_positions(camper_blocker):
+		if _is_safe_camper_exit_position(position, camper_blocker):
+			return position
+	return Vector3(INF, INF, INF)
+
+func _camper_exit_candidate_positions(camper_blocker: Dictionary) -> Array[Vector3]:
+	var center: Vector3 = camper_blocker.get("center", _camper.global_position if _camper != null else Vector3.ZERO)
+	var half_extents: Vector2 = camper_blocker.get("half_extents", CAMPER_DRIVE_HALF_EXTENTS)
 	var forward := _camper_drive_forward()
 	var right := Vector3(forward.z, 0.0, -forward.x)
-	var candidates: Array[Vector3] = [right * CAMPER_EXIT_SIDE_OFFSET, -right * CAMPER_EXIT_SIDE_OFFSET, -forward * 3.4, forward * 3.4]
-	for offset in candidates:
-		var position: Vector3 = _camper.global_position + offset
+	var safe_margin := CAMPER_EXIT_PLAYER_RADIUS + CAMPER_EXIT_CLEARANCE
+	var side_offset := right * (half_extents.y + safe_margin)
+	var end_offset := forward * (half_extents.x + safe_margin)
+	var offsets: Array[Vector3] = [
+		side_offset,
+		-side_offset,
+		-end_offset,
+		end_offset,
+		side_offset - end_offset,
+		side_offset + end_offset,
+		-side_offset - end_offset,
+		-side_offset + end_offset,
+	]
+	var candidates: Array[Vector3] = []
+	for offset in offsets:
+		var position := center + offset
 		position.y = _height_at(position.x, position.z) + 0.04
-		if _is_inside_pond(position.x, position.z, 0.65) or _is_blocked_by_solid(position):
-			continue
-		if _is_point_blocked_by_packed_attachment(Vector2(position.x, position.z), 0.55):
-			continue
-		return position
-	return Vector3(INF, INF, INF)
+		candidates.append(position)
+	return candidates
+
+func _is_safe_camper_exit_position(position: Vector3, camper_blocker: Dictionary = {}) -> bool:
+	var point := Vector2(position.x, position.z)
+	if absf(point.x) > CAMPER_DRIVE_FIELD_LIMIT - CAMPER_EXIT_PLAYER_RADIUS or absf(point.y) > CAMPER_DRIVE_FIELD_LIMIT - CAMPER_EXIT_PLAYER_RADIUS:
+		return false
+	if _is_inside_pond(position.x, position.z, CAMPER_EXIT_PLAYER_RADIUS + 0.10):
+		return false
+	for blocker in _solid_blockers:
+		if _is_point_inside_blocker_with_clearance(point, blocker, CAMPER_EXIT_PLAYER_RADIUS):
+			return false
+	var resolved_camper_blocker := camper_blocker
+	if resolved_camper_blocker.is_empty() and _camper != null and _camper_model != null and is_instance_valid(_camper_model):
+		resolved_camper_blocker = _camper_blocker_data(_camper, _camper_model)
+	if not resolved_camper_blocker.is_empty() and _is_point_inside_blocker_with_clearance(point, resolved_camper_blocker, CAMPER_EXIT_PLAYER_RADIUS):
+		return false
+	if _is_point_blocked_by_packed_attachment(point, CAMPER_EXIT_PLAYER_RADIUS):
+		return false
+	return true
 
 func _pack_camper_travel_attachments() -> void:
 	_camper_drive_attachments.clear()
@@ -7372,13 +7591,13 @@ func _create_kitchen_instance_selector(host: Control) -> void:
 	_kitchen_instance_selector_title.add_theme_color_override("font_color", Color(0.25, 0.15, 0.06, 1.0))
 	box.add_child(_kitchen_instance_selector_title)
 
-	var hint := Label.new()
-	hint.text = "请选择编号，只会移动这一台"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", Color(0.38, 0.27, 0.13, 0.90))
-	box.add_child(hint)
+	_kitchen_instance_selector_hint = Label.new()
+	_kitchen_instance_selector_hint.text = "请选择编号，只会移动这一台"
+	_kitchen_instance_selector_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_kitchen_instance_selector_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_instance_selector_hint.add_theme_font_size_override("font_size", 12)
+	_kitchen_instance_selector_hint.add_theme_color_override("font_color", Color(0.38, 0.27, 0.13, 0.90))
+	box.add_child(_kitchen_instance_selector_hint)
 
 	_kitchen_instance_selector_buttons = GridContainer.new()
 	_kitchen_instance_selector_buttons.columns = 3
@@ -7875,7 +8094,7 @@ func _create_business_result_ui(root: Control) -> void:
 	_business_result_buttons.add_child(_create_business_result_button("再来一次", Callable(self, "_on_business_result_retry"), false))
 	_business_result_next_button = _create_business_result_button("下一关", Callable(self, "_on_business_result_next"), true)
 	_business_result_buttons.add_child(_business_result_next_button)
-	_business_result_garden_button = _create_business_result_button("立即前往花圃", Callable(self, "_on_business_result_garden"), true)
+	_business_result_garden_button = _create_business_result_button("前往花圃停车区", Callable(self, "_on_business_result_garden"), true)
 	_business_result_garden_button.visible = false
 	_business_result_buttons.add_child(_business_result_garden_button)
 	_business_result_duel_button = _create_business_result_button("双人料理竞速", Callable(self, "_on_business_result_duel"), true)
@@ -9365,7 +9584,7 @@ func _on_business_result_garden() -> void:
 	if _business_prep_overlay != null:
 		_business_prep_overlay.visible = false
 	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
-		_flower_garden_controller.call("enter_garden", "level_result")
+		_flower_garden_controller.call("arrive_at_parking", "level_result")
 
 func _on_business_result_duel() -> void:
 	_open_duel_overlay()
@@ -9437,25 +9656,34 @@ func _create_kitchen_equipment_slot(equipment_id: String, equipment_name: String
 	content.add_child(name_label)
 	var actions := HBoxContainer.new()
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 4)
+	actions.add_theme_constant_override("separation", 2)
 	content.add_child(actions)
 	var add_button := Button.new()
 	add_button.text = "新增"
-	add_button.custom_minimum_size = Vector2(40.0, 25.0)
+	add_button.custom_minimum_size = Vector2(28.0, 25.0)
 	add_button.focus_mode = Control.FOCUS_NONE
 	add_button.disabled = not unlocked or placed >= level or _kitchen_business_active
 	add_button.tooltip_text = "达到当前数量等级上限" if placed >= level else "摆放一台新的%s" % equipment_name
-	add_button.add_theme_font_size_override("font_size", 10)
+	add_button.add_theme_font_size_override("font_size", 9)
 	add_button.pressed.connect(_start_kitchen_equipment_placement.bind(equipment_id))
 	actions.add_child(add_button)
 	var move_button := Button.new()
 	move_button.text = "调整"
-	move_button.custom_minimum_size = Vector2(40.0, 25.0)
+	move_button.custom_minimum_size = Vector2(28.0, 25.0)
 	move_button.focus_mode = Control.FOCUS_NONE
 	move_button.disabled = not unlocked or placed <= 0 or _kitchen_business_active
-	move_button.add_theme_font_size_override("font_size", 10)
+	move_button.add_theme_font_size_override("font_size", 9)
 	move_button.pressed.connect(_start_kitchen_equipment_adjustment.bind(equipment_id))
 	actions.add_child(move_button)
+	var store_button := Button.new()
+	store_button.text = "收起"
+	store_button.custom_minimum_size = Vector2(28.0, 25.0)
+	store_button.focus_mode = Control.FOCUS_NONE
+	store_button.disabled = not unlocked or placed <= 0 or _kitchen_business_active
+	store_button.tooltip_text = "收进房车，之后可以重新摆放"
+	store_button.add_theme_font_size_override("font_size", 9)
+	store_button.pressed.connect(_start_kitchen_equipment_storage.bind(equipment_id))
+	actions.add_child(store_button)
 	return slot
 
 func _is_kitchen_equipment_unlocked(equipment_id: String) -> bool:
@@ -13309,6 +13537,8 @@ func _try_execute_selected_interaction_option() -> bool:
 			return _start_formal_kitchen_business()
 		"use_kitchen_equipment":
 			return _use_kitchen_equipment_instance(str(option.get("instance_id", _nearest_kitchen_equipment_id())))
+		"store_kitchen_equipment":
+			return _store_kitchen_equipment_instance(str(option.get("instance_id", _nearest_kitchen_equipment_id())))
 		"open_research_table":
 			return _open_research_table_panel()
 		"opening_sign_status":
@@ -13382,6 +13612,9 @@ func _update_interaction_options() -> void:
 		var nearest_type := _kitchen_instance_type(nearest_equipment)
 		_interaction_options.append({"action": "use_kitchen_equipment", "instance_id": nearest_equipment, "text": "使用%s %d号" % [_equipment_name(nearest_type), _kitchen_instance_index(nearest_equipment)]})
 	if not _kitchen_business_active:
+		if nearest_equipment != "":
+			var nearest_type := _kitchen_instance_type(nearest_equipment)
+			_interaction_options.append({"action": "store_kitchen_equipment", "instance_id": nearest_equipment, "text": "收起%s %d号" % [_equipment_name(nearest_type), _kitchen_instance_index(nearest_equipment)]})
 		var nearest_research_table := _nearest_kitchen_equipment_id("research_table")
 		if nearest_research_table != "":
 			_interaction_options.append({"action": "open_research_table", "instance_id": nearest_research_table, "text": "查看料理研究"})
@@ -13482,7 +13715,7 @@ func _is_repeatable_interaction_action(action: String) -> bool:
 	# 设备、仓库和操作台的 F / 点击提示只在首次靠近时教学，避免经营中反复遮挡订单。
 	if action == "use_kitchen_equipment" and (_held_crop_item != "" or _kitchen_held_item != ""):
 		return true
-	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "open_research_table", "business_prep", "drive_camper", "camper", "rebas_shop", "local_event", "mainline_site", "wardrobe_tailor", "wardrobe_trunk"]
+	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "store_kitchen_equipment", "open_research_table", "business_prep", "drive_camper", "camper", "rebas_shop", "local_event", "mainline_site", "wardrobe_tailor", "wardrobe_trunk"]
 
 func _has_shown_interaction_prompt(text: String) -> bool:
 	return _shown_interaction_prompt_texts.has(text.strip_edges())
@@ -13542,7 +13775,7 @@ func _position_interaction_prompt_for_option(option: Dictionary) -> void:
 			if kitchen_item != null and is_instance_valid(kitchen_item):
 				_position_interaction_prompt_near_world(kitchen_item.global_position + Vector3(0.0, 1.1, 0.0))
 				return
-		"use_kitchen_equipment", "open_research_table":
+		"use_kitchen_equipment", "store_kitchen_equipment", "open_research_table":
 			var equipment_id := str(option.get("instance_id", _nearest_kitchen_equipment_id()))
 			var equipment := _kitchen_root_for_instance(equipment_id)
 			if equipment != null and is_instance_valid(equipment):
@@ -14677,16 +14910,33 @@ func _start_kitchen_equipment_adjustment(equipment_id: String) -> void:
 	if instances.size() == 1:
 		_begin_kitchen_equipment_adjustment(str(instances[0]))
 		return
-	_show_kitchen_instance_selector(equipment_id, instances)
+	_show_kitchen_instance_selector(equipment_id, instances, "adjust")
 
-func _show_kitchen_instance_selector(equipment_id: String, instances: Array[String]) -> void:
+func _start_kitchen_equipment_storage(equipment_id: String) -> void:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能收起设备")
+		return
+	var instances := _kitchen_instance_ids_for_type(equipment_id)
+	if instances.is_empty():
+		_show_side_toast("还没有可收起的%s" % _equipment_name(equipment_id))
+		return
+	if instances.size() == 1:
+		_store_kitchen_equipment_instance(str(instances[0]))
+		return
+	_show_kitchen_instance_selector(equipment_id, instances, "store")
+
+func _show_kitchen_instance_selector(equipment_id: String, instances: Array[String], action: String = "adjust") -> void:
 	if _kitchen_instance_selector == null or not is_instance_valid(_kitchen_instance_selector):
 		return
 	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
 		return
 	_kitchen_instance_selector_equipment = equipment_id
+	_kitchen_instance_selector_action = action
 	if _kitchen_instance_selector_title != null and is_instance_valid(_kitchen_instance_selector_title):
-		_kitchen_instance_selector_title.text = "选择要调整的%s" % _equipment_name(equipment_id)
+		_kitchen_instance_selector_title.text = ("选择要收起的%s" if action == "store" else "选择要调整的%s") % _equipment_name(equipment_id)
+	if _kitchen_instance_selector_hint != null and is_instance_valid(_kitchen_instance_selector_hint):
+		_kitchen_instance_selector_hint.text = "请选择编号，只会收起这一台" if action == "store" else "请选择编号，只会移动这一台"
 	for child in _kitchen_instance_selector_buttons.get_children():
 		_kitchen_instance_selector_buttons.remove_child(child)
 		child.queue_free()
@@ -14697,13 +14947,17 @@ func _show_kitchen_instance_selector(equipment_id: String, instances: Array[Stri
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_size_override("font_size", 14)
 		_apply_kitchen_parchment_button_style(button)
-		button.pressed.connect(_begin_kitchen_equipment_adjustment.bind(instance_id))
+		if action == "store":
+			button.pressed.connect(_store_kitchen_equipment_instance.bind(instance_id))
+		else:
+			button.pressed.connect(_begin_kitchen_equipment_adjustment.bind(instance_id))
 		_kitchen_instance_selector_buttons.add_child(button)
 	_kitchen_instance_selector.visible = true
 	_kitchen_instance_selector.move_to_front()
 
 func _hide_kitchen_instance_selector() -> void:
 	_kitchen_instance_selector_equipment = ""
+	_kitchen_instance_selector_action = ""
 	if _kitchen_instance_selector != null and is_instance_valid(_kitchen_instance_selector):
 		_kitchen_instance_selector.visible = false
 	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
@@ -14737,6 +14991,36 @@ func _begin_kitchen_equipment_adjustment(instance_id: String) -> void:
 	_mouse_released_by_escape = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_update_kitchen_equipment_placement_preview()
+
+func _store_kitchen_equipment_instance(instance_id: String) -> bool:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能收起设备")
+		return true
+	if instance_id == "":
+		return false
+	var root := _kitchen_root_for_instance(instance_id)
+	if root == null or not is_instance_valid(root):
+		_show_side_toast("这台设备已经不在当前布局中")
+		_rebuild_kitchen_equipment_grid()
+		return true
+	var equipment_id := _kitchen_instance_type(instance_id)
+	var equipment_name := _equipment_name(equipment_id)
+	var equipment_index := _kitchen_instance_index(instance_id)
+	AudioManager.stop_kitchen_loop(instance_id)
+	_kitchen_equipment_progress.erase(instance_id)
+	_kitchen_cook_states.erase(instance_id)
+	_remove_kitchen_equipment_instance_blocker(instance_id)
+	_kitchen_equipment_bubbles.erase(instance_id)
+	_kitchen_equipment_roots.erase(instance_id)
+	if _kitchen_prompt_overlay != null and is_instance_valid(_kitchen_prompt_overlay):
+		_kitchen_prompt_overlay.clear_all()
+	root.queue_free()
+	_refresh_kitchen_equipment_level_label(equipment_id)
+	_rebuild_kitchen_equipment_grid()
+	_update_post_tutorial_objective()
+	_show_side_toast("%s %d号 已收进房车" % [equipment_name, equipment_index])
+	return true
 
 func _handle_kitchen_placement_input(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
@@ -23109,7 +23393,7 @@ func _update_map_popup(delta: float) -> void:
 		if near_village:
 			_interaction_prompt_label.text = "F / 点击  返回当前位置" if _chapter_one_active else "F / 点击  进入村庄"
 		elif near_locked_site:
-			_interaction_prompt_label.text = "F / 点击  进入晨露花圃" if flower_garden_available else "此地暂未解锁"
+			_interaction_prompt_label.text = "F / 点击  前往晨露花圃停车区" if flower_garden_available else "此地暂未解锁"
 		else:
 			_interaction_prompt_label.text = "WASD / 滑动  开往村庄"
 		_fit_interaction_prompt_to_lines([_interaction_prompt_label.text])
@@ -23258,7 +23542,7 @@ func _try_enter_map_destination() -> bool:
 			return false
 		_close_map_popup()
 		if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
-			_flower_garden_controller.call("enter_garden", "camper_map")
+			_flower_garden_controller.call("arrive_at_parking", "camper_map")
 		return true
 	return _try_enter_village()
 
@@ -24109,6 +24393,13 @@ func _yaw_toward(from_position: Vector3, to_position: Vector3) -> float:
 	return atan2(direction.x, direction.z)
 
 func _add_camper_blocker(camper: Node3D, model: Node3D) -> void:
+	var blocker := _camper_blocker_data(camper, model)
+	if not blocker.is_empty():
+		_solid_blockers.append(blocker)
+
+func _camper_blocker_data(camper: Node3D, model: Node3D) -> Dictionary:
+	if camper == null or model == null or not is_instance_valid(camper) or not is_instance_valid(model):
+		return {}
 	var bounds := _get_model_bounds(model)
 	var center_local := bounds.get_center()
 	var center_world := model.global_transform * center_local
@@ -24116,13 +24407,13 @@ func _add_camper_blocker(camper: Node3D, model: Node3D) -> void:
 		maxf(bounds.size.x * model.scale.x * 0.5 * CAMPER_BLOCKER_SHRINK + CAMPER_BLOCKER_PADDING.x, 0.9),
 		maxf(bounds.size.z * model.scale.z * 0.5 * CAMPER_BLOCKER_SHRINK + CAMPER_BLOCKER_PADDING.y, 1.45)
 	)
-	_solid_blockers.append({
+	return {
 		"shape": "box",
 		"center": center_world,
 		"yaw": camper.rotation.y,
 		"half_extents": half_extents,
 		"camper": true,
-	})
+	}
 
 func _remove_camper_blocker() -> void:
 	for index in range(_solid_blockers.size() - 1, -1, -1):
@@ -24158,13 +24449,14 @@ func _add_circle_blocker(center: Vector3, radius: float) -> void:
 		"radius": radius,
 	})
 
-func _add_box_blocker(center: Vector3, yaw: float, half_extents: Vector2, house_interior_only: bool = false) -> void:
+func _add_box_blocker(center: Vector3, yaw: float, half_extents: Vector2, house_interior_only: bool = false, garden_only: bool = false) -> void:
 	_solid_blockers.append({
 		"shape": "box",
 		"center": center,
 		"yaw": yaw,
 		"half_extents": half_extents,
 		"house_interior_only": house_interior_only,
+		"garden_only": garden_only,
 	})
 
 func _add_model_box_blocker(root: Node3D, model: Node3D, padding: Vector2, shrink: float = 1.0) -> void:
@@ -24266,19 +24558,26 @@ func _is_blocked_by_solid(world_position: Vector3) -> bool:
 	return false
 
 func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
+	return _is_point_inside_blocker_with_clearance(point, blocker, 0.0)
+
+func _is_point_inside_blocker_with_clearance(point: Vector2, blocker: Dictionary, clearance: float) -> bool:
+	var inside_garden := _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden"))
+	if bool(blocker.get("garden_only", false)) != inside_garden and (inside_garden or bool(blocker.get("garden_only", false))):
+		return false
 	if bool(blocker.get("house_interior_only", false)) and not _inside_house:
 		return false
 	var shape: String = blocker["shape"]
 	var center_3d: Vector3 = blocker["center"]
 	var center := Vector2(center_3d.x, center_3d.z)
+	var safe_clearance := maxf(clearance, 0.0)
 	if shape == "box":
 		var yaw: float = blocker["yaw"]
 		var half_extents: Vector2 = blocker["half_extents"]
 		var local := (point - center).rotated(-yaw)
-		return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
+		return absf(local.x) <= half_extents.x + safe_clearance and absf(local.y) <= half_extents.y + safe_clearance
 	elif shape == "circle" or shape == "tree":
 		var radius: float = blocker["radius"]
-		return point.distance_squared_to(center) <= radius * radius
+		return point.distance_squared_to(center) <= (radius + safe_clearance) * (radius + safe_clearance)
 	return false
 
 func _is_point_inside_house_interior_floor(point: Vector2) -> bool:
@@ -24371,13 +24670,56 @@ func _apply_camera() -> void:
 	_camera.look_at(target, Vector3.UP)
 
 func _height_at(x: float, z: float) -> float:
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden")):
+		return float(_flower_garden_controller.call("garden_world_height", x, z))
 	if _inside_house and _is_point_inside_house_interior_floor(Vector2(x, z)):
 		return HOUSE_INTERIOR_FLOOR_Y
-	var rolling := sin(x * 0.026 + z * 0.014) * 1.35
-	var cross_slope := cos(x * 0.018 - z * 0.024 + 1.2) * 0.95
-	var meadow := sin(x * 0.056) * 0.42 + cos(z * 0.049) * 0.38
-	var small := sin((x + z) * 0.105) * 0.16
-	return rolling + cross_slope + meadow + small
+	var point := Vector2(x, z)
+	var height := _macro_height_at(x, z)
+	var road_sample := _world_road_sample(point)
+	if road_sample.x < WORLD_ROAD_GRASS_CLEAR_WIDTH:
+		var road_blend := 1.0 - smoothstep(WORLD_ROAD_WIDTH * 0.48, WORLD_ROAD_GRASS_CLEAR_WIDTH, road_sample.x)
+		height = lerpf(height, road_sample.y, road_blend)
+	for pad in WORLD_FLAT_PADS:
+		var center := Vector2(pad.x, pad.y)
+		var distance := point.distance_to(center)
+		if distance >= pad.z:
+			continue
+		var pad_height := _macro_height_at(center.x, center.y)
+		var pad_blend := 1.0 - smoothstep(pad.z * 0.25, pad.z, distance)
+		height = lerpf(height, pad_height, pad_blend)
+	return height
+
+func _macro_height_at(x: float, z: float) -> float:
+	var rolling := sin(x * 0.018 + z * 0.011) * 2.2
+	var cross_slope := cos(x * 0.013 - z * 0.017 + 1.2) * 1.45
+	var meadow := sin(x * 0.044) * 0.52 + cos(z * 0.039) * 0.48
+	var small := sin((x + z) * 0.084) * 0.18
+	var north_highland := smoothstep(24.0, 185.0, z) * 12.0
+	var west_ridge := smoothstep(34.0, 188.0, -x) * (8.0 + maxf(z, 0.0) * 0.014)
+	var south_valley := smoothstep(42.0, 188.0, -z) * -5.4
+	var eastern_swell := smoothstep(70.0, 190.0, x) * 2.8
+	return rolling + cross_slope + meadow + small + north_highland + west_ridge + south_valley + eastern_swell
+
+func _world_road_sample(point: Vector2) -> Vector2:
+	var best_distance := INF
+	var best_height := _macro_height_at(point.x, point.y)
+	for raw_route in WORLD_ROAD_ROUTES:
+		for index in range(raw_route.size() - 1):
+			var a: Vector2 = raw_route[index]
+			var b: Vector2 = raw_route[index + 1]
+			var segment := b - a
+			var length_squared := segment.length_squared()
+			if length_squared <= 0.0001:
+				continue
+			var t := clampf((point - a).dot(segment) / length_squared, 0.0, 1.0)
+			var nearest := a + segment * t
+			var distance := point.distance_to(nearest)
+			if distance >= best_distance:
+				continue
+			best_distance = distance
+			best_height = lerpf(_macro_height_at(a.x, a.y), _macro_height_at(b.x, b.y), t)
+	return Vector2(best_distance, best_height)
 
 func _normal_at(x: float, z: float) -> Vector3:
 	var sample_distance := 1.0
