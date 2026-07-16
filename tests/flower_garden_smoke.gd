@@ -9,9 +9,30 @@ func _run() -> void:
 		push_error("FLOWER_GARDEN_SMOKE: autoload missing")
 		quit(6)
 		return
-	var original_unlocked := bool(manager.get("unlocked"))
-	manager.set("unlocked", false)
-	var original_plots: Array = (manager.get("plots") as Array).duplicate(true)
+	var save_path := "user://flower_garden_save.json"
+	var save_existed := FileAccess.file_exists(save_path)
+	var original_save_contents := ""
+	if save_existed:
+		var original_save_file := FileAccess.open(save_path, FileAccess.READ)
+		if original_save_file != null:
+			original_save_contents = original_save_file.get_as_text()
+			original_save_file.close()
+	var original_state := {
+		"unlocked": bool(manager.get("unlocked")),
+		"starter_granted": bool(manager.get("starter_granted")),
+		"intro_seen": bool(manager.get("intro_seen")),
+		"seeds": (manager.get("seeds") as Dictionary).duplicate(true),
+		"flowers": (manager.get("flowers") as Dictionary).duplicate(true),
+		"gifts": (manager.get("gifts") as Dictionary).duplicate(true),
+		"plots": (manager.get("plots") as Array).duplicate(true),
+		"selected_gift": str(manager.get("selected_gift")),
+		"active_gift": str(manager.get("active_gift")),
+		"active_quality_remaining": int(manager.get("active_quality_remaining")),
+		"active_bonus_coins": int(manager.get("active_bonus_coins")),
+		"active_quality_orders": int(manager.get("active_quality_orders")),
+	}
+	manager.set("_persistence_suspended", true)
+	var original_plots: Array = (original_state.get("plots", []) as Array).duplicate(true)
 	var temporary_plots: Array = original_plots.duplicate(true)
 	temporary_plots[0] = {"flower_id": "marigold", "planted_at_unix": 1000.0}
 	manager.set("plots", temporary_plots)
@@ -26,9 +47,9 @@ func _run() -> void:
 		push_error("FLOWER_GARDEN_SMOKE: seed pricing failed")
 		quit(5)
 		return
-	var original_active := str(manager.get("active_gift"))
-	var original_quality_remaining := int(manager.get("active_quality_remaining"))
-	var original_quality_orders := int(manager.get("active_quality_orders"))
+	var original_active := str(original_state.get("active_gift", ""))
+	var original_quality_remaining := int(original_state.get("active_quality_remaining", 0))
+	var original_quality_orders := int(original_state.get("active_quality_orders", 0))
 	manager.set("active_gift", "calming_bouquet")
 	if float(manager.call("active_order_time_bonus")) != 5.0:
 		push_error("FLOWER_GARDEN_SMOKE: calming gift failed")
@@ -57,6 +78,10 @@ func _run() -> void:
 	root.add_child(world)
 	await process_frame
 	await process_frame
+	# Reproduce the polluted-save case: the independent garden save says unlocked,
+	# while authoritative mainline progression has never cleared level 5.
+	manager.set("unlocked", true)
+	world.set("_business_level_stars", {})
 	world.call("_build_chapter_one_scene")
 	await process_frame
 	await process_frame
@@ -68,6 +93,10 @@ func _run() -> void:
 	if controller.get("world_root") != null or controller.get("plot_visual_roots").size() != 0:
 		push_error("FLOWER_GARDEN_SMOKE: locked garden leaked world visuals")
 		quit(3)
+		return
+	if bool(world.call("_is_flower_garden_available")):
+		push_error("FLOWER_GARDEN_SMOKE: independent save bypassed mainline unlock")
+		quit(17)
 		return
 	var player := world.get("_player") as Node3D
 	var gate := Vector3(36.0, 0.0, 28.0)
@@ -86,9 +115,57 @@ func _run() -> void:
 		quit(14)
 		return
 	world.set("_map_open", false)
-	manager.set("unlocked", true)
-	manager.emit_signal("state_changed")
+	world.call("_update_business_flower_gift_button")
+	var gift_button := world.get("_business_flower_gift_button") as Button
+	var gift_title := world.get("_business_flower_gift_title") as Label
+	var gift_status := world.get("_business_flower_gift_status") as Label
+	var gift_lock := world.get("_business_flower_gift_lock_badge") as PanelContainer
+	if gift_button == null or not gift_button.visible or not gift_button.disabled:
+		push_error("FLOWER_GARDEN_SMOKE: locked flower gift entry is not visible and disabled")
+		quit(18)
+		return
+	if gift_title == null or gift_title.text != "花礼未开放" or gift_status == null or gift_status.text != "解锁晨露花圃后可用" or gift_lock == null or not gift_lock.visible:
+		push_error("FLOWER_GARDEN_SMOKE: locked flower gift entry has incorrect presentation")
+		quit(21)
+		return
+	var garden_overlay := controller.get("overlay") as Control
+	world.call("_open_business_flower_gift_selector")
 	await process_frame
+	if garden_overlay == null or garden_overlay.visible:
+		push_error("FLOWER_GARDEN_SMOKE: locked flower gift selector opened through its guarded handler")
+		quit(22)
+		return
+	var locked_gifts := (manager.get("gifts") as Dictionary).duplicate(true)
+	locked_gifts["calming_bouquet"] = 1
+	manager.set("gifts", locked_gifts)
+	manager.set("selected_gift", "calming_bouquet")
+	manager.set("active_gift", "")
+	world.call("_begin_flower_gift_for_business")
+	if str(manager.get("active_gift")) != "" or int((manager.get("gifts") as Dictionary).get("calming_bouquet", 0)) != 1:
+		push_error("FLOWER_GARDEN_SMOKE: locked garden applied a saved flower gift")
+		quit(20)
+		return
+	world.set("_business_level_stars", {"5": 1})
+	manager.call("unlock")
+	await process_frame
+	world.call("_update_business_flower_gift_button")
+	if gift_button.disabled or not gift_button.visible or gift_lock.visible or gift_title.text != "安神香束" or gift_status.text != "库存 x1 · 点击更换":
+		push_error("FLOWER_GARDEN_SMOKE: unlocked flower gift entry did not refresh to its selected state")
+		quit(23)
+		return
+	world.call("_open_business_flower_gift_selector")
+	await process_frame
+	if not garden_overlay.visible or str(controller.get("current_tab")) != "gifts":
+		push_error("FLOWER_GARDEN_SMOKE: unlocked flower gift entry did not open the gift workshop")
+		quit(24)
+		return
+	controller.call("close_panel")
+	var gift_count_before := int(manager.call("gift_count", "calming_bouquet"))
+	world.call("_begin_flower_gift_for_business")
+	if str(manager.get("active_gift")) != "calming_bouquet" or int(manager.call("gift_count", "calming_bouquet")) != gift_count_before - 1:
+		push_error("FLOWER_GARDEN_SMOKE: unlocked selected flower gift was not applied exactly once")
+		quit(25)
+		return
 	var created_world := controller.get("world_root") as Node3D
 	if created_world == null or controller.get("plot_visual_roots").size() != 3:
 		push_error("FLOWER_GARDEN_SMOKE: unlocked garden did not create three plots")
@@ -121,12 +198,13 @@ func _run() -> void:
 	await process_frame
 
 	# An already-unlocked save must restore the garden during controller setup,
-	# without waiting for a fresh unlock signal.
+	# but only when the corresponding mainline progress is also restored.
 	manager.set("unlocked", true)
 	var restored_world := packed.instantiate()
 	root.add_child(restored_world)
 	await process_frame
 	await process_frame
+	restored_world.set("_business_level_stars", {"5": 1})
 	restored_world.call("_build_chapter_one_scene")
 	await process_frame
 	await process_frame
@@ -136,7 +214,19 @@ func _run() -> void:
 		quit(16)
 		return
 	restored_world.queue_free()
-	manager.set("unlocked", original_unlocked)
+	for key in original_state.keys():
+		manager.set(str(key), original_state.get(key))
+	var save_unchanged := FileAccess.file_exists(save_path) == save_existed
+	if save_unchanged and save_existed:
+		var final_save_file := FileAccess.open(save_path, FileAccess.READ)
+		save_unchanged = final_save_file != null and final_save_file.get_as_text() == original_save_contents
+		if final_save_file != null:
+			final_save_file.close()
+	if not save_unchanged:
+		push_error("FLOWER_GARDEN_SMOKE: test modified the real garden save")
+		quit(19)
+		return
+	manager.set("_persistence_suspended", false)
 	await process_frame
 	await process_frame
 	print("FLOWER_GARDEN_SMOKE: PASS")

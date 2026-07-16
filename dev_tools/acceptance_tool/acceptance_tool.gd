@@ -990,6 +990,7 @@ func _skip_basic_tutorial() -> void:
 		_set_world(flag, false)
 	_set_world("_water_amount", 1.0)
 	_set_world("_tutorial_harvested_carrot_count", 5)
+	_set_world("_tutorial_watered_carrot_total", 5)
 	_set_world("_tutorial_stored_carrot_count", 5)
 	_set_world("_weeding_task_cut_count", 2)
 	_set_seed_exact("carrot", 0, maxi(int(_call_world("_get_seed_count", ["carrot", 0], 0)), 5))

@@ -24,6 +24,8 @@ const STREAM_PATHS := {
 	"farm_scythe_swing": "res://audio/v2/farm_scythe_swing_v2.wav",
 	"farm_grass_cut": "res://audio/v2/farm_grass_cut_v2.wav",
 	"farm_harvest": "res://audio/v2/farm_harvest_v2.wav",
+	"food_chest_pickup": "res://audio/v2/food_chest_pickup_v2.wav",
+	"food_chest_place": "res://audio/v2/food_chest_place_v2.wav",
 	"cook_wash": "res://audio/v2/cook_wash_v2.wav",
 	"cook_chop": "res://audio/v2/cook_chop_sequence_v2.wav",
 	"cook_pot_place": "res://audio/v2/cook_pot_place_v2.wav",
