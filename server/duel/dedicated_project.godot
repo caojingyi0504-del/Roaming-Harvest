@@ -1,0 +1,19 @@
+; This minimal project is copied into build/staging by build_server.ps1.
+; It intentionally has no single-player autoloads or save-system configuration.
+config_version=5
+
+[application]
+
+config/name="Roaming Harvest Duel Server"
+run/main_scene="res://scenes/duel/DuelServer.tscn"
+config/features=PackedStringArray("4.6")
+
+[display]
+
+window/subwindows/embed_subwindows=false
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+

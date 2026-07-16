@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://tests/duel/duel_arena_smoke.gd" id="1_smoke"]
+[ext_resource type="Script" path="res://scripts/duel/duel_arena.gd" id="2_arena"]
+
+[node name="DuelSession" type="Node"]
+script = ExtResource("1_smoke")
+
+[node name="Arena" type="Node3D" parent="."]
+script = ExtResource("2_arena")

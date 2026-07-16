@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://player_roaming_harvest"]
 
 [ext_resource type="Script" path="res://scripts/player_controller.gd" id="1_player"]
-[ext_resource type="PackedScene" path="res://3d建模/角色3d建模/779a7e05b34a2795208e39b6b4eb09be.glb" id="2_model"]
+[ext_resource type="PackedScene" path="res://assets/wardrobe/models/player_default_optimized.glb" id="2_model"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.46

@@ -1,0 +1,41 @@
+services:
+  duel-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DUEL_WS_BIND: 0.0.0.0
+      DUEL_WS_PORT: 9080
+      DUEL_MAX_CONNECTIONS: ${DUEL_MAX_CONNECTIONS:-100}
+      DUEL_MAX_ROOMS: ${DUEL_MAX_ROOMS:-50}
+    expose:
+      - "9080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - duel-server
+    environment:
+      DUEL_DOMAIN: ${DUEL_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  caddy_data:
+  caddy_config:
+

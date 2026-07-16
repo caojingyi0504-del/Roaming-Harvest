@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/duel/duel_client.gd" id="1_client"]
+[ext_resource type="Script" path="res://scripts/duel/duel_endpoint.gd" id="2_endpoint"]
+
+[node name="DuelSession" type="Node"]
+script = ExtResource("1_client")
+
+[node name="Endpoint" type="Node" parent="."]
+script = ExtResource("2_endpoint")

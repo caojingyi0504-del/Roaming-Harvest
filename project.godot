@@ -24,6 +24,10 @@ InventoryManager="*res://scripts/managers/inventory_manager.gd"
 WorldManager="*res://scripts/managers/world_manager.gd"
 CropManager="*res://scripts/managers/crop_manager.gd"
 UIManager="*res://scripts/managers/ui_manager.gd"
+AcceptanceTool="*res://dev_tools/acceptance_tool/acceptance_tool.gd"
+AudioManager="*res://scripts/managers/audio_manager.gd"
+WardrobeManager="*res://scripts/managers/wardrobe_manager.gd"
+FlowerGardenManager="*res://scripts/managers/flower_garden_manager.gd"
 
 [display]
 

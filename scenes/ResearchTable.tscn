@@ -1,0 +1,140 @@
+[gd_scene load_steps=18 format=3]
+
+[sub_resource type="StandardMaterial3D" id="MatWood"]
+albedo_color = Color(0.62, 0.42, 0.22, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="MatWoodLight"]
+albedo_color = Color(0.78, 0.58, 0.32, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="MatPaper"]
+albedo_color = Color(0.96, 0.9, 0.72, 1)
+roughness = 0.96
+
+[sub_resource type="StandardMaterial3D" id="MatInk"]
+albedo_color = Color(0.28, 0.18, 0.09, 1)
+roughness = 0.92
+
+[sub_resource type="StandardMaterial3D" id="MatGreen"]
+albedo_color = Color(0.35, 0.53, 0.27, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="MatJar"]
+albedo_color = Color(0.72, 0.82, 0.68, 0.88)
+roughness = 0.55
+transparency = 1
+
+[sub_resource type="BoxMesh" id="MeshTop"]
+material = SubResource("MatWoodLight")
+size = Vector3(1.8, 0.16, 0.82)
+
+[sub_resource type="BoxMesh" id="MeshLeg"]
+material = SubResource("MatWood")
+size = Vector3(0.16, 0.82, 0.16)
+
+[sub_resource type="BoxMesh" id="MeshBrace"]
+material = SubResource("MatWood")
+size = Vector3(1.5, 0.12, 0.12)
+
+[sub_resource type="BoxMesh" id="MeshPage"]
+material = SubResource("MatPaper")
+size = Vector3(0.56, 0.025, 0.42)
+
+[sub_resource type="BoxMesh" id="MeshLine"]
+material = SubResource("MatInk")
+size = Vector3(0.30, 0.008, 0.018)
+
+[sub_resource type="CylinderMesh" id="MeshJar"]
+material = SubResource("MatJar")
+top_radius = 0.11
+bottom_radius = 0.13
+height = 0.3
+radial_segments = 8
+
+[sub_resource type="CylinderMesh" id="MeshLid"]
+material = SubResource("MatWood")
+top_radius = 0.12
+bottom_radius = 0.12
+height = 0.045
+radial_segments = 8
+
+[sub_resource type="SphereMesh" id="MeshLeaf"]
+material = SubResource("MatGreen")
+radius = 0.14
+height = 0.24
+radial_segments = 8
+rings = 4
+
+[sub_resource type="BoxMesh" id="MeshPencil"]
+material = SubResource("MatInk")
+size = Vector3(0.42, 0.025, 0.025)
+
+[node name="ResearchTable" type="Node3D"]
+
+[node name="TableTop" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.9, 0)
+mesh = SubResource("MeshTop")
+
+[node name="LegFL" type="MeshInstance3D" parent="."]
+position = Vector3(-0.7, 0.43, -0.27)
+mesh = SubResource("MeshLeg")
+
+[node name="LegFR" type="MeshInstance3D" parent="."]
+position = Vector3(0.7, 0.43, -0.27)
+mesh = SubResource("MeshLeg")
+
+[node name="LegBL" type="MeshInstance3D" parent="."]
+position = Vector3(-0.7, 0.43, 0.27)
+mesh = SubResource("MeshLeg")
+
+[node name="LegBR" type="MeshInstance3D" parent="."]
+position = Vector3(0.7, 0.43, 0.27)
+mesh = SubResource("MeshLeg")
+
+[node name="LowerBrace" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.28, 0)
+mesh = SubResource("MeshBrace")
+
+[node name="LeftPage" type="MeshInstance3D" parent="."]
+position = Vector3(-0.27, 1.005, -0.04)
+rotation = Vector3(0.035, 0.045, -0.018)
+mesh = SubResource("MeshPage")
+
+[node name="RightPage" type="MeshInstance3D" parent="."]
+position = Vector3(0.27, 1.005, -0.04)
+rotation = Vector3(0.035, -0.045, 0.018)
+mesh = SubResource("MeshPage")
+
+[node name="InkLine1" type="MeshInstance3D" parent="."]
+position = Vector3(-0.28, 1.024, -0.10)
+mesh = SubResource("MeshLine")
+
+[node name="InkLine2" type="MeshInstance3D" parent="."]
+position = Vector3(0.29, 1.024, -0.02)
+mesh = SubResource("MeshLine")
+
+[node name="Pencil" type="MeshInstance3D" parent="."]
+position = Vector3(0.05, 1.035, 0.25)
+rotation = Vector3(0, -0.32, 0)
+mesh = SubResource("MeshPencil")
+
+[node name="SeedJar" type="MeshInstance3D" parent="."]
+position = Vector3(0.67, 1.12, 0.06)
+mesh = SubResource("MeshJar")
+
+[node name="SeedJarLid" type="MeshInstance3D" parent="."]
+position = Vector3(0.67, 1.292, 0.06)
+mesh = SubResource("MeshLid")
+
+[node name="LeafLeft" type="MeshInstance3D" parent="."]
+position = Vector3(-0.72, 1.08, 0.13)
+rotation = Vector3(0.1, 0.15, 0.72)
+scale = Vector3(1, 0.42, 0.58)
+mesh = SubResource("MeshLeaf")
+
+[node name="LeafRight" type="MeshInstance3D" parent="."]
+position = Vector3(-0.58, 1.09, 0.18)
+rotation = Vector3(-0.08, -0.22, -0.62)
+scale = Vector3(0.9, 0.4, 0.55)
+mesh = SubResource("MeshLeaf")
