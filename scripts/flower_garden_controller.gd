@@ -86,7 +86,7 @@ func handle_unhandled_input(event: InputEvent) -> bool:
 	var action := _nearest_action()
 	match action:
 		"village_gate":
-			if FlowerGardenManager.unlocked:
+			if _is_garden_available():
 				enter_garden("village_gate")
 			else:
 				_notify("晨露花圃将在主线第5关首次获得1星后开放")
@@ -132,8 +132,12 @@ func is_inside_garden() -> bool:
 	return inside
 
 
+func _is_garden_available() -> bool:
+	return host != null and host.has_method("_is_flower_garden_available") and bool(host.call("_is_flower_garden_available"))
+
+
 func enter_garden(_source: String = "village_gate") -> void:
-	if not FlowerGardenManager.unlocked or host == null:
+	if not _is_garden_available():
 		_notify("第5关通过后开放晨露花圃")
 		return
 	_ensure_world_created()
@@ -175,7 +179,7 @@ func exit_garden() -> void:
 
 
 func open_panel(tab: String = "plots", plot_index: int = -1) -> void:
-	if not FlowerGardenManager.unlocked:
+	if not _is_garden_available():
 		_notify("第5关通过后开放晨露花圃")
 		return
 	if plot_index >= 0:
@@ -212,7 +216,7 @@ func _create_world() -> void:
 
 
 func _ensure_world_created() -> void:
-	if not FlowerGardenManager.unlocked or host == null:
+	if not _is_garden_available():
 		return
 	_create_world()
 
@@ -806,7 +810,7 @@ func _on_state_changed() -> void:
 
 
 func _nearest_action() -> String:
-	if host == null or not FlowerGardenManager.unlocked or world_root == null or not is_instance_valid(world_root):
+	if not _is_garden_available() or world_root == null or not is_instance_valid(world_root):
 		return ""
 	var player := host.get("_player") as Node3D
 	if player == null:

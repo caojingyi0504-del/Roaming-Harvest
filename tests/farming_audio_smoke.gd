@@ -8,6 +8,8 @@ const FARM_SFX_IDS := [
 	"farm_scythe_swing",
 	"farm_grass_cut",
 	"farm_harvest",
+	"food_chest_pickup",
+	"food_chest_place",
 ]
 
 
