@@ -3,10 +3,14 @@ extends Node
 signal entered
 signal exited
 
+const FLOWER_GARDEN_SCENE_PATH := "res://scenes/FlowerGarden.tscn"
+const GARDEN_INSTANCE_ORIGIN := Vector3(100.0, 80.0, 120.0)
 const GARDEN_CENTER := Vector3(52.0, 0.0, -49.0)
 const GARDEN_SPAWN := Vector3(52.0, 0.0, -39.8)
 const GARDEN_EXIT := Vector3(52.0, 0.0, -38.2)
-const VILLAGE_GATE := Vector3(36.0, 0.0, 28.0)
+const GARDEN_PARKING := Vector3(-150.0, 0.0, -150.0)
+const VILLAGE_GATE := Vector3(-132.0, 0.0, -132.0)
+const GARDEN_RETURN_POINT := Vector3(-135.0, 0.0, -135.0)
 const SEED_RACK := Vector3(43.8, 0.0, -48.4)
 const GIFT_BENCH := Vector3(60.0, 0.0, -49.0)
 const MAP_SIGN := Vector3(59.5, 0.0, -42.0)
@@ -29,6 +33,7 @@ const FLOWER_GARDEN_PANEL_SIZE := Vector2(900.0, 540.0)
 var host: Node
 var world_root: Node3D
 var garden_root: Node3D
+var garden_scene_instance: Node3D
 var village_gate_root: Node3D
 var plot_visual_roots: Array[Node3D] = []
 var plot_labels: Array[Label3D] = []
@@ -50,6 +55,8 @@ var selected_plot := -1
 var confirm_clear_plot := -1
 var refresh_left := 0.0
 var visual_signatures: Array[String] = ["", "", ""]
+var transition_overlay: ColorRect
+var transition_locked := false
 
 
 func setup(world_host: Node) -> void:
@@ -115,6 +122,8 @@ func handle_unhandled_input(event: InputEvent) -> bool:
 func _host_blocks_world_interaction() -> bool:
 	if host == null:
 		return true
+	if transition_locked:
+		return true
 	if bool(host.get("_dialogue_open")) or bool(host.get("_map_open")) or bool(host.get("_camper_driving")):
 		return true
 	if bool(host.get("_warehouse_panel_open")) or bool(host.get("_kitchen_equipment_panel_open")) or bool(host.get("_kitchen_upgrade_panel_open")):
@@ -140,42 +149,90 @@ func enter_garden(_source: String = "village_gate") -> void:
 	if not _is_garden_available():
 		_notify("第5关通过后开放晨露花圃")
 		return
-	_ensure_world_created()
-	if world_root == null or not is_instance_valid(world_root):
+	if transition_locked or inside:
 		return
 	var player := host.get("_player") as Node3D
 	if player == null:
 		return
-	if not inside:
-		return_position = player.global_position
-		return_orbit = host.get("_orbit") as Vector2
-		return_zoom = float(host.get("_zoom"))
-		has_return_position = true
+	transition_locked = true
+	await _fade_transition(1.0, 0.35)
+	if not _ensure_garden_scene_created():
+		transition_locked = false
+		await _fade_transition(0.0, 0.25)
+		_notify("花圃场景暂时无法载入，请稍后再试")
+		return
+	return_position = player.global_position
+	return_orbit = host.get("_orbit") as Vector2
+	return_zoom = float(host.get("_zoom"))
+	has_return_position = true
 	inside = true
-	player.global_position = _grounded(GARDEN_SPAWN)
+	garden_scene_instance.visible = true
+	player.global_position = _garden_world_grounded(GARDEN_SPAWN)
 	host.set("_orbit", Vector2(PI, 0.44))
 	host.set("_zoom", 14.5)
 	if host.has_method("_apply_camera"):
 		host.call("_apply_camera")
+	if AudioManager.has_method("set_music_context"):
+		AudioManager.set_music_context("garden")
 	FlowerGardenManager.mark_intro_seen()
 	_notify("已抵达晨露花圃 · 花朵会按现实时间离线生长")
 	entered.emit()
+	await _fade_transition(0.0, 0.55)
+	transition_locked = false
 
 
 func exit_garden() -> void:
-	if host == null:
+	if host == null or transition_locked or not inside:
 		return
+	transition_locked = true
 	close_panel()
+	await _fade_transition(1.0, 0.32)
+	inside = false
 	var player := host.get("_player") as Node3D
 	if player != null:
-		var target := return_position if has_return_position else VILLAGE_GATE + Vector3(0.0, 0.0, -2.4)
-		player.global_position = _grounded(target)
+		player.global_position = _world_grounded(GARDEN_RETURN_POINT)
 	host.set("_orbit", return_orbit if has_return_position else Vector2(PI, 0.38))
 	host.set("_zoom", return_zoom if has_return_position else 15.5)
-	inside = false
+	if garden_scene_instance != null and is_instance_valid(garden_scene_instance):
+		garden_scene_instance.visible = false
 	if host.has_method("_apply_camera"):
 		host.call("_apply_camera")
+	if AudioManager.has_method("set_music_context"):
+		AudioManager.set_music_context("world")
 	exited.emit()
+	await _fade_transition(0.0, 0.50)
+	transition_locked = false
+
+
+func arrive_at_parking(_source: String = "map") -> void:
+	if not FlowerGardenManager.unlocked or host == null or transition_locked:
+		return
+	if inside:
+		inside = false
+		close_panel()
+		if garden_scene_instance != null and is_instance_valid(garden_scene_instance):
+			garden_scene_instance.visible = false
+		if AudioManager.has_method("set_music_context"):
+			AudioManager.set_music_context("world")
+	var camper := host.get("_camper") as Node3D
+	var player := host.get("_player") as Node3D
+	if camper == null or player == null:
+		return
+	if host.has_method("_remove_camper_blocker"):
+		host.call("_remove_camper_blocker")
+	camper.global_position = _world_grounded(GARDEN_PARKING)
+	camper.rotation.y = deg_to_rad(-45.0)
+	if host.has_method("_update_camper_ground_alignment"):
+		host.call("_update_camper_ground_alignment", 1.0)
+	if host.has_method("_rebuild_camper_blocker"):
+		host.call("_rebuild_camper_blocker")
+	player.global_position = _world_grounded(GARDEN_PARKING + Vector3(3.6, 0.0, 2.8)) + Vector3(0.0, 0.04, 0.0)
+	host.set("_map_camper_pos", Vector2(0.30, 0.67))
+	host.set("_orbit", Vector2(PI * 0.78, 0.40))
+	host.set("_zoom", 16.0)
+	if host.has_method("_apply_camera"):
+		host.call("_apply_camera")
+	_notify("房车已停在晨露花圃停车区，沿花径步行到花门吧")
 
 
 func open_panel(tab: String = "plots", plot_index: int = -1) -> void:
@@ -204,6 +261,18 @@ func close_panel() -> void:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
+func _fade_transition(target_alpha: float, duration: float) -> void:
+	if transition_overlay == null:
+		return
+	transition_overlay.visible = true
+	var tween := create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.tween_property(transition_overlay, "color:a", clampf(target_alpha, 0.0, 1.0), maxf(duration, 0.0))
+	await tween.finished
+	if target_alpha <= 0.001:
+		transition_overlay.visible = false
+
+
 func _create_world() -> void:
 	if world_root != null and is_instance_valid(world_root):
 		return
@@ -211,8 +280,8 @@ func _create_world() -> void:
 	world_root.name = "FlowerGardenWorld"
 	world_root.set_meta("generated_grass_world", true)
 	host.add_child(world_root)
+	_create_parking_area()
 	_create_village_gate()
-	_create_garden_area()
 
 
 func _ensure_world_created() -> void:
@@ -221,10 +290,43 @@ func _ensure_world_created() -> void:
 	_create_world()
 
 
+func _ensure_garden_scene_created() -> bool:
+	if garden_scene_instance != null and is_instance_valid(garden_scene_instance):
+		return true
+	if not ResourceLoader.exists(FLOWER_GARDEN_SCENE_PATH):
+		return false
+	var packed := load(FLOWER_GARDEN_SCENE_PATH) as PackedScene
+	if packed == null:
+		return false
+	garden_scene_instance = packed.instantiate() as Node3D
+	if garden_scene_instance == null:
+		return false
+	garden_scene_instance.name = "LoadedFlowerGarden"
+	garden_scene_instance.position = GARDEN_INSTANCE_ORIGIN
+	garden_scene_instance.visible = false
+	garden_scene_instance.set_meta("generated_grass_world", true)
+	host.add_child(garden_scene_instance)
+	_create_garden_area()
+	_refresh_world_visuals(true)
+	return true
+
+
+func _create_parking_area() -> void:
+	var gravel := _material(Color("#b8ad8c"), 0.98)
+	var wood := _material(Color("#8a6742"), 0.90)
+	var cream := _material(Color("#f1e6c6"), 0.92)
+	var parking_ground := _world_grounded(GARDEN_PARKING)
+	_box(world_root, parking_ground + Vector3(0.0, 0.045, 0.0), Vector3(18.0, 0.09, 13.0), gravel)
+	_box(world_root, parking_ground + Vector3(7.0, 1.2, -4.8), Vector3(0.20, 2.4, 0.20), wood)
+	_box(world_root, parking_ground + Vector3(7.0, 2.25, -4.8), Vector3(3.8, 1.1, 0.18), cream)
+	_label3d(world_root, parking_ground + Vector3(7.0, 2.3, -4.92), "晨露花圃停车区 →")
+
+
 func _create_village_gate() -> void:
 	village_gate_root = Node3D.new()
 	village_gate_root.name = "MorningDewGardenGate"
-	village_gate_root.position = _grounded(VILLAGE_GATE)
+	village_gate_root.position = _world_grounded(VILLAGE_GATE)
+	village_gate_root.rotation.y = deg_to_rad(-45.0)
 	world_root.add_child(village_gate_root)
 	var wood := _material(Color("#8a6742"), 0.84)
 	var white := _material(Color("#eee5c8"), 0.9)
@@ -238,14 +340,15 @@ func _create_village_gate() -> void:
 	var label := _label3d(village_gate_root, Vector3(0.0, 3.15, 0.0), "晨露花圃")
 	label.font_size = 44
 	label.outline_size = 10
-	host.call("_add_box_blocker", _grounded(VILLAGE_GATE + Vector3(-1.65, 0.0, 0.0)), 0.0, Vector2(0.25, 0.35))
-	host.call("_add_box_blocker", _grounded(VILLAGE_GATE + Vector3(1.65, 0.0, 0.0)), 0.0, Vector2(0.25, 0.35))
+	host.call("_add_box_blocker", _world_grounded(VILLAGE_GATE + Vector3(-1.2, 0.0, 1.2)), deg_to_rad(-45.0), Vector2(0.25, 0.35))
+	host.call("_add_box_blocker", _world_grounded(VILLAGE_GATE + Vector3(1.2, 0.0, -1.2)), deg_to_rad(-45.0), Vector2(0.25, 0.35))
 
 
 func _create_garden_area() -> void:
 	garden_root = Node3D.new()
 	garden_root.name = "MorningDewGarden"
-	world_root.add_child(garden_root)
+	garden_root.position = Vector3(-GARDEN_CENTER.x, 0.0, -GARDEN_CENTER.z)
+	garden_scene_instance.add_child(garden_root)
 	var cream := _material(Color("#f4e9c9"), 0.93)
 	var wood := _material(Color("#9a7047"), 0.88)
 	var soil := _material(Color("#765339"), 0.96)
@@ -254,7 +357,7 @@ func _create_garden_area() -> void:
 	# 曲折石径让远端区域仍然保留原世界地形，而不是一块悬空地板。
 	for z in range(-39, -58, -2):
 		var path_point := Vector3(52.0 + sin(float(z) * 0.7) * 0.35, 0.0, float(z))
-		var grounded := _grounded(path_point)
+		var grounded := _garden_local_grounded(path_point)
 		_box(garden_root, grounded + Vector3(0.0, 0.035, 0.0), Vector3(2.2, 0.09, 1.4), cream)
 	# 白色围栏，入口中央留空。
 	for x in range(42, 63, 2):
@@ -280,7 +383,11 @@ func _create_garden_area() -> void:
 	_box(garden_root, Vector3(50.2, exit_y + 1.25, -38.3), Vector3(0.25, 2.5, 0.3), cream)
 	_box(garden_root, Vector3(53.8, exit_y + 1.25, -38.3), Vector3(0.25, 2.5, 0.3), cream)
 	_box(garden_root, Vector3(52.0, exit_y + 2.45, -38.3), Vector3(3.9, 0.28, 0.34), wood)
-	_label3d(garden_root, Vector3(52.0, exit_y + 2.95, -38.3), "返回村庄")
+	var arch_blossoms := [_material(Color("#f5a9bd"), 0.8), _material(Color("#d6b9ee"), 0.8), _material(Color("#ffe39a"), 0.8)]
+	for blossom_index in range(11):
+		var blossom_x := lerpf(50.35, 53.65, float(blossom_index) / 10.0)
+		_sphere(garden_root, Vector3(blossom_x, exit_y + 2.68 + sin(float(blossom_index) * 0.8) * 0.12, -38.3), Vector3.ONE * 0.34, arch_blossoms[blossom_index % arch_blossoms.size()])
+	_label3d(garden_root, Vector3(52.0, exit_y + 2.95, -38.3), "返回花门外")
 	# 玻璃温室。
 	var greenhouse_center := Vector3(52.0, 0.0, -55.8)
 	var greenhouse_y := _height(greenhouse_center.x, greenhouse_center.z)
@@ -304,21 +411,28 @@ func _create_garden_area() -> void:
 		var status := _label3d(garden_root, Vector3(point.x, y + 2.15, point.z), "%d号花床" % (index + 1))
 		status.font_size = 34
 		plot_labels.append(status)
-		host.call("_add_box_blocker", _grounded(point), 0.0, Vector2(1.48, 1.18))
+		host.call("_add_box_blocker", _garden_world_grounded(point), 0.0, Vector2(1.48, 1.18), false, true)
 	# 种架、花礼台与地图牌。
 	_create_rack(SEED_RACK, "花种架", wood, cream, green)
 	_create_rack(GIFT_BENCH, "花礼工坊", wood, cream, green)
 	_create_map_sign(wood, cream)
 	# 温室、围栏和工作设施碰撞。
-	host.call("_add_box_blocker", _grounded(Vector3(47.6, 0.0, -55.8)), 0.0, Vector2(0.25, 2.8))
-	host.call("_add_box_blocker", _grounded(Vector3(56.4, 0.0, -55.8)), 0.0, Vector2(0.25, 2.8))
-	host.call("_add_box_blocker", _grounded(Vector3(45.75, 0.0, -38.3)), 0.0, Vector2(4.25, 0.16))
-	host.call("_add_box_blocker", _grounded(Vector3(58.25, 0.0, -38.3)), 0.0, Vector2(4.25, 0.16))
-	host.call("_add_box_blocker", _grounded(Vector3(52.0, 0.0, -59.5)), 0.0, Vector2(10.5, 0.16))
-	host.call("_add_box_blocker", _grounded(Vector3(41.5, 0.0, -49.0)), 0.0, Vector2(0.16, 10.5))
-	host.call("_add_box_blocker", _grounded(Vector3(62.5, 0.0, -49.0)), 0.0, Vector2(0.16, 10.5))
-	host.call("_add_box_blocker", _grounded(SEED_RACK), 0.0, Vector2(1.0, 0.65))
-	host.call("_add_box_blocker", _grounded(GIFT_BENCH), 0.0, Vector2(1.15, 0.7))
+	host.call("_add_box_blocker", _garden_world_grounded(Vector3(47.6, 0.0, -55.8)), 0.0, Vector2(0.25, 2.8), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(Vector3(56.4, 0.0, -55.8)), 0.0, Vector2(0.25, 2.8), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(Vector3(45.75, 0.0, -38.3)), 0.0, Vector2(4.25, 0.16), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(Vector3(58.25, 0.0, -38.3)), 0.0, Vector2(4.25, 0.16), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(Vector3(52.0, 0.0, -59.5)), 0.0, Vector2(10.5, 0.16), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(Vector3(41.5, 0.0, -49.0)), 0.0, Vector2(0.16, 10.5), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(Vector3(62.5, 0.0, -49.0)), 0.0, Vector2(0.16, 10.5), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(SEED_RACK), 0.0, Vector2(1.0, 0.65), false, true)
+	host.call("_add_box_blocker", _garden_world_grounded(GIFT_BENCH), 0.0, Vector2(1.15, 0.7), false, true)
+	# 小溪只能从木桥通过；碰撞只在独立花圃激活，返回大世界后不影响同一平面坐标。
+	for creek_z in range(-32, 33, 4):
+		if absf(float(creek_z) - 3.5) < 4.0:
+			continue
+		var creek_x := -22.0 + sin(float(creek_z) * 0.105) * 3.2
+		var creek_world := GARDEN_INSTANCE_ORIGIN + Vector3(creek_x, 0.0, float(creek_z))
+		host.call("_add_box_blocker", creek_world, 0.0, Vector2(3.15, 2.1), false, true)
 
 
 func _create_rack(point: Vector3, label_text: String, wood: Material, cream: Material, green: Material) -> void:
@@ -398,6 +512,13 @@ func _create_ui() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.visible = false
 	layer.add_child(overlay)
+	transition_overlay = ColorRect.new()
+	transition_overlay.name = "FlowerGardenBlackFade"
+	transition_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	transition_overlay.color = Color(0.025, 0.035, 0.028, 0.0)
+	transition_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	transition_overlay.visible = false
+	layer.add_child(transition_overlay)
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color(0.08, 0.12, 0.08, 0.23)
@@ -829,7 +950,7 @@ func _nearest_action() -> String:
 	var nearest := ""
 	var nearest_distance := INF
 	for candidate in candidates:
-		var candidate_point: Vector3 = candidate.get("point", Vector3.ZERO)
+		var candidate_point: Vector3 = _garden_world_grounded(candidate.get("point", Vector3.ZERO))
 		var distance := point.distance_to(Vector2(candidate_point.x, candidate_point.z))
 		if distance <= float(candidate.get("radius", INTERACT_RADIUS)) and distance < nearest_distance:
 			nearest = str(candidate.get("action", ""))
@@ -850,7 +971,7 @@ func _update_interaction_prompt() -> void:
 	match action:
 		"village_gate":
 			text = "F  进入晨露花圃"
-		"garden_exit": text = "F  返回村庄"
+		"garden_exit": text = "F  返回花门外"
 		"seed_rack": text = "F  查看花种架"
 		"gift_bench": text = "F  制作与装备花礼"
 		"map_sign": text = "F  打开房车地图"
@@ -877,11 +998,36 @@ func _notify(message: String) -> void:
 
 
 func _height(x: float, z: float) -> float:
-	return float(host.call("_height_at", x, z))
+	return _garden_local_height(x, z)
 
 
-func _grounded(point: Vector3) -> Vector3:
-	return Vector3(point.x, _height(point.x, point.z), point.z)
+func _world_grounded(point: Vector3) -> Vector3:
+	return Vector3(point.x, float(host.call("_height_at", point.x, point.z)), point.z)
+
+
+func _garden_local_height(x: float, z: float) -> float:
+	var local_x := x - GARDEN_CENTER.x
+	var local_z := z - GARDEN_CENTER.z
+	var base_height := sin(local_x * 0.12) * 0.10 + cos(local_z * 0.10) * 0.08
+	var bridge_x := -22.0 + sin(0.35) * 3.2
+	if absf(local_z - 3.5) <= 1.55 and absf(local_x - bridge_x) <= 5.1:
+		return maxf(base_height, 0.58)
+	return base_height
+
+
+func _garden_local_grounded(point: Vector3) -> Vector3:
+	return Vector3(point.x, _garden_local_height(point.x, point.z), point.z)
+
+
+func _garden_world_grounded(point: Vector3) -> Vector3:
+	var local := point - GARDEN_CENTER
+	return GARDEN_INSTANCE_ORIGIN + Vector3(local.x, _garden_local_height(point.x, point.z), local.z)
+
+
+func garden_world_height(x: float, z: float) -> float:
+	var garden_x := GARDEN_CENTER.x + (x - GARDEN_INSTANCE_ORIGIN.x)
+	var garden_z := GARDEN_CENTER.z + (z - GARDEN_INSTANCE_ORIGIN.z)
+	return GARDEN_INSTANCE_ORIGIN.y + _garden_local_height(garden_x, garden_z)
 
 
 func _format_time(seconds: float) -> String:

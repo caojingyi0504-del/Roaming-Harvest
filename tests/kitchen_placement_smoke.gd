@@ -81,10 +81,25 @@ func _run() -> void:
 	world.call("_cancel_kitchen_equipment_placement")
 	assert(equipment.global_position.is_equal_approx(original_position) and is_equal_approx(equipment.rotation.y, original_yaw), "KITCHEN_PLACEMENT_SMOKE: cancelling adjustment changed equipment")
 
-	world.call("_remove_kitchen_equipment_instance_blocker", instance_id)
-	roots.erase(instance_id)
-	world.set("_kitchen_equipment_roots", roots)
-	equipment.queue_free()
+	var upgrade_levels := world.get("_kitchen_upgrade_levels") as Dictionary
+	upgrade_levels["sink"] = 2
+	world.set("_kitchen_upgrade_levels", upgrade_levels)
+	var function_upgrades := world.get("_kitchen_function_upgrades") as Dictionary
+	function_upgrades["sink"] = {"smoke_upgrade": true}
+	world.set("_kitchen_function_upgrades", function_upgrades)
+	world.set("_kitchen_business_active", true)
+	assert(bool(world.call("_store_kitchen_equipment_instance", instance_id)), "KITCHEN_PLACEMENT_SMOKE: business storage request was not handled")
+	assert((world.get("_kitchen_equipment_roots") as Dictionary).has(instance_id), "KITCHEN_PLACEMENT_SMOKE: equipment was stored during business")
+	world.set("_kitchen_business_active", false)
+	assert(bool(world.call("_store_kitchen_equipment_instance", instance_id)), "KITCHEN_PLACEMENT_SMOKE: storage request was not handled")
+	assert(not (world.get("_kitchen_equipment_roots") as Dictionary).has(instance_id), "KITCHEN_PLACEMENT_SMOKE: stored equipment root is still registered")
+	assert(not (world.get("_kitchen_equipment_bubbles") as Dictionary).has(instance_id), "KITCHEN_PLACEMENT_SMOKE: stored equipment bubble is still registered")
+	for blocker_variant in world.get("_solid_blockers") as Array:
+		var blocker := blocker_variant as Dictionary
+		assert(str(blocker.get("kitchen_equipment_instance_id", "")) != instance_id, "KITCHEN_PLACEMENT_SMOKE: stored equipment blocker remains")
+	assert(int((world.get("_kitchen_upgrade_levels") as Dictionary).get("sink", 0)) == 2, "KITCHEN_PLACEMENT_SMOKE: storing equipment lost its quantity level")
+	assert(bool(((world.get("_kitchen_function_upgrades") as Dictionary).get("sink", {}) as Dictionary).get("smoke_upgrade", false)), "KITCHEN_PLACEMENT_SMOKE: storing equipment lost its function upgrades")
+	assert(str(world.call("_next_kitchen_instance_id", "sink")) == instance_id, "KITCHEN_PLACEMENT_SMOKE: stored equipment is not available for re-placement")
 	world.queue_free()
 	await process_frame
 	await process_frame
