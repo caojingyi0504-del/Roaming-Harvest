@@ -4,11 +4,11 @@ extends Node3D
 signal startup_progress_changed(progress: float, stage: String)
 signal startup_completed
 
-@export_range(4000, 60000, 1000) var grass_count: int = 26000:
+@export_range(4000, 60000, 1000) var grass_count: int = 36000:
 	set(value):
 		grass_count = value
 		_queue_editor_rebuild()
-@export_range(20.0, 160.0, 1.0) var field_radius: float = 72.0:
+@export_range(20.0, 210.0, 1.0) var field_radius: float = 188.0:
 	set(value):
 		field_radius = value
 		_queue_editor_rebuild()
@@ -29,8 +29,8 @@ signal startup_completed
 		refresh_grass_preview = false
 		_queue_editor_rebuild()
 
-const TERRAIN_SIZE := 160.0
-const TERRAIN_STEPS := 80
+const TERRAIN_SIZE := 400.0
+const TERRAIN_STEPS := 160
 const STARTUP_SLICE_BUDGET_USEC := 4000
 const GRASS_SHADER := preload("res://shaders/grass_wind.gdshader")
 const FLOWER_GARDEN_CONTROLLER_SCRIPT := preload("res://scripts/flower_garden_controller.gd")
@@ -63,6 +63,12 @@ const BUSINESS_RESULT_BADGE_PATH := "res://ui/business_result_wanderer_badge.png
 const BUSINESS_RESULT_REWARD_CARD_PATH := "res://ui/business_result_reward_card.png"
 const BUSINESS_RESULT_BUTTON_PATH := "res://ui/business_result_button.png"
 const BUSINESS_LEVEL_CARD_PATH := "res://ui/business_level_card_v1.png"
+const BUSINESS_FLOWER_GIFT_TAB_PATH := "res://ui/flower_garden_tab_v2.png"
+const BUSINESS_FLOWER_GIFT_ICON_PATHS := {
+	"marigold": "res://ui/flower_garden_icons/marigold_v2.png",
+	"lavender": "res://ui/flower_garden_icons/lavender_v2.png",
+	"borage": "res://ui/flower_garden_icons/borage_v2.png",
+}
 const DUEL_CLIENT_SCENE := preload("res://scenes/duel/DuelClient.tscn")
 const TOOL_REWARD_PANEL_PATH := "res://ui/tool_reward_panel_v2.png"
 const BUSINESS_STAR_REWARD_PATH := "res://ui/business_star_reward_v1.png"
@@ -101,6 +107,9 @@ const PLAYER_PORTRAIT_PATH := "res://聊天框/我.png"
 const REBAS_PORTRAIT_PATH := "res://聊天框/老伯.png"
 const DIALOGUE_BOX_PATH := "res://聊天框/聊天框.png"
 const WORLD_MAP_PATH := "res://地图/b47063e2-0274-40a4-817d-c408c0418cd0_feathered.png"
+const MAP_CODEX_PANEL_PATH := "res://ui/map_codex_panel_v1.png"
+const MAP_WOOD_PLAQUE_PATH := "res://ui/map_wood_plaque_v1.png"
+const MAP_CODEX_ENTRY_ICON_PATH := "res://ui/map_codex_entry_icon_v1.svg"
 const PLAYER_START := Vector3(0.0, 0.0, -26.0)
 const CAMPER_POSITION := Vector3(0.0, 0.0, 10.0)
 const MOM_POSITION := Vector3(0.0, 0.0, -4.0)
@@ -112,9 +121,10 @@ const CAMPER_DRIVE_REVERSE_SPEED := 3.2
 const CAMPER_DRIVE_ACCELERATION := 8.5
 const CAMPER_DRIVE_BRAKE := 11.0
 const CAMPER_DRIVE_TURN_SPEED := 1.25
-const CAMPER_DRIVE_FIELD_LIMIT := 66.0
+const CAMPER_DRIVE_FIELD_LIMIT := 190.0
 const CAMPER_DRIVE_HALF_EXTENTS := Vector2(4.35, 1.85)
-const CAMPER_EXIT_SIDE_OFFSET := 3.2
+const CAMPER_EXIT_PLAYER_RADIUS := 0.55
+const CAMPER_EXIT_CLEARANCE := 0.45
 const CAMPER_DRIVE_FORWARD_YAW_OFFSET := -PI * 0.5
 const CAMPER_COMPASS_FADE_SECONDS := 0.16
 const CAMPER_COMPASS_WARM_DISTANCE := 25.0
@@ -134,6 +144,7 @@ const MAP_LOCKED_SITE_RADIUS := 0.065
 const MAP_CAMPER_START := Vector2(0.125, 0.515)
 const MAP_VILLAGE_POINT := Vector2(0.185, 0.315)
 const MAP_VILLAGE_LABEL_POINT := Vector2(0.245, 0.125)
+const MAP_CODEX_ENTRY_POINT := Vector2(0.347, 0.323)
 const MAP_LOCKED_SITE_POINTS := [
 	Vector2(0.30, 0.67),
 	Vector2(0.58, 0.20),
@@ -201,6 +212,30 @@ const CHAPTER_ONE_CAMPER_PATH_GRASS_CLEAR_WIDTH := 3.0
 const START_CAMPER_PATH_WIDTH := 3.8
 const START_CAMPER_PATH_GRASS_CLEAR_WIDTH := 5.8
 const START_CAMPER_PATH_CORE_CLEAR_WIDTH := 3.2
+const WORLD_ROAD_WIDTH := 6.4
+const WORLD_ROAD_GRASS_CLEAR_WIDTH := 9.0
+const WORLD_ROAD_ROUTES := [
+	[Vector2(15.0, 8.0), Vector2(34.0, -5.0), Vector2(56.0, -28.0), Vector2(85.0, -68.0), Vector2(112.0, -94.0), Vector2(145.0, -130.0)],
+	[Vector2(8.0, 5.0), Vector2(-30.0, -6.0), Vector2(-44.0, -58.0), Vector2(-75.0, -95.0), Vector2(-108.0, -112.0), Vector2(-150.0, -150.0)],
+	[Vector2(-8.0, 9.0), Vector2(-42.0, 18.0), Vector2(-82.0, 24.0), Vector2(-118.0, 24.0), Vector2(-150.0, 25.0)],
+	[Vector2(4.0, 14.0), Vector2(9.0, 48.0), Vector2(14.0, 88.0), Vector2(17.0, 124.0), Vector2(20.0, 155.0)],
+	[Vector2(15.0, 18.0), Vector2(50.0, 38.0), Vector2(96.0, 57.0), Vector2(145.0, 75.0)],
+	[Vector2(-25.0, -7.0), Vector2(-58.0, -30.0), Vector2(-100.0, -57.0), Vector2(-145.0, -85.0)],
+	[Vector2(-18.0, 18.0), Vector2(-45.0, 52.0), Vector2(-72.0, 91.0), Vector2(-105.0, 125.0)],
+]
+const WORLD_FLAT_PADS := [
+	Vector3(7.0, 4.0, 28.0),
+	Vector3(85.0, -68.0, 18.0),
+	Vector3(-75.0, -95.0, 18.0),
+	Vector3(-150.0, 25.0, 18.0),
+	Vector3(20.0, 155.0, 18.0),
+	Vector3(145.0, -130.0, 18.0),
+	Vector3(145.0, 75.0, 18.0),
+	Vector3(-145.0, -85.0, 18.0),
+	Vector3(-105.0, 125.0, 18.0),
+	Vector3(-150.0, -150.0, 18.0),
+	Vector3(-132.0, -132.0, 9.0),
+]
 const RECORDED_NO_GRASS_CENTER := Vector2(7.514, 3.214)
 const RECORDED_NO_GRASS_RADIUS := 3.6
 const CHAPTER_ONE_HOUSE_TARGET_LENGTH := 24.0
@@ -441,6 +476,21 @@ const CHAPTER_ONE_PONDS := [
 		"position": Vector2(-34.0, 25.0),
 		"radius": Vector2(4.8, 3.1),
 		"rotation": 0.72,
+	},
+	{
+		"position": Vector2(112.0, 22.0),
+		"radius": Vector2(10.5, 6.4),
+		"rotation": -0.24,
+	},
+	{
+		"position": Vector2(72.0, 122.0),
+		"radius": Vector2(8.8, 5.1),
+		"rotation": 0.46,
+	},
+	{
+		"position": Vector2(-120.0, 78.0),
+		"radius": Vector2(9.6, 5.7),
+		"rotation": -0.68,
 	},
 ]
 
@@ -700,6 +750,7 @@ var _chapter_transitioning := false
 var _chapter_one_active := false
 var _map_panel: Control
 var _map_popup: Control
+var _map_image: TextureRect
 var _map_camper_marker: Control
 var _map_camper_icon: TextureRect
 var _map_camper_model: Node3D
@@ -707,12 +758,24 @@ var _map_village_label: Label
 var _map_locked_label: Label
 var _map_page_locked_label: Label
 var _map_codex_panel: Control
-var _map_codex_crop_red_dot: Label
-var _map_codex_crop_claim_button: Button
-var _map_codex_cooking_red_dot: Label
-var _map_codex_cooking_claim_button: Button
-var _map_codex_detail_popup: PanelContainer
-var _map_local_flavor_button: Button
+var _map_codex_entry_button: Button
+var _map_codex_entry_count_label: Label
+var _map_codex_entry_red_dot: Label
+var _map_codex_detail_popup: Control
+var _map_codex_book_panel: Control
+var _map_codex_content: Control
+var _map_codex_title_label: Label
+var _map_codex_progress_label: Label
+var _map_codex_detail_label: Label
+var _map_codex_tab_buttons: Dictionary = {}
+var _map_codex_card_nodes: Dictionary = {}
+var _map_codex_active_tab := "crop"
+var _map_codex_selected_id := ""
+var _map_codex_layout_signature := ""
+var _map_exit_button: Button
+var _map_page_left_button: Button
+var _map_page_right_button: Button
+var _map_page_dots: HBoxContainer
 var _map_page_locked_time := 0.0
 var _map_page_locked_side := 0
 var _map_camper_pos := MAP_CAMPER_START
@@ -753,6 +816,7 @@ var _hoe_guide_completed := false
 var _tool_switch_guide_completed := false
 var _inventory_sort_guide_completed := false
 var _watering_guide_completed := false
+var _tutorial_watered_carrot_total := 0
 var _scythe_guide_completed := false
 var _food_chest_guide_completed := false
 var _crop_throw_guide_completed := false
@@ -848,8 +912,10 @@ var _kitchen_equipment_panel: PanelContainer
 var _kitchen_equipment_grid: GridContainer
 var _kitchen_instance_selector: PanelContainer
 var _kitchen_instance_selector_title: Label
+var _kitchen_instance_selector_hint: Label
 var _kitchen_instance_selector_buttons: GridContainer
 var _kitchen_instance_selector_equipment := ""
+var _kitchen_instance_selector_action := ""
 var _kitchen_upgrade_panel: PanelContainer
 var _kitchen_upgrade_grid: GridContainer
 var _kitchen_upgrade_tab := "equipment"
@@ -885,6 +951,11 @@ var _business_prep_level_list: HBoxContainer
 var _business_prep_reward_box: VBoxContainer
 var _business_opened_detail_card: Control
 var _business_flower_gift_button: Button
+var _business_flower_gift_icon: TextureRect
+var _business_flower_gift_symbol: Label
+var _business_flower_gift_title: Label
+var _business_flower_gift_status: Label
+var _business_flower_gift_lock_badge: PanelContainer
 var _business_duel_button: Button
 var _business_level_stars: Dictionary = {}
 var _business_active_level_id := 0
@@ -1290,9 +1361,26 @@ func _rebuild_scene() -> void:
 	_day_clock_icon = null
 	_day_clock_label = null
 	_map_camper_model = null
+	_map_image = null
 	_map_codex_panel = null
 	_map_codex_detail_popup = null
-	_map_local_flavor_button = null
+	_map_codex_book_panel = null
+	_map_codex_content = null
+	_map_codex_title_label = null
+	_map_codex_progress_label = null
+	_map_codex_detail_label = null
+	_map_codex_tab_buttons.clear()
+	_map_codex_card_nodes.clear()
+	_map_codex_active_tab = "crop"
+	_map_codex_selected_id = ""
+	_map_codex_layout_signature = ""
+	_map_codex_entry_button = null
+	_map_codex_entry_count_label = null
+	_map_codex_entry_red_dot = null
+	_map_exit_button = null
+	_map_page_left_button = null
+	_map_page_right_button = null
+	_map_page_dots = null
 	_mom = null
 	_mom_model = null
 	_mom_exclamation = null
@@ -1385,6 +1473,7 @@ func _rebuild_scene() -> void:
 	_tool_switch_guide_completed = false
 	_inventory_sort_guide_completed = false
 	_watering_guide_completed = false
+	_tutorial_watered_carrot_total = 0
 	_scythe_guide_completed = false
 	_food_chest_guide_completed = false
 	_crop_throw_guide_completed = false
@@ -1487,6 +1576,11 @@ func _rebuild_scene() -> void:
 	_business_prep_reward_box = null
 	_business_opened_detail_card = null
 	_business_flower_gift_button = null
+	_business_flower_gift_icon = null
+	_business_flower_gift_symbol = null
+	_business_flower_gift_title = null
+	_business_flower_gift_status = null
+	_business_flower_gift_lock_badge = null
 	_business_duel_button = null
 	_kitchen_status_panel = null
 	_kitchen_status_label = null
@@ -2155,7 +2249,7 @@ void fragment() {
 		fly.set_meta("base_y", fly.position.y)
 		fly.set_meta("phase", rng.randf_range(0.0, TAU))
 		_firefly_root.add_child(fly)
-	var light_positions := [Vector3(6.0, 3.2, -7.0), Vector3(15.8, 3.2, 8.8), Vector3(-43.0, 3.0, -28.0), Vector3(35.0, 3.0, 31.0), Vector3(-24.0, 3.0, 36.0), Vector3(49.0, 3.0, -22.0)]
+	var light_positions := [Vector3(6.0, 3.2, -7.0), Vector3(15.8, 3.2, 8.8), Vector3(-145.0, 3.0, -85.0), Vector3(145.0, 3.0, 75.0), Vector3(-105.0, 3.0, 125.0), Vector3(145.0, 3.0, -130.0)]
 	var light_event_ids := ["", "", LocalEventCatalog.FOREST_MARKET, LocalEventCatalog.BIRD_MARKET, LocalEventCatalog.CAMPFIRE_STORY, LocalEventCatalog.RABBIT_PARTY]
 	for index in range(light_positions.size()):
 		var lamp := OmniLight3D.new()
@@ -2186,20 +2280,23 @@ func _update_day_night(delta: float) -> void:
 	var dawn_glow := maxf(1.0 - absf(hours - 6.0) / 1.5, 0.0)
 	var warm_glow := maxf(sunset_glow, dawn_glow)
 	var night_alpha := 1.0 - daylight
+	var inside_flower_garden := _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden"))
 	if _world_sky_material != null:
 		var night_top := Color(0.025, 0.045, 0.12)
-		var day_top := Color(0.46, 0.72, 0.96)
-		var horizon := Color(0.12, 0.16, 0.28).lerp(Color(0.75, 0.88, 0.96), daylight)
+		var day_top := Color(0.52, 0.77, 0.94) if inside_flower_garden else Color(0.46, 0.72, 0.96)
+		var day_horizon := Color(0.88, 0.94, 0.86) if inside_flower_garden else Color(0.75, 0.88, 0.96)
+		var horizon := Color(0.12, 0.16, 0.28).lerp(day_horizon, daylight)
 		horizon = horizon.lerp(Color(1.0, 0.42, 0.20), warm_glow * 0.48)
 		_world_sky_material.sky_top_color = night_top.lerp(day_top, daylight)
 		_world_sky_material.sky_horizon_color = horizon
-		_world_sky_material.ground_bottom_color = Color(0.04, 0.07, 0.10).lerp(Color(0.72, 0.80, 0.68), daylight)
-		_world_sky_material.ground_horizon_color = Color(0.09, 0.12, 0.18).lerp(Color(0.83, 0.89, 0.80), daylight)
+		_world_sky_material.ground_bottom_color = Color(0.04, 0.07, 0.10).lerp(Color(0.65, 0.82, 0.64) if inside_flower_garden else Color(0.72, 0.80, 0.68), daylight)
+		_world_sky_material.ground_horizon_color = Color(0.09, 0.12, 0.18).lerp(Color(0.82, 0.92, 0.78) if inside_flower_garden else Color(0.83, 0.89, 0.80), daylight)
 	if _world_environment != null:
-		_world_environment.ambient_light_energy = lerpf(0.20, 0.72, daylight)
-		_world_environment.tonemap_exposure = lerpf(0.82, 1.08, daylight)
-		_world_environment.fog_light_color = Color(0.10, 0.14, 0.24).lerp(Color(0.78, 0.88, 0.94), daylight).lerp(Color(0.88, 0.42, 0.24), warm_glow * 0.28)
-		_world_environment.fog_density = lerpf(0.0031, 0.0018, daylight)
+		_world_environment.ambient_light_energy = lerpf(0.24, 0.84 if inside_flower_garden else 0.72, daylight)
+		_world_environment.tonemap_exposure = lerpf(0.82, 1.13 if inside_flower_garden else 1.08, daylight)
+		var fog_day := Color(0.78, 0.91, 0.84) if inside_flower_garden else Color(0.78, 0.88, 0.94)
+		_world_environment.fog_light_color = Color(0.10, 0.14, 0.24).lerp(fog_day, daylight).lerp(Color(0.88, 0.42, 0.24), warm_glow * 0.28)
+		_world_environment.fog_density = lerpf(0.0031, 0.0026 if inside_flower_garden else 0.0018, daylight)
 	if _world_cloud_material != null:
 		_world_cloud_material.albedo_color = Color(0.20, 0.25, 0.38, 0.52).lerp(Color(0.96, 0.98, 0.94, 0.88), daylight).lerp(Color(0.96, 0.58, 0.38, 0.82), warm_glow * 0.28)
 	var solar_angle := (hours - 6.0) / 24.0 * TAU
@@ -2682,7 +2779,9 @@ func _is_inside_chapter_one_house_grass_clear(x: float, z: float) -> bool:
 	return absf(door_local.x) <= 4.4 and absf(door_local.y) <= 3.0
 
 func _is_inside_chapter_one_camper_path_clear(x: float, z: float) -> bool:
-	return false
+	if not _chapter_one_active:
+		return false
+	return _distance_to_world_roads(Vector2(x, z)) <= WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.5
 
 func _is_inside_start_camper_path_clear(x: float, z: float) -> bool:
 	if _chapter_one_active:
@@ -2691,7 +2790,14 @@ func _is_inside_start_camper_path_clear(x: float, z: float) -> bool:
 
 func _start_camper_path_grass_density_multiplier(x: float, z: float) -> float:
 	if _chapter_one_active:
-		return 1.0
+		var world_distance := _distance_to_world_roads(Vector2(x, z))
+		var world_core := WORLD_ROAD_WIDTH * 0.52
+		var world_outer := WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.72
+		if world_distance <= world_core:
+			return 0.0
+		if world_distance >= world_outer:
+			return 1.0
+		return lerpf(0.10, 1.0, smoothstep(world_core, world_outer, world_distance))
 	var distance := _distance_to_polyline(Vector2(x, z), _start_camper_path_points())
 	var core := START_CAMPER_PATH_CORE_CLEAR_WIDTH * 0.5
 	var outer := START_CAMPER_PATH_GRASS_CLEAR_WIDTH * 0.5
@@ -2723,6 +2829,15 @@ func _start_camper_path_points() -> Array[Vector2]:
 		Vector2(0.0, 8.7),
 	]
 
+func _distance_to_world_roads(point: Vector2) -> float:
+	var best := INF
+	for raw_route in WORLD_ROAD_ROUTES:
+		var route: Array[Vector2] = []
+		for raw_point in raw_route:
+			route.append(raw_point as Vector2)
+		best = minf(best, _distance_to_polyline(point, route))
+	return best
+
 func _distance_to_polyline(point: Vector2, points: Array[Vector2]) -> float:
 	if points.is_empty():
 		return INF
@@ -2742,6 +2857,8 @@ func _distance_to_polyline(point: Vector2, points: Array[Vector2]) -> float:
 	return best
 
 func _is_inside_pond(x: float, z: float, padding: float = 0.0) -> bool:
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden")):
+		return false
 	var effective_padding := padding
 	if _chapter_one_active:
 		var camper_point := Vector2(CHAPTER_ONE_CAMPER_POSITION.x, CHAPTER_ONE_CAMPER_POSITION.z)
@@ -2789,6 +2906,7 @@ func _create_ponds() -> void:
 
 func _create_chapter_one_camper_path() -> void:
 	if _chapter_one_active:
+		_create_world_road_network()
 		return
 	var points := _chapter_one_camper_path_points() if _chapter_one_active else _start_camper_path_points()
 	if points.size() < 2:
@@ -2844,6 +2962,48 @@ func _create_chapter_one_camper_path() -> void:
 		stone.material_override = edge_mat if rng.randf() < (0.55 if not _chapter_one_active else 0.62) else pebble_mat
 		stone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(stone)
+
+func _create_world_road_network() -> void:
+	var root := Node3D.new()
+	root.name = "WorldRoadNetwork"
+	_mark_generated(root)
+	add_child(root)
+	var road_mat := StandardMaterial3D.new()
+	road_mat.albedo_color = Color(0.78, 0.72, 0.55, 1.0)
+	road_mat.roughness = 0.96
+	road_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var verge_mat := StandardMaterial3D.new()
+	verge_mat.albedo_color = Color(0.88, 0.83, 0.65, 1.0)
+	verge_mat.roughness = 0.98
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260716
+	for route_index in range(WORLD_ROAD_ROUTES.size()):
+		var points: Array[Vector2] = []
+		for raw_point in WORLD_ROAD_ROUTES[route_index]:
+			points.append(raw_point as Vector2)
+		var render_points := _subdivide_polyline(points, 2.1)
+		var path := MeshInstance3D.new()
+		path.name = "CountryRoad_%02d" % route_index
+		path.mesh = _create_path_strip_mesh(render_points, WORLD_ROAD_WIDTH, 0.055)
+		path.material_override = road_mat
+		path.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(path)
+		for marker_index in range(16):
+			var sample := _sample_polyline(points, (float(marker_index) + rng.randf_range(0.15, 0.85)) / 16.0)
+			var tangent := _polyline_tangent_at(points, sample)
+			var normal := Vector2(-tangent.y, tangent.x) * (-1.0 if (marker_index + route_index) % 2 == 0 else 1.0)
+			var point := sample + normal * rng.randf_range(WORLD_ROAD_WIDTH * 0.38, WORLD_ROAD_WIDTH * 0.52)
+			if _is_inside_pond(point.x, point.y, 0.5):
+				continue
+			var verge := MeshInstance3D.new()
+			verge.name = "RoadsideStone"
+			var verge_mesh := BoxMesh.new()
+			verge_mesh.size = Vector3(rng.randf_range(0.26, 0.62), rng.randf_range(0.08, 0.16), rng.randf_range(0.20, 0.46))
+			verge.mesh = verge_mesh
+			verge.position = Vector3(point.x, _height_at(point.x, point.y) + verge_mesh.size.y * 0.5, point.y)
+			verge.rotation.y = rng.randf_range(0.0, TAU)
+			verge.material_override = verge_mat
+			root.add_child(verge)
 
 func _create_path_strip_mesh(points: Array[Vector2], width: float, height_offset: float = 0.035, natural_width: bool = false) -> ArrayMesh:
 	var vertices := PackedVector3Array()
@@ -3185,7 +3345,7 @@ func _create_background_trees() -> void:
 
 	for i in range(72):
 		var a := rng.randf_range(0.0, TAU)
-		var r := rng.randf_range(82.0, 122.0)
+		var r := rng.randf_range(164.0, 190.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3220,7 +3380,7 @@ func _create_background_trees() -> void:
 
 	for i in range(44):
 		var a := TAU * float(i) / 44.0 + rng.randf_range(-0.035, 0.035)
-		var r := rng.randf_range(128.0, 150.0)
+		var r := rng.randf_range(192.0, 207.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3255,7 +3415,7 @@ func _create_background_trees_staged() -> void:
 
 	for i in range(72):
 		var a := rng.randf_range(0.0, TAU)
-		var r := rng.randf_range(82.0, 122.0)
+		var r := rng.randf_range(164.0, 190.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3295,7 +3455,7 @@ func _create_background_trees_staged() -> void:
 
 	for i in range(44):
 		var a := TAU * float(i) / 44.0 + rng.randf_range(-0.035, 0.035)
-		var r := rng.randf_range(128.0, 150.0)
+		var r := rng.randf_range(192.0, 207.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3347,6 +3507,26 @@ func _create_asset_trees() -> void:
 		Vector3(-52.0, 0.0, 40.0),
 		Vector3(55.0, 0.0, -30.0),
 		Vector3(-48.0, 0.0, -44.0),
+		Vector3(74.0, 0.0, -44.0),
+		Vector3(104.0, 0.0, -78.0),
+		Vector3(128.0, 0.0, -108.0),
+		Vector3(82.0, 0.0, 48.0),
+		Vector3(119.0, 0.0, 61.0),
+		Vector3(152.0, 0.0, 94.0),
+		Vector3(45.0, 0.0, 94.0),
+		Vector3(34.0, 0.0, 138.0),
+		Vector3(5.0, 0.0, 174.0),
+		Vector3(-62.0, 0.0, 70.0),
+		Vector3(-88.0, 0.0, 112.0),
+		Vector3(-124.0, 0.0, 143.0),
+		Vector3(-92.0, 0.0, 12.0),
+		Vector3(-132.0, 0.0, 8.0),
+		Vector3(-169.0, 0.0, 42.0),
+		Vector3(-86.0, 0.0, -70.0),
+		Vector3(-122.0, 0.0, -101.0),
+		Vector3(-165.0, 0.0, -76.0),
+		Vector3(-92.0, 0.0, -139.0),
+		Vector3(-169.0, 0.0, -164.0),
 	]
 
 	var rng := RandomNumberGenerator.new()
@@ -3413,6 +3593,26 @@ func _create_asset_trees_staged() -> void:
 		Vector3(-52.0, 0.0, 40.0),
 		Vector3(55.0, 0.0, -30.0),
 		Vector3(-48.0, 0.0, -44.0),
+		Vector3(74.0, 0.0, -44.0),
+		Vector3(104.0, 0.0, -78.0),
+		Vector3(128.0, 0.0, -108.0),
+		Vector3(82.0, 0.0, 48.0),
+		Vector3(119.0, 0.0, 61.0),
+		Vector3(152.0, 0.0, 94.0),
+		Vector3(45.0, 0.0, 94.0),
+		Vector3(34.0, 0.0, 138.0),
+		Vector3(5.0, 0.0, 174.0),
+		Vector3(-62.0, 0.0, 70.0),
+		Vector3(-88.0, 0.0, 112.0),
+		Vector3(-124.0, 0.0, 143.0),
+		Vector3(-92.0, 0.0, 12.0),
+		Vector3(-132.0, 0.0, 8.0),
+		Vector3(-169.0, 0.0, 42.0),
+		Vector3(-86.0, 0.0, -70.0),
+		Vector3(-122.0, 0.0, -101.0),
+		Vector3(-165.0, 0.0, -76.0),
+		Vector3(-92.0, 0.0, -139.0),
+		Vector3(-169.0, 0.0, -164.0),
 	]
 
 	var rng := RandomNumberGenerator.new()
@@ -3455,9 +3655,14 @@ func _create_asset_trees_staged() -> void:
 		await get_tree().process_frame
 
 func _should_skip_asset_tree(point: Vector3) -> bool:
+	var point_2d := Vector2(point.x, point.z)
+	if _chapter_one_active and _distance_to_world_roads(point_2d) <= WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.78:
+		return true
+	for pad in WORLD_FLAT_PADS:
+		if point_2d.distance_to(Vector2(pad.x, pad.y)) <= pad.z + 2.0:
+			return true
 	if not _chapter_one_active:
 		return false
-	var point_2d := Vector2(point.x, point.z)
 	var house_point := Vector2(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z)
 	return point_2d.distance_squared_to(house_point) <= CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS * CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS
 
@@ -3509,6 +3714,7 @@ func _create_player() -> void:
 		return
 	_player.name = "Player"
 	_player.add_to_group("player")
+	_player.set("field_limit", CAMPER_DRIVE_FIELD_LIMIT)
 	_player.position = Vector3(PLAYER_START.x, _height_at(PLAYER_START.x, PLAYER_START.z) + 0.04, PLAYER_START.z)
 	_mark_generated(_player)
 	add_child(_player)
@@ -3524,6 +3730,7 @@ func _create_chapter_one_player() -> void:
 		return
 	_player.name = "Player"
 	_player.add_to_group("player")
+	_player.set("field_limit", CAMPER_DRIVE_FIELD_LIMIT)
 	_player.position = Vector3(CHAPTER_ONE_PLAYER_START.x, _height_at(CHAPTER_ONE_PLAYER_START.x, CHAPTER_ONE_PLAYER_START.z) + 0.04, CHAPTER_ONE_PLAYER_START.z)
 	_player.rotation.y = 0.0
 	var visual_root := _player.get_node_or_null("VisualRoot") as Node3D
@@ -3860,6 +4067,8 @@ func _create_camper(camper_position: Vector3 = CAMPER_POSITION, camper_yaw: floa
 	camper.add_child(model)
 	_fit_model_to_footprint_length(model, CAMPER_TARGET_LENGTH)
 	_ground_model(model)
+	model.set_meta("ground_base_rotation", model.rotation)
+	_update_camper_ground_alignment(1.0)
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_camper_blocker(camper, model)
 
@@ -3929,6 +4138,13 @@ func _camper_drive_forward() -> Vector3:
 	var yaw := _camper.rotation.y + CAMPER_DRIVE_FORWARD_YAW_OFFSET
 	return Vector3(sin(yaw), 0.0, cos(yaw)).normalized()
 
+func _camper_turn_yaw(current_yaw: float, steering: float, drive_speed: float, delta: float) -> float:
+	if absf(drive_speed) <= 0.08 or is_zero_approx(steering):
+		return current_yaw
+	var reverse_sign := 1.0 if drive_speed >= 0.0 else -1.0
+	var speed_ratio := clampf(absf(drive_speed) / CAMPER_DRIVE_FORWARD_SPEED, 0.25, 1.0)
+	return wrapf(current_yaw - steering * CAMPER_DRIVE_TURN_SPEED * speed_ratio * reverse_sign * maxf(delta, 0.0), -PI, PI)
+
 func _update_camper_driving(delta: float) -> void:
 	if not _camper_driving or _camper == null or not is_instance_valid(_camper):
 		return
@@ -3947,10 +4163,7 @@ func _update_camper_driving(delta: float) -> void:
 	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		steering += 1.0
 	var previous_yaw := _camper.rotation.y
-	if absf(_camper_drive_speed) > 0.08 and steering != 0.0:
-		var reverse_sign := 1.0 if _camper_drive_speed >= 0.0 else -1.0
-		var speed_ratio := clampf(absf(_camper_drive_speed) / CAMPER_DRIVE_FORWARD_SPEED, 0.25, 1.0)
-		_camper.rotation.y = wrapf(_camper.rotation.y + steering * CAMPER_DRIVE_TURN_SPEED * speed_ratio * reverse_sign * delta, -PI, PI)
+	_camper.rotation.y = _camper_turn_yaw(_camper.rotation.y, steering, _camper_drive_speed, delta)
 	var next_position := _camper.global_position + _camper_drive_forward() * _camper_drive_speed * delta
 	next_position.y = _height_at(next_position.x, next_position.z)
 	if _is_camper_drive_position_valid(next_position, _camper.rotation.y):
@@ -3963,7 +4176,20 @@ func _update_camper_driving(delta: float) -> void:
 			_show_side_toast("前方无法通行")
 	if _player != null and is_instance_valid(_player):
 		_player.global_position = _camper.global_position
+	_update_camper_ground_alignment(delta)
 	_update_camper_business_location_discovery()
+
+func _update_camper_ground_alignment(delta: float) -> void:
+	if _camper == null or _camper_model == null or not is_instance_valid(_camper_model):
+		return
+	var world_normal := _normal_at(_camper.global_position.x, _camper.global_position.z)
+	var local_normal := (_camper.global_basis.inverse() * world_normal).normalized()
+	var base_rotation: Vector3 = _camper_model.get_meta("ground_base_rotation", Vector3.ZERO)
+	var target_pitch := clampf(atan2(local_normal.z, maxf(local_normal.y, 0.001)), -0.20, 0.20)
+	var target_roll := clampf(-atan2(local_normal.x, maxf(local_normal.y, 0.001)), -0.20, 0.20)
+	var blend := 1.0 if delta >= 1.0 else 1.0 - exp(-8.0 * maxf(delta, 0.0))
+	_camper_model.rotation.x = lerp_angle(_camper_model.rotation.x, base_rotation.x + target_pitch, blend)
+	_camper_model.rotation.z = lerp_angle(_camper_model.rotation.z, base_rotation.z + target_roll, blend)
 
 func _is_camper_drive_position_valid(position: Vector3, yaw: float) -> bool:
 	var center := Vector2(position.x, position.z)
@@ -3992,10 +4218,17 @@ func _try_exit_camper_driving() -> bool:
 	if exit_position.x == INF:
 		_show_notification("车门旁没有安全的下车位置，请稍微挪动车辆")
 		return true
-	_camper_driving = false
-	_camper_drive_speed = 0.0
 	_unpack_camper_travel_attachments()
 	_rebuild_camper_blocker()
+	if not _is_safe_camper_exit_position(exit_position):
+		exit_position = _find_safe_camper_exit_position()
+	if exit_position.x == INF:
+		_pack_camper_travel_attachments()
+		_remove_camper_blocker()
+		_show_notification("展开厨房后没有安全的下车位置，请稍微挪动车辆")
+		return true
+	_camper_driving = false
+	_camper_drive_speed = 0.0
 	if _player != null and is_instance_valid(_player):
 		_player.global_position = exit_position
 	_set_player_camper_driving_state(false)
@@ -4003,20 +4236,58 @@ func _try_exit_camper_driving() -> bool:
 	return true
 
 func _find_safe_camper_exit_position() -> Vector3:
-	if _camper == null:
+	if _camper == null or _camper_model == null or not is_instance_valid(_camper_model):
 		return Vector3(INF, INF, INF)
+	var camper_blocker := _camper_blocker_data(_camper, _camper_model)
+	if camper_blocker.is_empty():
+		return Vector3(INF, INF, INF)
+	for position in _camper_exit_candidate_positions(camper_blocker):
+		if _is_safe_camper_exit_position(position, camper_blocker):
+			return position
+	return Vector3(INF, INF, INF)
+
+func _camper_exit_candidate_positions(camper_blocker: Dictionary) -> Array[Vector3]:
+	var center: Vector3 = camper_blocker.get("center", _camper.global_position if _camper != null else Vector3.ZERO)
+	var half_extents: Vector2 = camper_blocker.get("half_extents", CAMPER_DRIVE_HALF_EXTENTS)
 	var forward := _camper_drive_forward()
 	var right := Vector3(forward.z, 0.0, -forward.x)
-	var candidates: Array[Vector3] = [right * CAMPER_EXIT_SIDE_OFFSET, -right * CAMPER_EXIT_SIDE_OFFSET, -forward * 3.4, forward * 3.4]
-	for offset in candidates:
-		var position: Vector3 = _camper.global_position + offset
+	var safe_margin := CAMPER_EXIT_PLAYER_RADIUS + CAMPER_EXIT_CLEARANCE
+	var side_offset := right * (half_extents.y + safe_margin)
+	var end_offset := forward * (half_extents.x + safe_margin)
+	var offsets: Array[Vector3] = [
+		side_offset,
+		-side_offset,
+		-end_offset,
+		end_offset,
+		side_offset - end_offset,
+		side_offset + end_offset,
+		-side_offset - end_offset,
+		-side_offset + end_offset,
+	]
+	var candidates: Array[Vector3] = []
+	for offset in offsets:
+		var position := center + offset
 		position.y = _height_at(position.x, position.z) + 0.04
-		if _is_inside_pond(position.x, position.z, 0.65) or _is_blocked_by_solid(position):
-			continue
-		if _is_point_blocked_by_packed_attachment(Vector2(position.x, position.z), 0.55):
-			continue
-		return position
-	return Vector3(INF, INF, INF)
+		candidates.append(position)
+	return candidates
+
+func _is_safe_camper_exit_position(position: Vector3, camper_blocker: Dictionary = {}) -> bool:
+	var point := Vector2(position.x, position.z)
+	if absf(point.x) > CAMPER_DRIVE_FIELD_LIMIT - CAMPER_EXIT_PLAYER_RADIUS or absf(point.y) > CAMPER_DRIVE_FIELD_LIMIT - CAMPER_EXIT_PLAYER_RADIUS:
+		return false
+	if _is_inside_pond(position.x, position.z, CAMPER_EXIT_PLAYER_RADIUS + 0.10):
+		return false
+	for blocker in _solid_blockers:
+		if _is_point_inside_blocker_with_clearance(point, blocker, CAMPER_EXIT_PLAYER_RADIUS):
+			return false
+	var resolved_camper_blocker := camper_blocker
+	if resolved_camper_blocker.is_empty() and _camper != null and _camper_model != null and is_instance_valid(_camper_model):
+		resolved_camper_blocker = _camper_blocker_data(_camper, _camper_model)
+	if not resolved_camper_blocker.is_empty() and _is_point_inside_blocker_with_clearance(point, resolved_camper_blocker, CAMPER_EXIT_PLAYER_RADIUS):
+		return false
+	if _is_point_blocked_by_packed_attachment(point, CAMPER_EXIT_PLAYER_RADIUS):
+		return false
+	return true
 
 func _pack_camper_travel_attachments() -> void:
 	_camper_drive_attachments.clear()
@@ -7372,13 +7643,13 @@ func _create_kitchen_instance_selector(host: Control) -> void:
 	_kitchen_instance_selector_title.add_theme_color_override("font_color", Color(0.25, 0.15, 0.06, 1.0))
 	box.add_child(_kitchen_instance_selector_title)
 
-	var hint := Label.new()
-	hint.text = "请选择编号，只会移动这一台"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", Color(0.38, 0.27, 0.13, 0.90))
-	box.add_child(hint)
+	_kitchen_instance_selector_hint = Label.new()
+	_kitchen_instance_selector_hint.text = "请选择编号，只会移动这一台"
+	_kitchen_instance_selector_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_kitchen_instance_selector_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_instance_selector_hint.add_theme_font_size_override("font_size", 12)
+	_kitchen_instance_selector_hint.add_theme_color_override("font_color", Color(0.38, 0.27, 0.13, 0.90))
+	box.add_child(_kitchen_instance_selector_hint)
 
 	_kitchen_instance_selector_buttons = GridContainer.new()
 	_kitchen_instance_selector_buttons.columns = 3
@@ -7679,15 +7950,109 @@ func _create_business_prep_ui(root: Control) -> void:
 	_business_flower_gift_button.anchor_top = 0.0
 	_business_flower_gift_button.anchor_right = 1.0
 	_business_flower_gift_button.anchor_bottom = 0.0
-	_business_flower_gift_button.offset_left = -272.0
+	_business_flower_gift_button.offset_left = -240.0
 	_business_flower_gift_button.offset_top = 100.0
 	_business_flower_gift_button.offset_right = -20.0
-	_business_flower_gift_button.offset_bottom = 164.0
+	_business_flower_gift_button.offset_bottom = 162.0
 	_business_flower_gift_button.focus_mode = Control.FOCUS_NONE
-	_business_flower_gift_button.add_theme_font_size_override("font_size", 14)
-	_apply_kitchen_parchment_button_style(_business_flower_gift_button)
+	_business_flower_gift_button.text = ""
+	_business_flower_gift_button.clip_contents = false
+	_apply_business_flower_gift_button_style(_business_flower_gift_button)
 	_business_flower_gift_button.pressed.connect(_open_business_flower_gift_selector)
 	_business_prep_overlay.add_child(_business_flower_gift_button)
+
+	var gift_icon_well := PanelContainer.new()
+	gift_icon_well.name = "FlowerGiftIconWell"
+	gift_icon_well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gift_icon_well.anchor_left = 0.0
+	gift_icon_well.anchor_top = 0.0
+	gift_icon_well.anchor_right = 0.0
+	gift_icon_well.anchor_bottom = 0.0
+	gift_icon_well.offset_left = 10.0
+	gift_icon_well.offset_top = 9.0
+	gift_icon_well.offset_right = 54.0
+	gift_icon_well.offset_bottom = 53.0
+	gift_icon_well.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.965, 0.844, 0.98), Color(0.55, 0.42, 0.24, 0.94), 22.0, 2))
+	_business_flower_gift_button.add_child(gift_icon_well)
+
+	_business_flower_gift_icon = TextureRect.new()
+	_business_flower_gift_icon.name = "FlowerGiftIcon"
+	_business_flower_gift_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_business_flower_gift_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_business_flower_gift_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_business_flower_gift_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_business_flower_gift_icon.offset_left = 4.0
+	_business_flower_gift_icon.offset_top = 4.0
+	_business_flower_gift_icon.offset_right = -4.0
+	_business_flower_gift_icon.offset_bottom = -4.0
+	gift_icon_well.add_child(_business_flower_gift_icon)
+
+	_business_flower_gift_symbol = Label.new()
+	_business_flower_gift_symbol.name = "FlowerGiftSymbol"
+	_business_flower_gift_symbol.text = "✿"
+	_business_flower_gift_symbol.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_business_flower_gift_symbol.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_business_flower_gift_symbol.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_business_flower_gift_symbol.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_business_flower_gift_symbol.add_theme_font_size_override("font_size", 25)
+	_business_flower_gift_symbol.add_theme_color_override("font_color", Color(0.40, 0.49, 0.29, 1.0))
+	gift_icon_well.add_child(_business_flower_gift_symbol)
+
+	_business_flower_gift_title = Label.new()
+	_business_flower_gift_title.name = "FlowerGiftTitle"
+	_business_flower_gift_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_business_flower_gift_title.anchor_left = 0.0
+	_business_flower_gift_title.anchor_top = 0.0
+	_business_flower_gift_title.anchor_right = 1.0
+	_business_flower_gift_title.anchor_bottom = 0.0
+	_business_flower_gift_title.offset_left = 62.0
+	_business_flower_gift_title.offset_top = 8.0
+	_business_flower_gift_title.offset_right = -14.0
+	_business_flower_gift_title.offset_bottom = 31.0
+	_business_flower_gift_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_business_flower_gift_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_business_flower_gift_title.add_theme_font_size_override("font_size", 14)
+	_business_flower_gift_title.add_theme_color_override("font_color", Color(0.27, 0.20, 0.12, 1.0))
+	_business_flower_gift_button.add_child(_business_flower_gift_title)
+
+	_business_flower_gift_status = Label.new()
+	_business_flower_gift_status.name = "FlowerGiftStatus"
+	_business_flower_gift_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_business_flower_gift_status.anchor_left = 0.0
+	_business_flower_gift_status.anchor_top = 0.0
+	_business_flower_gift_status.anchor_right = 1.0
+	_business_flower_gift_status.anchor_bottom = 0.0
+	_business_flower_gift_status.offset_left = 62.0
+	_business_flower_gift_status.offset_top = 29.0
+	_business_flower_gift_status.offset_right = -12.0
+	_business_flower_gift_status.offset_bottom = 52.0
+	_business_flower_gift_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_business_flower_gift_status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_business_flower_gift_status.add_theme_font_size_override("font_size", 11)
+	_business_flower_gift_status.add_theme_color_override("font_color", Color(0.38, 0.32, 0.22, 0.92))
+	_business_flower_gift_button.add_child(_business_flower_gift_status)
+
+	_business_flower_gift_lock_badge = PanelContainer.new()
+	_business_flower_gift_lock_badge.name = "FlowerGiftLockBadge"
+	_business_flower_gift_lock_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_business_flower_gift_lock_badge.anchor_left = 1.0
+	_business_flower_gift_lock_badge.anchor_top = 0.0
+	_business_flower_gift_lock_badge.anchor_right = 1.0
+	_business_flower_gift_lock_badge.anchor_bottom = 0.0
+	_business_flower_gift_lock_badge.offset_left = -24.0
+	_business_flower_gift_lock_badge.offset_top = -5.0
+	_business_flower_gift_lock_badge.offset_right = 2.0
+	_business_flower_gift_lock_badge.offset_bottom = 21.0
+	_business_flower_gift_lock_badge.add_theme_stylebox_override("panel", _make_round_style(Color(0.73, 0.70, 0.61, 1.0), Color(0.40, 0.37, 0.30, 0.96), 13.0, 1))
+	var lock_label := Label.new()
+	lock_label.text = "锁"
+	lock_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lock_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lock_label.add_theme_font_size_override("font_size", 10)
+	lock_label.add_theme_color_override("font_color", Color(0.28, 0.26, 0.22, 1.0))
+	_business_flower_gift_lock_badge.add_child(lock_label)
+	_business_flower_gift_button.add_child(_business_flower_gift_lock_badge)
 
 	var location_label := Label.new()
 	location_label.name = "BusinessLocationBonus"
@@ -7875,7 +8240,7 @@ func _create_business_result_ui(root: Control) -> void:
 	_business_result_buttons.add_child(_create_business_result_button("再来一次", Callable(self, "_on_business_result_retry"), false))
 	_business_result_next_button = _create_business_result_button("下一关", Callable(self, "_on_business_result_next"), true)
 	_business_result_buttons.add_child(_business_result_next_button)
-	_business_result_garden_button = _create_business_result_button("立即前往花圃", Callable(self, "_on_business_result_garden"), true)
+	_business_result_garden_button = _create_business_result_button("前往花圃停车区", Callable(self, "_on_business_result_garden"), true)
 	_business_result_garden_button.visible = false
 	_business_result_buttons.add_child(_business_result_garden_button)
 	_business_result_duel_button = _create_business_result_button("双人料理竞速", Callable(self, "_on_business_result_duel"), true)
@@ -7980,7 +8345,62 @@ func _rebuild_business_prep_ui() -> void:
 		_business_prep_level_list.add_child(_create_business_level_card(level))
 	_rebuild_business_star_rewards()
 
+func _can_use_business_flower_gift() -> bool:
+	return _is_flower_garden_available() and FlowerGardenManager.unlocked
+
+func _make_business_flower_gift_button_style(state: String) -> StyleBox:
+	var texture := _load_ui_texture(BUSINESS_FLOWER_GIFT_TAB_PATH)
+	if texture == null:
+		var fallback_fill := Color(0.96, 0.90, 0.74, 0.98)
+		if state == "hover":
+			fallback_fill = Color(1.0, 0.96, 0.84, 1.0)
+		elif state == "pressed":
+			fallback_fill = Color(0.84, 0.77, 0.61, 1.0)
+		elif state == "disabled":
+			fallback_fill = Color(0.72, 0.70, 0.63, 0.90)
+		return _make_round_style(fallback_fill, Color(0.50, 0.39, 0.24, 0.92), 22.0, 2)
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = 28.0
+	style.texture_margin_top = 8.0
+	style.texture_margin_right = 28.0
+	style.texture_margin_bottom = 8.0
+	style.content_margin_left = 0.0
+	style.content_margin_top = 0.0
+	style.content_margin_right = 0.0
+	style.content_margin_bottom = 0.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	if state == "hover":
+		style.modulate_color = Color(1.06, 1.02, 0.91, 1.0)
+	elif state == "pressed":
+		style.modulate_color = Color(0.86, 0.82, 0.72, 1.0)
+	elif state == "disabled":
+		style.modulate_color = Color(0.69, 0.68, 0.62, 0.90)
+	return style
+
+func _apply_business_flower_gift_button_style(button: Button) -> void:
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_stylebox_override("normal", _make_business_flower_gift_button_style("normal"))
+	button.add_theme_stylebox_override("hover", _make_business_flower_gift_button_style("hover"))
+	button.add_theme_stylebox_override("pressed", _make_business_flower_gift_button_style("pressed"))
+	button.add_theme_stylebox_override("disabled", _make_business_flower_gift_button_style("disabled"))
+
+func _layout_business_flower_gift_button() -> void:
+	if _business_flower_gift_button == null:
+		return
+	var viewport_width := get_viewport().get_visible_rect().size.x
+	var available_width := viewport_width * 0.5 - 290.0
+	var card_width := clampf(available_width, 190.0, 220.0)
+	_business_flower_gift_button.offset_left = -20.0 - card_width
+	_business_flower_gift_button.offset_top = 100.0
+	_business_flower_gift_button.offset_right = -20.0
+	_business_flower_gift_button.offset_bottom = 162.0
+
 func _open_business_flower_gift_selector() -> void:
+	if not _can_use_business_flower_gift():
+		_show_side_toast("解锁晨露花圃后才能选择花礼")
+		return
 	if _flower_garden_controller == null or not is_instance_valid(_flower_garden_controller):
 		return
 	_flower_garden_controller.call("open_gift_selection")
@@ -7988,15 +8408,60 @@ func _open_business_flower_gift_selector() -> void:
 func _update_business_flower_gift_button() -> void:
 	if _business_flower_gift_button == null:
 		return
-	_business_flower_gift_button.visible = FlowerGardenManager.unlocked
-	if not FlowerGardenManager.unlocked:
+	_layout_business_flower_gift_button()
+	_business_flower_gift_button.visible = true
+	var can_use := _can_use_business_flower_gift()
+	_business_flower_gift_button.disabled = not can_use
+	_business_flower_gift_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_use else Control.CURSOR_FORBIDDEN
+	if not can_use:
+		_business_flower_gift_button.tooltip_text = "解锁晨露花圃后可选择本次经营携带的花礼"
+		if _business_flower_gift_title != null:
+			_business_flower_gift_title.text = "花礼未开放"
+			_business_flower_gift_title.add_theme_color_override("font_color", Color(0.34, 0.33, 0.29, 0.88))
+		if _business_flower_gift_status != null:
+			_business_flower_gift_status.text = "解锁晨露花圃后可用"
+			_business_flower_gift_status.add_theme_color_override("font_color", Color(0.43, 0.42, 0.37, 0.78))
+		if _business_flower_gift_icon != null:
+			_business_flower_gift_icon.texture = null
+		if _business_flower_gift_symbol != null:
+			_business_flower_gift_symbol.visible = true
+			_business_flower_gift_symbol.text = "✿"
+			_business_flower_gift_symbol.add_theme_color_override("font_color", Color(0.48, 0.48, 0.42, 0.78))
+		if _business_flower_gift_lock_badge != null:
+			_business_flower_gift_lock_badge.visible = true
 		return
+	_business_flower_gift_button.tooltip_text = "选择本次经营携带的花礼"
+	if _business_flower_gift_lock_badge != null:
+		_business_flower_gift_lock_badge.visible = false
+	if _business_flower_gift_title != null:
+		_business_flower_gift_title.add_theme_color_override("font_color", Color(0.27, 0.20, 0.12, 1.0))
+	if _business_flower_gift_status != null:
+		_business_flower_gift_status.add_theme_color_override("font_color", Color(0.38, 0.32, 0.22, 0.92))
 	var gift_id := FlowerGardenManager.selected_gift
 	if gift_id == "":
-		_business_flower_gift_button.text = "✿ 本次花礼\n未装备（点击选择）"
+		if _business_flower_gift_title != null:
+			_business_flower_gift_title.text = "本次花礼"
+		if _business_flower_gift_status != null:
+			_business_flower_gift_status.text = "未装备 · 点击选择"
+		if _business_flower_gift_icon != null:
+			_business_flower_gift_icon.texture = null
+		if _business_flower_gift_symbol != null:
+			_business_flower_gift_symbol.visible = true
+			_business_flower_gift_symbol.text = "✿"
+			_business_flower_gift_symbol.add_theme_color_override("font_color", Color(0.40, 0.49, 0.29, 1.0))
 		return
 	var definition := FlowerGardenManager.gift_definition(gift_id)
-	_business_flower_gift_button.text = "✿ 本次花礼：%s\n库存 x%d" % [str(definition.get("gift_name", "花礼")), FlowerGardenManager.gift_count(gift_id)]
+	if _business_flower_gift_title != null:
+		_business_flower_gift_title.text = str(definition.get("gift_name", "本次花礼"))
+	if _business_flower_gift_status != null:
+		_business_flower_gift_status.text = "库存 x%d · 点击更换" % FlowerGardenManager.gift_count(gift_id)
+	var flower_id := str(definition.get("id", ""))
+	var icon_path := str(BUSINESS_FLOWER_GIFT_ICON_PATHS.get(flower_id, ""))
+	if _business_flower_gift_icon != null:
+		_business_flower_gift_icon.texture = _load_ui_texture(icon_path) if icon_path != "" else null
+	if _business_flower_gift_symbol != null:
+		_business_flower_gift_symbol.visible = icon_path == ""
+		_business_flower_gift_symbol.text = str(definition.get("icon", "✿"))
 
 func _update_business_duel_button() -> void:
 	if _business_duel_button == null:
@@ -8870,6 +9335,9 @@ func _business_level_star_count(level_id: int) -> int:
 func _is_duel_unlocked() -> bool:
 	return _business_level_star_count(5) >= 1
 
+func _is_flower_garden_available() -> bool:
+	return _business_level_star_count(5) >= 1
+
 func _is_business_level_unlocked(level_id: int) -> bool:
 	if level_id <= 1:
 		return true
@@ -9365,7 +9833,7 @@ func _on_business_result_garden() -> void:
 	if _business_prep_overlay != null:
 		_business_prep_overlay.visible = false
 	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
-		_flower_garden_controller.call("enter_garden", "level_result")
+		_flower_garden_controller.call("arrive_at_parking", "level_result")
 
 func _on_business_result_duel() -> void:
 	_open_duel_overlay()
@@ -9437,25 +9905,34 @@ func _create_kitchen_equipment_slot(equipment_id: String, equipment_name: String
 	content.add_child(name_label)
 	var actions := HBoxContainer.new()
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 4)
+	actions.add_theme_constant_override("separation", 2)
 	content.add_child(actions)
 	var add_button := Button.new()
 	add_button.text = "新增"
-	add_button.custom_minimum_size = Vector2(40.0, 25.0)
+	add_button.custom_minimum_size = Vector2(28.0, 25.0)
 	add_button.focus_mode = Control.FOCUS_NONE
 	add_button.disabled = not unlocked or placed >= level or _kitchen_business_active
 	add_button.tooltip_text = "达到当前数量等级上限" if placed >= level else "摆放一台新的%s" % equipment_name
-	add_button.add_theme_font_size_override("font_size", 10)
+	add_button.add_theme_font_size_override("font_size", 9)
 	add_button.pressed.connect(_start_kitchen_equipment_placement.bind(equipment_id))
 	actions.add_child(add_button)
 	var move_button := Button.new()
 	move_button.text = "调整"
-	move_button.custom_minimum_size = Vector2(40.0, 25.0)
+	move_button.custom_minimum_size = Vector2(28.0, 25.0)
 	move_button.focus_mode = Control.FOCUS_NONE
 	move_button.disabled = not unlocked or placed <= 0 or _kitchen_business_active
-	move_button.add_theme_font_size_override("font_size", 10)
+	move_button.add_theme_font_size_override("font_size", 9)
 	move_button.pressed.connect(_start_kitchen_equipment_adjustment.bind(equipment_id))
 	actions.add_child(move_button)
+	var store_button := Button.new()
+	store_button.text = "收起"
+	store_button.custom_minimum_size = Vector2(28.0, 25.0)
+	store_button.focus_mode = Control.FOCUS_NONE
+	store_button.disabled = not unlocked or placed <= 0 or _kitchen_business_active
+	store_button.tooltip_text = "收进房车，之后可以重新摆放"
+	store_button.add_theme_font_size_override("font_size", 9)
+	store_button.pressed.connect(_start_kitchen_equipment_storage.bind(equipment_id))
+	actions.add_child(store_button)
 	return slot
 
 func _is_kitchen_equipment_unlocked(equipment_id: String) -> bool:
@@ -11297,14 +11774,14 @@ func _create_map_popup(root: Control) -> void:
 	_map_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map_panel.add_child(_map_popup)
 
-	var map_image := TextureRect.new()
-	map_image.name = "MapImage"
-	map_image.texture = load(WORLD_MAP_PATH)
-	map_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	map_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	map_image.set_anchors_preset(Control.PRESET_FULL_RECT)
-	map_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_map_popup.add_child(map_image)
+	_map_image = TextureRect.new()
+	_map_image.name = "MapImage"
+	_map_image.texture = load(WORLD_MAP_PATH)
+	_map_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_map_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_map_image.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_map_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_popup.add_child(_map_image)
 
 	_map_village_label = Label.new()
 	_map_village_label.text = "村庄"
@@ -11333,20 +11810,18 @@ func _create_map_popup(root: Control) -> void:
 	_map_popup.add_child(_map_locked_label)
 
 	_map_page_locked_label = Label.new()
-	_map_page_locked_label.text = "地图未解锁"
+	_map_page_locked_label.text = "相邻区域尚未开放"
 	_map_page_locked_label.modulate.a = 0.0
 	_map_page_locked_label.anchor_left = 0.0
 	_map_page_locked_label.anchor_top = 0.0
 	_map_page_locked_label.anchor_right = 0.0
 	_map_page_locked_label.anchor_bottom = 0.0
-	_map_page_locked_label.size = Vector2(220.0, 46.0)
+	_map_page_locked_label.size = Vector2(190.0, 36.0)
 	_map_page_locked_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_map_page_locked_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_map_page_locked_label.add_theme_font_size_override("font_size", 24)
-	_map_page_locked_label.add_theme_color_override("font_color", Color(0.28, 0.19, 0.10))
-	_map_page_locked_label.add_theme_color_override("font_shadow_color", Color(1.0, 0.94, 0.72, 0.86))
-	_map_page_locked_label.add_theme_constant_override("shadow_offset_x", 0)
-	_map_page_locked_label.add_theme_constant_override("shadow_offset_y", 2)
+	_map_page_locked_label.add_theme_font_size_override("font_size", 15)
+	_map_page_locked_label.add_theme_color_override("font_color", Color(0.357, 0.286, 0.196, 1.0))
+	_map_page_locked_label.add_theme_stylebox_override("normal", _make_map_cream_style(Color(0.957, 0.910, 0.788, 0.94), 18.0, 1))
 	_map_panel.add_child(_map_page_locked_label)
 
 	_map_camper_marker = Control.new()
@@ -11359,235 +11834,135 @@ func _create_map_popup(root: Control) -> void:
 
 	_position_map_camper()
 
-	var exit_button := Button.new()
-	exit_button.name = "MapExitButton"
-	exit_button.text = "退出"
-	exit_button.anchor_left = 1.0
-	exit_button.anchor_top = 0.0
-	exit_button.anchor_right = 1.0
-	exit_button.anchor_bottom = 0.0
-	exit_button.offset_left = -118.0
-	exit_button.offset_top = 18.0
-	exit_button.offset_right = -24.0
-	exit_button.offset_bottom = 58.0
-	exit_button.add_theme_font_size_override("font_size", 18)
-	exit_button.add_theme_color_override("font_color", Color(0.25, 0.18, 0.10))
-	exit_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.92, 0.84, 0.62, 0.92), Color(1.0, 0.94, 0.72, 0.96), 18.0, 1))
-	exit_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.98, 0.89, 0.66, 1.0), Color(1.0, 0.98, 0.80, 1.0), 18.0, 1))
-	exit_button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.82, 0.68, 0.46, 1.0), Color(0.98, 0.90, 0.66, 1.0), 18.0, 1))
-	exit_button.pressed.connect(_close_map_popup)
-	_map_panel.add_child(exit_button)
+	_map_exit_button = Button.new()
+	_map_exit_button.name = "MapExitButton"
+	_map_exit_button.text = "返回"
+	_map_exit_button.anchor_left = 1.0
+	_map_exit_button.anchor_top = 0.0
+	_map_exit_button.anchor_right = 1.0
+	_map_exit_button.anchor_bottom = 0.0
+	_apply_map_cream_button_style(_map_exit_button, 17, 22.0)
+	_map_exit_button.pressed.connect(_close_map_popup)
+	_map_panel.add_child(_map_exit_button)
 
-	var left_button := _create_map_page_button("MapPageLeftButton", "<")
-	left_button.anchor_left = 0.0
-	left_button.anchor_top = 0.5
-	left_button.anchor_right = 0.0
-	left_button.anchor_bottom = 0.5
-	left_button.offset_left = 28.0
-	left_button.offset_top = -34.0
-	left_button.offset_right = 88.0
-	left_button.offset_bottom = 34.0
-	left_button.pressed.connect(_on_map_page_left_pressed)
-	_map_panel.add_child(left_button)
+	_map_page_left_button = _create_map_page_button("MapPageLeftButton", "‹")
+	_map_page_left_button.anchor_left = 0.0
+	_map_page_left_button.anchor_top = 0.0
+	_map_page_left_button.anchor_right = 0.0
+	_map_page_left_button.anchor_bottom = 0.0
+	_map_page_left_button.pressed.connect(_on_map_page_left_pressed)
+	_map_panel.add_child(_map_page_left_button)
 
-	var right_button := _create_map_page_button("MapPageRightButton", ">")
-	right_button.anchor_left = 1.0
-	right_button.anchor_top = 0.5
-	right_button.anchor_right = 1.0
-	right_button.anchor_bottom = 0.5
-	right_button.offset_left = -88.0
-	right_button.offset_top = -34.0
-	right_button.offset_right = -28.0
-	right_button.offset_bottom = 34.0
-	right_button.pressed.connect(_on_map_page_right_pressed)
-	_map_panel.add_child(right_button)
+	_map_page_right_button = _create_map_page_button("MapPageRightButton", "›")
+	_map_page_right_button.anchor_left = 0.0
+	_map_page_right_button.anchor_top = 0.0
+	_map_page_right_button.anchor_right = 0.0
+	_map_page_right_button.anchor_bottom = 0.0
+	_map_page_right_button.pressed.connect(_on_map_page_right_pressed)
+	_map_panel.add_child(_map_page_right_button)
 
-	var page_dots := HBoxContainer.new()
-	page_dots.name = "MapPageDots"
-	page_dots.anchor_left = 0.5
-	page_dots.anchor_top = 1.0
-	page_dots.anchor_right = 0.5
-	page_dots.anchor_bottom = 1.0
-	page_dots.offset_left = -58.0
-	page_dots.offset_top = -50.0
-	page_dots.offset_right = 58.0
-	page_dots.offset_bottom = -30.0
-	page_dots.alignment = BoxContainer.ALIGNMENT_CENTER
-	page_dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	page_dots.add_theme_constant_override("separation", 9)
-	_map_panel.add_child(page_dots)
+	_map_page_dots = HBoxContainer.new()
+	_map_page_dots.name = "MapPageDots"
+	_map_page_dots.anchor_left = 0.0
+	_map_page_dots.anchor_top = 0.0
+	_map_page_dots.anchor_right = 0.0
+	_map_page_dots.anchor_bottom = 0.0
+	_map_page_dots.alignment = BoxContainer.ALIGNMENT_CENTER
+	_map_page_dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_page_dots.add_theme_constant_override("separation", 8)
+	_map_panel.add_child(_map_page_dots)
 	for index in range(5):
 		var dot := PanelContainer.new()
 		dot.name = "PageDot%d" % (index + 1)
 		dot.custom_minimum_size = Vector2(15.0, 15.0)
 		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var fill := Color(0.98, 0.82, 0.36, 0.96) if index == 0 else Color(0.84, 0.77, 0.61, 0.72)
-		var border := Color(1.0, 0.95, 0.74, 1.0) if index == 0 else Color(0.95, 0.90, 0.72, 0.78)
-		dot.add_theme_stylebox_override("panel", _make_round_style(fill, border, 8.0, 2))
-		page_dots.add_child(dot)
+		dot.tooltip_text = "当前区域" if index == 0 else "区域尚未开放"
+		var fill := Color(0.839, 0.710, 0.416, 0.98) if index == 0 else Color(0.941, 0.906, 0.824, 0.90)
+		var border := Color(0.608, 0.502, 0.357, 0.95) if index == 0 else Color(0.714, 0.671, 0.580, 0.88)
+		dot.add_theme_stylebox_override("panel", _make_round_style(fill, border, 8.0, 1 if index == 0 else 2))
+		var dot_label := Label.new()
+		dot_label.text = "" if index == 0 else "·"
+		dot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		dot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		dot_label.add_theme_font_size_override("font_size", 9)
+		dot_label.add_theme_color_override("font_color", Color(0.52, 0.47, 0.39, 0.88))
+		dot.add_child(dot_label)
+		_map_page_dots.add_child(dot)
 	_create_map_codex_panel()
+	_layout_map_shell_controls()
 
 func _create_map_codex_panel() -> void:
 	if _map_panel == null:
 		return
 	_map_codex_panel = Control.new()
 	_map_codex_panel.name = "MapCodexPanel"
-	_map_codex_panel.anchor_left = 0.142
-	_map_codex_panel.anchor_top = 0.205
-	_map_codex_panel.anchor_right = 0.376
-	_map_codex_panel.anchor_bottom = 0.355
-	_map_codex_panel.offset_left = 0.0
-	_map_codex_panel.offset_top = 0.0
-	_map_codex_panel.offset_right = 0.0
-	_map_codex_panel.offset_bottom = 0.0
 	_map_codex_panel.z_index = 40
-	_map_codex_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_map_codex_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map_panel.add_child(_map_codex_panel)
 
-	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.add_theme_constant_override("separation", 2)
-	_map_codex_panel.add_child(box)
+	_map_codex_entry_button = Button.new()
+	_map_codex_entry_button.name = "MapCodexEntryButton"
+	_map_codex_entry_button.text = ""
+	_map_codex_entry_button.icon = _load_ui_texture(MAP_CODEX_ENTRY_ICON_PATH)
+	_map_codex_entry_button.expand_icon = true
+	_map_codex_entry_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_codex_entry_button.tooltip_text = "旅途图鉴"
+	_apply_map_cream_button_style(_map_codex_entry_button, 15, 32.0)
+	_map_codex_entry_button.pressed.connect(_on_map_codex_circle_pressed)
+	_map_codex_panel.add_child(_map_codex_entry_button)
 
-	var crop_controls := _create_map_codex_text_row(box, "作物", "crop")
-	_map_codex_crop_claim_button = crop_controls["button"] as Button
-	_map_codex_crop_red_dot = crop_controls["red_dot"] as Label
+	_map_codex_entry_count_label = Label.new()
+	_map_codex_entry_count_label.name = "MapCodexEntryCount"
+	_map_codex_entry_count_label.text = "0/24"
+	_map_codex_entry_count_label.z_index = 2
+	_map_codex_entry_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_codex_entry_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_codex_entry_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_map_codex_entry_count_label.add_theme_font_size_override("font_size", 11)
+	_map_codex_entry_count_label.add_theme_color_override("font_color", Color(0.357, 0.286, 0.196, 1.0))
+	_map_codex_entry_count_label.add_theme_stylebox_override("normal", _make_map_cream_style(Color(1.0, 0.973, 0.890, 0.98), 9.0, 1))
+	_map_codex_panel.add_child(_map_codex_entry_count_label)
 
-	var cooking_controls := _create_map_codex_text_row(box, "料理", "cooking")
-	_map_codex_cooking_claim_button = cooking_controls["button"] as Button
-	_map_codex_cooking_red_dot = cooking_controls["red_dot"] as Label
-	var flavor_row := HBoxContainer.new()
-	flavor_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(flavor_row)
-	_map_local_flavor_button = Button.new()
-	_map_local_flavor_button.flat = true
-	_map_local_flavor_button.focus_mode = Control.FOCUS_NONE
-	_map_local_flavor_button.custom_minimum_size = Vector2(176.0, 28.0)
-	_map_local_flavor_button.text = "地方风味 0/4"
-	_map_local_flavor_button.add_theme_font_size_override("font_size", 18)
-	_map_local_flavor_button.add_theme_color_override("font_color", Color(0.24, 0.15, 0.06))
-	_map_local_flavor_button.pressed.connect(_show_local_flavor_atlas)
-	flavor_row.add_child(_map_local_flavor_button)
+	_map_codex_entry_red_dot = Label.new()
+	_map_codex_entry_red_dot.name = "MapCodexEntryNotice"
+	_map_codex_entry_red_dot.text = "●"
+	_map_codex_entry_red_dot.visible = false
+	_map_codex_entry_red_dot.z_index = 3
+	_map_codex_entry_red_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_codex_entry_red_dot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_codex_entry_red_dot.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_map_codex_entry_red_dot.add_theme_font_size_override("font_size", 17)
+	_map_codex_entry_red_dot.add_theme_color_override("font_color", Color(0.78, 0.19, 0.12, 1.0))
+	_map_codex_entry_red_dot.add_theme_color_override("font_shadow_color", Color(1.0, 0.94, 0.82, 0.92))
+	_map_codex_entry_red_dot.add_theme_constant_override("shadow_offset_y", 1)
+	_map_codex_panel.add_child(_map_codex_entry_red_dot)
 	_create_map_codex_detail_popup()
 	_update_map_codex_panel()
 
-func _create_map_codex_text_row(parent: VBoxContainer, title_text: String, kind: String) -> Dictionary:
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 4)
-	parent.add_child(row)
-
-	var button := Button.new()
-	button.text = "%s 0/10 奖励" % title_text
-	button.flat = true
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(142.0, 30.0)
-	button.text = "%s 0/10  🎁" % title_text
-	button.add_theme_font_size_override("font_size", 20)
-	button.add_theme_color_override("font_color", Color(0.24, 0.15, 0.06))
-	button.add_theme_color_override("font_hover_color", Color(0.42, 0.24, 0.06))
-	button.add_theme_color_override("font_pressed_color", Color(0.18, 0.10, 0.04))
-	button.add_theme_color_override("font_shadow_color", Color(1.0, 0.93, 0.72, 0.84))
-	button.add_theme_constant_override("shadow_offset_x", 0)
-	button.add_theme_constant_override("shadow_offset_y", 2)
-	button.pressed.connect(_on_map_codex_text_pressed.bind(kind))
-	row.add_child(button)
-
-	var red_dot := Label.new()
-	red_dot.text = "●"
-	red_dot.visible = false
-	red_dot.text = "●"
-	red_dot.add_theme_font_size_override("font_size", 15)
-	red_dot.add_theme_color_override("font_color", Color(0.92, 0.08, 0.05, 1.0))
-	red_dot.add_theme_color_override("font_shadow_color", Color(1.0, 0.82, 0.62, 0.85))
-	red_dot.add_theme_constant_override("shadow_offset_x", 0)
-	red_dot.add_theme_constant_override("shadow_offset_y", 1)
-	row.add_child(red_dot)
-
-	return {
-		"button": button,
-		"red_dot": red_dot,
-	}
-
-func _create_map_codex_detail_popup_legacy() -> void:
-	if _map_panel == null:
-		return
-	_map_codex_detail_popup = PanelContainer.new()
-	_map_codex_detail_popup.name = "MapCodexDetailPopup"
-	_map_codex_detail_popup.visible = false
-	_map_codex_detail_popup.anchor_left = 0.5
-	_map_codex_detail_popup.anchor_top = 0.5
-	_map_codex_detail_popup.anchor_right = 0.5
-	_map_codex_detail_popup.anchor_bottom = 0.5
-	_map_codex_detail_popup.offset_left = -180.0
-	_map_codex_detail_popup.offset_top = -92.0
-	_map_codex_detail_popup.offset_right = 180.0
-	_map_codex_detail_popup.offset_bottom = 92.0
-	_map_codex_detail_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	_map_codex_detail_popup.add_theme_stylebox_override("panel", _make_round_style(Color(0.96, 0.88, 0.68, 0.96), Color(0.54, 0.38, 0.16, 0.38), 18.0, 1))
-	_map_panel.add_child(_map_codex_detail_popup)
-
-	var label := Label.new()
-	label.name = "DetailLabel"
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_color", Color(0.22, 0.15, 0.07))
-	_map_codex_detail_popup.add_child(label)
-
-func _show_map_codex_detail_popup_legacy(kind: String) -> void:
-	if _map_codex_detail_popup == null:
-		return
-	var is_crop := kind == "crop"
-	var title := "作物图鉴" if is_crop else "料理图鉴"
-	var count := _codex_discovered_crops.size() if is_crop else _codex_discovered_cooking.size()
-	var total := CODEX_CROP_TOTAL if is_crop else CODEX_COOKING_TOTAL
-	var rewards := CODEX_CROP_REWARDS if is_crop else CODEX_COOKING_REWARDS
-	var reward := _find_next_codex_reward(kind, rewards)
-	var reward_text := "奖励已全部领取" if reward.is_empty() else "下一奖励：%s" % str(reward.get("label", "奖励"))
-	var label := _map_codex_detail_popup.get_node_or_null("DetailLabel") as Label
-	if label != null:
-		label.text = "%s\n%d/%d\n%s" % [title, count, total, reward_text]
-	_map_codex_detail_popup.visible = true
-	_map_codex_detail_popup.move_to_front()
-
 func _update_map_codex_panel() -> void:
-	_update_map_codex_text_row("作物", _codex_discovered_crops.size(), CODEX_CROP_TOTAL, CODEX_CROP_REWARDS, "crop", _map_codex_crop_claim_button, _map_codex_crop_red_dot)
-	_update_map_codex_text_row("料理", _codex_discovered_cooking.size(), CODEX_COOKING_TOTAL, CODEX_COOKING_REWARDS, "cooking", _map_codex_cooking_claim_button, _map_codex_cooking_red_dot)
-	if _map_local_flavor_button != null:
-		_map_local_flavor_button.text = "地方风味 %d/4" % _local_event_atlas.size()
+	var crop_count := clampi(_codex_discovered_crops.size(), 0, CODEX_CROP_TOTAL)
+	var cooking_count := clampi(_codex_discovered_cooking.size(), 0, CODEX_COOKING_TOTAL)
+	var flavor_count := clampi(_local_event_atlas.size(), 0, 4)
+	var discovered_total := crop_count + cooking_count + flavor_count
+	var codex_total := CODEX_CROP_TOTAL + CODEX_COOKING_TOTAL + 4
+	if _map_codex_entry_count_label != null:
+		_map_codex_entry_count_label.text = "%d/%d" % [discovered_total, codex_total]
+	if _map_codex_entry_button != null:
+		_map_codex_entry_button.tooltip_text = "旅途图鉴  作物 %d/%d · 料理 %d/%d · 地方风味 %d/4" % [crop_count, CODEX_CROP_TOTAL, cooking_count, CODEX_COOKING_TOTAL, flavor_count]
+	if _map_codex_entry_red_dot != null:
+		_map_codex_entry_red_dot.visible = _map_codex_kind_needs_attention("crop", crop_count, CODEX_CROP_REWARDS) or _map_codex_kind_needs_attention("cooking", cooking_count, CODEX_COOKING_REWARDS)
 
-func _show_local_flavor_atlas() -> void:
-	if _map_codex_detail_popup == null:
-		return
-	for child in _map_codex_detail_popup.get_children():
-		child.queue_free()
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	_map_codex_detail_popup.add_child(box)
-	var title := Label.new()
-	title.text = "地方风味图谱"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
-	box.add_child(title)
-	for event_id in LocalEventCatalog.ALL_IDS:
-		var config := LocalEventCatalog.get_event(event_id)
-		var record := _local_event_atlas.get(event_id, {}) as Dictionary
-		var line := Label.new()
-		if record.is_empty():
-			line.text = "未发现的地方风味\n料理研究：线索未发现"
-		else:
-			var stars := int(record.get("best_stars", 0))
-			var reward_text := _crop_display_name(str(config.get("reward_crop", ""))) if bool(record.get("reward_revealed", false)) else "神秘特殊奖励"
-			var special_recipe := _local_event_special_recipe(event_id)
-			var recipe_name := _recipe_name(special_recipe) if _is_special_recipe_researched(special_recipe) else "未知特色料理"
-			line.text = "%s　偏爱%s料理　最高%d星\n已揭晓：%s　%s：%s" % [str(config.get("name", event_id)), _crop_display_name(str(config.get("preferred_crop", ""))), stars, reward_text, recipe_name, _local_flavor_research_state(event_id)]
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		line.add_theme_font_size_override("font_size", 16)
-		box.add_child(line)
-	_map_codex_detail_popup.visible = true
-	_map_codex_detail_popup.move_to_front()
+func _map_codex_kind_needs_attention(kind: String, count: int, rewards: Array) -> bool:
+	if _has_codex_unlockable_entries(kind):
+		return true
+	var reward := _find_next_codex_reward(kind, rewards)
+	return not reward.is_empty() and count >= int(reward.get("count", 0))
+
+func _on_map_codex_circle_pressed() -> void:
+	var target_tab := _map_codex_active_tab
+	if target_tab not in ["crop", "cooking", "flavor"]:
+		target_tab = "crop"
+	_show_map_codex_detail_popup(target_tab)
 
 func _local_flavor_research_state(event_id: String) -> String:
 	if not _research_event_clue_unlocked(event_id):
@@ -11942,19 +12317,6 @@ func _attempt_selected_recipe_research() -> void:
 		_play_chapter_one_task_confetti(_research_panel.get_global_rect().get_center(), 1.1)
 	_research_attempt_locked = false
 
-func _update_map_codex_text_row(title_text: String, count: int, total: int, rewards: Array, kind: String, button: Button, red_dot: Label) -> void:
-	if button == null or red_dot == null:
-		return
-	count = clampi(count, 0, total)
-	button.text = "%s %d/%d 奖励" % [title_text, count, total]
-	button.text = "%s %d/%d  🎁" % [title_text, count, total]
-	var reward := _find_next_codex_reward(kind, rewards)
-	if reward.is_empty():
-		red_dot.visible = _has_codex_unlockable_entries(kind)
-		return
-	var threshold := int(reward.get("count", 0))
-	red_dot.visible = count >= threshold or _has_codex_unlockable_entries(kind)
-
 func _find_next_codex_reward(kind: String, rewards: Array) -> Dictionary:
 	for reward in rewards:
 		var threshold := int(reward.get("count", 0))
@@ -11962,197 +12324,582 @@ func _find_next_codex_reward(kind: String, rewards: Array) -> Dictionary:
 			return reward
 	return {}
 
-func _on_map_codex_text_pressed(kind: String) -> void:
-	_show_map_codex_detail_popup(kind)
-	return
-	var count := _codex_discovered_crops.size() if kind == "crop" else _codex_discovered_cooking.size()
-	var total := CODEX_CROP_TOTAL if kind == "crop" else CODEX_COOKING_TOTAL
-	var rewards := CODEX_CROP_REWARDS if kind == "crop" else CODEX_COOKING_REWARDS
-	var reward := _find_next_codex_reward(kind, rewards)
-	if reward.is_empty():
-		_show_side_toast("这条图鉴奖励已经全部领取")
-		return
-	var threshold := int(reward.get("count", 0))
-	if count >= threshold:
-		_claim_map_codex_reward(kind)
-	else:
-		_show_side_toast("下一等级奖励：%d/%d  %s" % [threshold, total, str(reward.get("label", "奖励"))])
-
 func _create_map_codex_detail_popup() -> void:
 	if _map_panel == null:
 		return
-	_map_codex_detail_popup = PanelContainer.new()
+	_map_codex_detail_popup = Control.new()
 	_map_codex_detail_popup.name = "MapCodexDetailPopup"
 	_map_codex_detail_popup.visible = false
-	_map_codex_detail_popup.anchor_left = 0.5
-	_map_codex_detail_popup.anchor_top = 0.5
-	_map_codex_detail_popup.anchor_right = 0.5
-	_map_codex_detail_popup.anchor_bottom = 0.5
-	_map_codex_detail_popup.offset_left = -245.0
-	_map_codex_detail_popup.offset_top = -230.0
-	_map_codex_detail_popup.offset_right = 245.0
-	_map_codex_detail_popup.offset_bottom = 230.0
+	_map_codex_detail_popup.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_map_codex_detail_popup.z_index = 80
 	_map_codex_detail_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	_map_codex_detail_popup.add_theme_stylebox_override("panel", _make_round_style(Color(0.94, 0.84, 0.60, 0.96), Color(1.0, 0.96, 0.76, 1.0), 10.0, 2))
 	_map_panel.add_child(_map_codex_detail_popup)
 
+	var dim := ColorRect.new()
+	dim.name = "CodexDim"
+	dim.color = Color(0.08, 0.055, 0.025, 0.54)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_map_codex_detail_popup.add_child(dim)
+
+	_map_codex_book_panel = Control.new()
+	_map_codex_book_panel.name = "TravelCodexPanel"
+	_map_codex_book_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_map_codex_detail_popup.add_child(_map_codex_book_panel)
+
+	var art := TextureRect.new()
+	art.name = "TravelCodexArt"
+	art.texture = _load_ui_texture(MAP_CODEX_PANEL_PATH)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_codex_book_panel.add_child(art)
+
+	_map_codex_title_label = Label.new()
+	_map_codex_title_label.name = "CodexTitle"
+	_map_codex_title_label.text = "旅途图鉴"
+	_map_codex_title_label.anchor_left = 0.30
+	_map_codex_title_label.anchor_top = 0.035
+	_map_codex_title_label.anchor_right = 0.70
+	_map_codex_title_label.anchor_bottom = 0.18
+	_map_codex_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_codex_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_map_codex_title_label.add_theme_font_size_override("font_size", 28)
+	_map_codex_title_label.add_theme_color_override("font_color", Color(0.25, 0.13, 0.045, 1.0))
+	_map_codex_title_label.add_theme_color_override("font_shadow_color", Color(1.0, 0.82, 0.42, 0.30))
+	_map_codex_title_label.add_theme_constant_override("shadow_offset_y", 2)
+	_map_codex_book_panel.add_child(_map_codex_title_label)
+
+	_map_codex_progress_label = Label.new()
+	_map_codex_progress_label.name = "CodexTotalProgress"
+	_map_codex_progress_label.anchor_left = 0.105
+	_map_codex_progress_label.anchor_top = 0.15
+	_map_codex_progress_label.anchor_right = 0.29
+	_map_codex_progress_label.anchor_bottom = 0.205
+	_map_codex_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_codex_progress_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_map_codex_progress_label.add_theme_font_size_override("font_size", 13)
+	_map_codex_progress_label.add_theme_color_override("font_color", Color(0.36, 0.22, 0.08, 0.96))
+	_map_codex_book_panel.add_child(_map_codex_progress_label)
+
+	var close_button := Button.new()
+	close_button.name = "CodexCloseButton"
+	close_button.text = "×"
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.anchor_left = 0.895
+	close_button.anchor_top = 0.055
+	close_button.anchor_right = 0.955
+	close_button.anchor_bottom = 0.12
+	_apply_map_plaque_button_style(close_button, 22)
+	close_button.pressed.connect(_hide_map_codex_detail_popup)
+	_map_codex_book_panel.add_child(close_button)
+
+	var tabs := HBoxContainer.new()
+	tabs.name = "CodexTabs"
+	tabs.anchor_left = 0.19
+	tabs.anchor_top = 0.198
+	tabs.anchor_right = 0.81
+	tabs.anchor_bottom = 0.262
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 8)
+	_map_codex_book_panel.add_child(tabs)
+	_map_codex_tab_buttons.clear()
+	for tab_data in [
+		{"kind": "crop", "label": "作物"},
+		{"kind": "cooking", "label": "料理"},
+		{"kind": "flavor", "label": "地方风味"},
+	]:
+		var kind := str(tab_data["kind"])
+		var tab := _create_map_codex_tab_button(str(tab_data["label"]), kind)
+		tabs.add_child(tab)
+		_map_codex_tab_buttons[kind] = tab
+
+	_map_codex_content = Control.new()
+	_map_codex_content.name = "CodexPageContent"
+	_map_codex_content.anchor_left = 0.125
+	_map_codex_content.anchor_top = 0.275
+	_map_codex_content.anchor_right = 0.875
+	_map_codex_content.anchor_bottom = 0.855
+	_map_codex_book_panel.add_child(_map_codex_content)
+	_layout_map_codex_popup(true)
+
+func _create_map_codex_tab_button(label_text: String, kind: String) -> Button:
+	var button := Button.new()
+	button.name = "CodexTab_%s" % kind
+	button.text = label_text
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(150.0, 38.0)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", 16)
+	button.pressed.connect(_set_map_codex_tab.bind(kind))
+	return button
+
+func _layout_map_codex_popup(force: bool = false) -> void:
+	if _map_codex_book_panel == null or not is_instance_valid(_map_codex_book_panel):
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	var signature := "%s" % viewport_size
+	if not force and signature == _map_codex_layout_signature:
+		return
+	_map_codex_layout_signature = signature
+	var available := Vector2(maxf(viewport_size.x - 32.0, 1.0), maxf(viewport_size.y - 24.0, 1.0))
+	var scale_factor := minf(available.x / 1600.0, available.y / 960.0)
+	scale_factor = minf(scale_factor, 0.70)
+	var panel_size := Vector2(1600.0, 960.0) * maxf(scale_factor, 0.1)
+	_map_codex_book_panel.anchor_left = 0.5
+	_map_codex_book_panel.anchor_top = 0.5
+	_map_codex_book_panel.anchor_right = 0.5
+	_map_codex_book_panel.anchor_bottom = 0.5
+	_map_codex_book_panel.offset_left = -panel_size.x * 0.5
+	_map_codex_book_panel.offset_top = -panel_size.y * 0.5
+	_map_codex_book_panel.offset_right = panel_size.x * 0.5
+	_map_codex_book_panel.offset_bottom = panel_size.y * 0.5
+
 func _show_map_codex_detail_popup(kind: String) -> void:
+	if kind != "crop" and kind != "cooking" and kind != "flavor":
+		kind = "crop"
 	if _map_codex_detail_popup == null:
 		_create_map_codex_detail_popup()
 	if _map_codex_detail_popup == null:
 		return
-	for child in _map_codex_detail_popup.get_children():
-		_map_codex_detail_popup.remove_child(child)
-		child.queue_free()
-
-	var count := _codex_count(kind)
-	var total := _codex_total(kind)
-	var rewards := _codex_rewards(kind)
-	var title_text := "作物图鉴" if kind == "crop" else "料理图鉴"
-
-	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = 18.0
-	box.offset_top = 14.0
-	box.offset_right = -18.0
-	box.offset_bottom = -16.0
-	box.add_theme_constant_override("separation", 6)
-	_map_codex_detail_popup.add_child(box)
-
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 10)
-	box.add_child(header)
-
-	var title := Label.new()
-	title.text = "%s  %d/%d" % [title_text, count, total]
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(0.22, 0.14, 0.06))
-	header.add_child(title)
-
-	var close_button := Button.new()
-	close_button.text = "×"
-	close_button.custom_minimum_size = Vector2(34.0, 30.0)
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.add_theme_font_size_override("font_size", 22)
-	close_button.pressed.connect(_hide_map_codex_detail_popup)
-	header.add_child(close_button)
-
-	var entry_grid := GridContainer.new()
-	entry_grid.columns = 2
-	entry_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	entry_grid.add_theme_constant_override("h_separation", 8)
-	entry_grid.add_theme_constant_override("v_separation", 5)
-	box.add_child(entry_grid)
-	var detail_label := Label.new()
-	detail_label.text = "点击格子查看线索"
-	detail_label.custom_minimum_size = Vector2(0.0, 34.0)
-	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	detail_label.add_theme_font_size_override("font_size", 14)
-	detail_label.add_theme_color_override("font_color", Color(0.33, 0.22, 0.10))
-	_fill_map_codex_entries(entry_grid, kind, total, detail_label)
-
-	var reward_line := _create_map_codex_reward_line(kind, rewards, count, total)
-	box.add_child(reward_line)
-
-	box.add_child(detail_label)
-
+	_map_codex_active_tab = kind
+	_map_codex_selected_id = ""
+	_layout_map_codex_popup(true)
 	_map_codex_detail_popup.visible = true
 	_map_codex_detail_popup.move_to_front()
+	_map_dragging = false
+	_map_drag_vector = Vector2.ZERO
+	if _interaction_prompt != null:
+		_interaction_prompt.visible = false
+	_rebuild_map_codex_page()
 
 func _hide_map_codex_detail_popup() -> void:
-	if _map_codex_detail_popup != null:
-		_map_codex_detail_popup.visible = false
+	if _map_codex_detail_popup == null:
+		return
+	_map_codex_detail_popup.visible = false
+	_clear_map_codex_content()
+	_map_codex_selected_id = ""
+	_update_map_codex_panel()
 
-func _fill_map_codex_entries(parent: GridContainer, kind: String, total: int, detail_label: Label) -> void:
+func _is_map_codex_open() -> bool:
+	return _map_codex_detail_popup != null and is_instance_valid(_map_codex_detail_popup) and _map_codex_detail_popup.visible
+
+func _set_map_codex_tab(kind: String) -> void:
+	if kind != "crop" and kind != "cooking" and kind != "flavor":
+		return
+	_map_codex_active_tab = kind
+	_map_codex_selected_id = ""
+	_rebuild_map_codex_page()
+
+func _clear_map_codex_content() -> void:
+	_map_codex_card_nodes.clear()
+	_map_codex_detail_label = null
+	if _map_codex_content == null:
+		return
+	for child in _map_codex_content.get_children():
+		_map_codex_content.remove_child(child)
+		child.queue_free()
+
+func _rebuild_map_codex_page() -> void:
+	if _map_codex_content == null:
+		return
+	_clear_map_codex_content()
+	_refresh_map_codex_tab_styles()
+	var crop_count := clampi(_codex_discovered_crops.size(), 0, CODEX_CROP_TOTAL)
+	var cooking_count := clampi(_codex_discovered_cooking.size(), 0, CODEX_COOKING_TOTAL)
+	var flavor_count := clampi(_local_event_atlas.size(), 0, LocalEventCatalog.ALL_IDS.size())
+	if _map_codex_progress_label != null:
+		_map_codex_progress_label.text = "总记录  %d/24" % (crop_count + cooking_count + flavor_count)
+	if _map_codex_active_tab == "flavor":
+		_build_map_flavor_page()
+	else:
+		_build_map_collection_page(_map_codex_active_tab)
+
+func _refresh_map_codex_tab_styles() -> void:
+	for raw_kind in _map_codex_tab_buttons.keys():
+		var kind := str(raw_kind)
+		var button := _map_codex_tab_buttons.get(kind, null) as Button
+		if button == null:
+			continue
+		var count := _codex_count(kind) if kind != "flavor" else _local_event_atlas.size()
+		var total := _codex_total(kind) if kind != "flavor" else LocalEventCatalog.ALL_IDS.size()
+		var title := "作物" if kind == "crop" else ("料理" if kind == "cooking" else "地方风味")
+		button.text = "%s  %d/%d" % [title, clampi(count, 0, total), total]
+		var active := kind == _map_codex_active_tab
+		button.set_pressed_no_signal(active)
+		if active:
+			button.add_theme_stylebox_override("normal", _make_map_texture_style(MAP_WOOD_PLAQUE_PATH, Color.WHITE))
+			button.add_theme_stylebox_override("pressed", _make_map_texture_style(MAP_WOOD_PLAQUE_PATH, Color(0.83, 0.76, 0.62, 1.0)))
+			button.add_theme_color_override("font_color", Color(1.0, 0.94, 0.75, 1.0))
+		else:
+			var idle := _make_round_style(Color(0.96, 0.84, 0.58, 0.94), Color(0.64, 0.42, 0.16, 0.92), 8.0, 2)
+			button.add_theme_stylebox_override("normal", idle)
+			button.add_theme_stylebox_override("pressed", idle)
+			button.add_theme_color_override("font_color", Color(0.33, 0.20, 0.07, 1.0))
+		button.add_theme_stylebox_override("hover", _make_map_texture_style(MAP_WOOD_PLAQUE_PATH, Color(1.07, 1.03, 0.89, 1.0)))
+
+func _map_codex_is_compact() -> bool:
+	return _map_codex_book_panel != null and _map_codex_book_panel.size.y < 600.0
+
+func _build_map_collection_page(kind: String) -> void:
+	var compact := _map_codex_is_compact()
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.add_theme_constant_override("separation", 5 if compact else 7)
+	_map_codex_content.add_child(box)
+
+	var grid := GridContainer.new()
+	grid.name = "CodexEntryGrid"
+	grid.columns = 5
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 5 if compact else 7)
+	box.add_child(grid)
+
+	_map_codex_detail_label = Label.new()
+	_map_codex_detail_label.name = "CodexDetail"
+	_map_codex_detail_label.text = "选择一张卡片，查看发现线索与完整记录。"
+	_map_codex_detail_label.custom_minimum_size = Vector2(0.0, 34.0 if compact else 44.0)
+	_map_codex_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_map_codex_detail_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_map_codex_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_codex_detail_label.add_theme_font_size_override("font_size", 11 if compact else 13)
+	_map_codex_detail_label.add_theme_color_override("font_color", Color(0.34, 0.22, 0.09, 1.0))
+	_map_codex_detail_label.add_theme_stylebox_override("normal", _make_round_style(Color(0.97, 0.89, 0.70, 0.64), Color(0.67, 0.47, 0.20, 0.48), 8.0, 1))
+
+	_fill_travel_codex_entries(grid, kind, _codex_total(kind), _map_codex_detail_label)
+	box.add_child(_map_codex_detail_label)
+	box.add_child(_create_map_codex_reward_line(kind, _codex_rewards(kind), _codex_count(kind), _codex_total(kind)))
+
+func _fill_travel_codex_entries(parent: GridContainer, kind: String, total: int, detail_label: Label) -> void:
 	var ids := _codex_known_ids(kind)
 	for index in range(total):
 		var id := str(ids[index]) if index < ids.size() else ""
 		var discovered := _is_codex_id_discovered(kind, id)
 		var revealed := _is_codex_id_revealed(kind, id)
-		parent.add_child(_create_map_codex_entry_card(kind, id, index, discovered, revealed, detail_label))
+		parent.add_child(_create_travel_codex_entry_card(kind, id, index, discovered, revealed, detail_label))
 
-func _create_map_codex_entry_card(kind: String, id: String, index: int, discovered: bool, revealed: bool, detail_label: Label) -> Button:
+func _create_travel_codex_entry_card(kind: String, id: String, index: int, discovered: bool, revealed: bool, detail_label: Label) -> Button:
+	var compact := _map_codex_is_compact()
 	var card := Button.new()
-	card.custom_minimum_size = Vector2(218.0, 42.0)
+	card.name = "CodexCard_%02d" % (index + 1)
+	card.custom_minimum_size = Vector2(108.0, 78.0 if compact else 103.0)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.focus_mode = Control.FOCUS_NONE
 	card.clip_contents = true
-	card.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.92, 0.70, 0.34), Color(0.70, 0.52, 0.22, 0.22), 8.0, 1))
-	card.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.94, 0.72, 0.58), Color(0.88, 0.66, 0.28, 0.48), 8.0, 1))
-	card.add_theme_stylebox_override("pressed", _make_round_style(Color(0.95, 0.82, 0.55, 0.62), Color(0.72, 0.50, 0.18, 0.55), 8.0, 1))
+	card.set_meta("codex_key", "%s:%s" % [kind, id])
+	card.set_meta("codex_state", "complete" if revealed else ("partial" if discovered else "locked"))
+	card.add_theme_stylebox_override("normal", _map_codex_card_style(false, str(card.get_meta("codex_state"))))
+	card.add_theme_stylebox_override("hover", _map_codex_card_style(true, str(card.get_meta("codex_state"))))
+	card.add_theme_stylebox_override("pressed", _map_codex_card_style(true, str(card.get_meta("codex_state"))))
 	card.pressed.connect(_on_map_codex_entry_pressed.bind(kind, id, index, discovered, revealed, detail_label))
+	_map_codex_card_nodes["%s:%s" % [kind, id]] = card
 
-	var row := HBoxContainer.new()
-	row.set_anchors_preset(Control.PRESET_FULL_RECT)
-	row.offset_left = 8.0
-	row.offset_top = 4.0
-	row.offset_right = -8.0
-	row.offset_bottom = -4.0
-	row.add_theme_constant_override("separation", 8)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(row)
+	var content := VBoxContainer.new()
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 5.0
+	content.offset_top = 4.0
+	content.offset_right = -5.0
+	content.offset_bottom = -4.0
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 0)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(content)
 
-	var icon := Label.new()
-	icon.text = _codex_entry_icon_text(kind, id, discovered)
-	icon.custom_minimum_size = Vector2(32.0, 34.0)
-	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	icon.add_theme_font_size_override("font_size", 18)
-	icon.add_theme_color_override("font_color", Color(0.34, 0.24, 0.11) if discovered and revealed else Color(0.48, 0.45, 0.39, 0.62))
-	row.add_child(icon)
-
-	var text_box := VBoxContainer.new()
-	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text_box.add_theme_constant_override("separation", 1)
-	row.add_child(text_box)
+	var preview_wrap := Control.new()
+	preview_wrap.custom_minimum_size = Vector2(0.0, 28.0 if compact else 46.0)
+	preview_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(preview_wrap)
+	if discovered and id != "":
+		var preview := TextureRect.new()
+		preview.set_anchors_preset(Control.PRESET_FULL_RECT)
+		preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview_wrap.add_child(preview)
+		var crop_id := id if kind == "crop" else str(_recipe_data(id).get("crop", ""))
+		preview.ready.connect(_setup_map_codex_crop_preview.bind(preview, crop_id))
+		if kind == "cooking":
+			var station := Label.new()
+			station.text = "锅" if str(_recipe_data(id).get("station", "pot")) == "pot" else "烤"
+			station.anchor_left = 1.0
+			station.anchor_top = 1.0
+			station.anchor_right = 1.0
+			station.anchor_bottom = 1.0
+			station.offset_left = -25.0
+			station.offset_top = -20.0
+			station.offset_right = -2.0
+			station.offset_bottom = -2.0
+			station.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			station.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			station.add_theme_font_size_override("font_size", 10)
+			station.add_theme_color_override("font_color", Color(1.0, 0.93, 0.72, 1.0))
+			station.add_theme_stylebox_override("normal", _make_round_style(Color(0.41, 0.25, 0.11, 0.96), Color(0.77, 0.53, 0.23, 0.95), 7.0, 1))
+			preview_wrap.add_child(station)
+	else:
+		var unknown := Label.new()
+		unknown.text = "?"
+		unknown.set_anchors_preset(Control.PRESET_FULL_RECT)
+		unknown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		unknown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		unknown.add_theme_font_size_override("font_size", 22 if compact else 28)
+		unknown.add_theme_color_override("font_color", Color(0.48, 0.43, 0.34, 0.58))
+		preview_wrap.add_child(unknown)
 
 	var number := Label.new()
-	number.text = "%02d" % [index + 1]
-	number.custom_minimum_size = Vector2(0.0, 14.0)
-	number.add_theme_font_size_override("font_size", 11)
-	number.add_theme_color_override("font_color", Color(0.50, 0.38, 0.18, 0.86))
-	text_box.add_child(number)
+	number.text = "%02d" % (index + 1)
+	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	number.add_theme_font_size_override("font_size", 9 if compact else 10)
+	number.add_theme_color_override("font_color", Color(0.53, 0.38, 0.17, 0.85))
+	content.add_child(number)
 
 	var name := Label.new()
-	name.text = _codex_entry_display_name(kind, id, discovered, revealed)
-	name.custom_minimum_size = Vector2(0.0, 18.0)
+	name.text = _codex_entry_name(kind, id) if discovered and id != "" else "尚未发现"
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name.add_theme_font_size_override("font_size", 13)
-	name.add_theme_color_override("font_color", Color(0.24, 0.16, 0.07) if discovered and revealed else Color(0.58, 0.50, 0.38))
-	text_box.add_child(name)
+	name.add_theme_font_size_override("font_size", 11 if compact else 13)
+	name.add_theme_color_override("font_color", Color(0.25, 0.15, 0.06, 1.0) if discovered else Color(0.50, 0.44, 0.34, 0.76))
+	content.add_child(name)
+
+	var state := Label.new()
+	state.text = "完整记录" if revealed else (("待收获" if kind == "crop" else "待解锁") if discovered else "线索未知")
+	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	state.add_theme_font_size_override("font_size", 9 if compact else 10)
+	state.add_theme_color_override("font_color", Color(0.66, 0.38, 0.08, 0.96) if discovered else Color(0.54, 0.48, 0.39, 0.72))
+	content.add_child(state)
 	if discovered and not revealed:
-		var red_dot := Label.new()
-		red_dot.text = "●"
-		red_dot.anchor_left = 1.0
-		red_dot.anchor_top = 0.0
-		red_dot.anchor_right = 1.0
-		red_dot.anchor_bottom = 0.0
-		red_dot.offset_left = -14.0
-		red_dot.offset_top = -3.0
-		red_dot.offset_right = 2.0
-		red_dot.offset_bottom = 15.0
-		red_dot.add_theme_font_size_override("font_size", 14)
-		red_dot.add_theme_color_override("font_color", Color(0.92, 0.06, 0.04, 1.0))
-		red_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		card.add_child(red_dot)
+		var seal := Label.new()
+		seal.text = "●"
+		seal.anchor_left = 1.0
+		seal.anchor_right = 1.0
+		seal.offset_left = -17.0
+		seal.offset_top = -3.0
+		seal.offset_right = 0.0
+		seal.offset_bottom = 15.0
+		seal.add_theme_font_size_override("font_size", 14)
+		seal.add_theme_color_override("font_color", Color(0.83, 0.12, 0.06, 1.0))
+		seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(seal)
 	return card
+
+func _map_codex_card_style(selected: bool, state: String) -> StyleBoxFlat:
+	var fill := Color(0.98, 0.91, 0.74, 0.90)
+	if state == "locked":
+		fill = Color(0.80, 0.75, 0.65, 0.62)
+	elif state == "partial":
+		fill = Color(1.0, 0.86, 0.55, 0.92)
+	var border := Color(0.97, 0.63, 0.18, 1.0) if selected else Color(0.61, 0.40, 0.16, 0.64)
+	return _make_round_style(fill, border, 8.0, 3 if selected else 1)
+
+func _refresh_map_codex_card_selection() -> void:
+	for raw_key in _map_codex_card_nodes.keys():
+		var key := str(raw_key)
+		var card := _map_codex_card_nodes.get(key, null) as Button
+		if card == null:
+			continue
+		card.add_theme_stylebox_override("normal", _map_codex_card_style(key == _map_codex_selected_id, str(card.get_meta("codex_state", "locked"))))
+
+func _setup_map_codex_crop_preview(target: TextureRect, crop_type: String) -> void:
+	if target == null or crop_type == "":
+		return
+	var sub_viewport := SubViewport.new()
+	sub_viewport.size = Vector2i(160, 92)
+	sub_viewport.transparent_bg = true
+	sub_viewport.world_3d = World3D.new()
+	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	target.add_child(sub_viewport)
+	target.texture = sub_viewport.get_texture()
+	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 2.0
+	camera.position = Vector3(0.0, 0.9, 4.2)
+	camera.current = true
+	sub_viewport.add_child(camera)
+	camera.look_at(Vector3(0.0, 0.25, 0.0), Vector3.UP)
+	var light := DirectionalLight3D.new()
+	light.light_energy = 2.55
+	light.rotation_degrees = Vector3(-45.0, -35.0, 0.0)
+	sub_viewport.add_child(light)
+	var crop := _create_crop_model(crop_type, 0, "CodexCropPreview")
+	sub_viewport.add_child(crop)
+	_center_model_on_origin(crop)
+	crop.rotation_degrees = Vector3(0.0, -28.0, 16.0)
+	crop.scale = Vector3.ONE * 1.22
 
 func _on_map_codex_entry_pressed(kind: String, id: String, index: int, discovered: bool, revealed: bool, detail_label: Label) -> void:
 	if detail_label == null or not is_instance_valid(detail_label):
 		return
+	_map_codex_selected_id = "%s:%s" % [kind, id]
+	_refresh_map_codex_card_selection()
 	if discovered and not revealed:
-		detail_label.text = "%s：已获得种子；首次收获后解锁完整模型、售价和来源说明。" % _codex_entry_name(kind, id)
-		return
-	if discovered and revealed:
+		detail_label.text = "%s：%s" % [_codex_entry_name(kind, id), "已获得种子；首次收获后解锁完整模型、售价和来源说明。" if kind == "crop" else "已经发现这道料理，继续完成对应记录即可补全资料。"]
+	elif discovered and revealed:
 		detail_label.text = "%s：%s" % [_codex_entry_name(kind, id), _codex_entry_detail_text(kind, id)]
 	else:
 		detail_label.text = _codex_entry_unlock_hint(kind, id, index)
 
+func _build_map_flavor_page() -> void:
+	var compact := _map_codex_is_compact()
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.add_theme_constant_override("separation", 6 if compact else 8)
+	_map_codex_content.add_child(box)
+	var heading := Label.new()
+	heading.text = "旅行途中记录的地方聚会、特色料理与永久馈赠"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 11 if compact else 13)
+	heading.add_theme_color_override("font_color", Color(0.38, 0.25, 0.10, 0.92))
+	box.add_child(heading)
+	var grid := GridContainer.new()
+	grid.name = "FlavorCardGrid"
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 6 if compact else 8)
+	box.add_child(grid)
+	_map_codex_detail_label = Label.new()
+	_map_codex_detail_label.name = "FlavorDetail"
+	_map_codex_detail_label.text = "选择一张旅行明信片查看地方风味详情。"
+	_map_codex_detail_label.custom_minimum_size = Vector2(0.0, 42.0 if compact else 58.0)
+	_map_codex_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_map_codex_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_codex_detail_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_map_codex_detail_label.add_theme_font_size_override("font_size", 11 if compact else 13)
+	_map_codex_detail_label.add_theme_color_override("font_color", Color(0.34, 0.22, 0.09, 1.0))
+	_map_codex_detail_label.add_theme_stylebox_override("normal", _make_round_style(Color(0.97, 0.89, 0.70, 0.68), Color(0.67, 0.47, 0.20, 0.52), 8.0, 1))
+	for event_id in LocalEventCatalog.ALL_IDS:
+		grid.add_child(_create_map_flavor_card(event_id, _map_codex_detail_label))
+	box.add_child(_map_codex_detail_label)
+
+func _create_map_flavor_card(event_id: String, detail_label: Label) -> Button:
+	var compact := _map_codex_is_compact()
+	var config := LocalEventCatalog.get_event(event_id)
+	var record := _local_event_atlas.get(event_id, {}) as Dictionary
+	var discovered := not record.is_empty()
+	var card := Button.new()
+	card.name = "FlavorCard_%s" % event_id
+	card.custom_minimum_size = Vector2(300.0, 82.0 if compact else 112.0)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.focus_mode = Control.FOCUS_NONE
+	card.clip_contents = true
+	card.set_meta("codex_key", "flavor:%s" % event_id)
+	card.set_meta("codex_state", "complete" if discovered else "locked")
+	card.add_theme_stylebox_override("normal", _map_codex_card_style(false, str(card.get_meta("codex_state"))))
+	card.add_theme_stylebox_override("hover", _map_codex_card_style(true, str(card.get_meta("codex_state"))))
+	card.add_theme_stylebox_override("pressed", _map_codex_card_style(true, str(card.get_meta("codex_state"))))
+	card.pressed.connect(_on_map_flavor_card_pressed.bind(event_id, detail_label))
+	_map_codex_card_nodes["flavor:%s" % event_id] = card
+	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 7.0
+	row.offset_top = 6.0
+	row.offset_right = -7.0
+	row.offset_bottom = -6.0
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+	var preview_wrap := Control.new()
+	preview_wrap.custom_minimum_size = Vector2(76.0 if compact else 104.0, 0.0)
+	row.add_child(preview_wrap)
+	if discovered:
+		var preview := TextureRect.new()
+		preview.set_anchors_preset(Control.PRESET_FULL_RECT)
+		preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview_wrap.add_child(preview)
+		preview.ready.connect(_setup_map_codex_event_preview.bind(preview, str(config.get("asset_path", ""))))
+	else:
+		var lock := Label.new()
+		lock.text = "锁"
+		lock.set_anchors_preset(Control.PRESET_FULL_RECT)
+		lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lock.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lock.add_theme_font_size_override("font_size", 20 if compact else 26)
+		lock.add_theme_color_override("font_color", Color(0.50, 0.44, 0.34, 0.64))
+		preview_wrap.add_child(lock)
+	var text_box := VBoxContainer.new()
+	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	text_box.add_theme_constant_override("separation", 1)
+	row.add_child(text_box)
+	var name := Label.new()
+	name.text = str(config.get("short_name", event_id)) if discovered else "未发现的地方风味"
+	name.add_theme_font_size_override("font_size", 12 if compact else 15)
+	name.add_theme_color_override("font_color", Color(0.25, 0.15, 0.06, 1.0) if discovered else Color(0.52, 0.46, 0.36, 0.78))
+	text_box.add_child(name)
+	var line := Label.new()
+	if discovered:
+		line.text = "偏爱%s料理 · 最高%d星" % [_crop_display_name(str(config.get("preferred_crop", ""))), int(record.get("best_stars", 0))]
+	else:
+		line.text = "继续探索村庄周边"
+	line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	line.add_theme_font_size_override("font_size", 10 if compact else 12)
+	line.add_theme_color_override("font_color", Color(0.43, 0.29, 0.12, 0.94))
+	text_box.add_child(line)
+	var state := Label.new()
+	state.text = _local_flavor_research_state(event_id) if discovered else "线索未发现"
+	state.add_theme_font_size_override("font_size", 9 if compact else 11)
+	state.add_theme_color_override("font_color", Color(0.68, 0.38, 0.08, 0.94) if discovered else Color(0.52, 0.47, 0.40, 0.72))
+	text_box.add_child(state)
+	return card
+
+func _setup_map_codex_event_preview(target: TextureRect, asset_path: String) -> void:
+	if target == null or asset_path == "":
+		return
+	var packed := load(asset_path)
+	if not packed is PackedScene:
+		return
+	var sub_viewport := SubViewport.new()
+	sub_viewport.size = Vector2i(220, 130)
+	sub_viewport.transparent_bg = true
+	sub_viewport.world_3d = World3D.new()
+	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	target.add_child(sub_viewport)
+	target.texture = sub_viewport.get_texture()
+	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 3.0
+	camera.position = Vector3(4.2, 4.0, 5.5)
+	camera.current = true
+	sub_viewport.add_child(camera)
+	camera.look_at(Vector3(0.0, 0.45, 0.0), Vector3.UP)
+	var light := DirectionalLight3D.new()
+	light.light_energy = 2.4
+	light.rotation_degrees = Vector3(-48.0, -32.0, 0.0)
+	sub_viewport.add_child(light)
+	var model := (packed as PackedScene).instantiate() as Node3D
+	if model == null:
+		return
+	sub_viewport.add_child(model)
+	_fit_model_to_max_dimension(model, 2.8)
+	_center_model_on_origin(model)
+	_ground_model(model)
+	model.rotation_degrees = Vector3(0.0, -28.0, 0.0)
+
+func _on_map_flavor_card_pressed(event_id: String, detail_label: Label) -> void:
+	if detail_label == null or not is_instance_valid(detail_label):
+		return
+	_map_codex_selected_id = "flavor:%s" % event_id
+	_refresh_map_codex_card_selection()
+	var config := LocalEventCatalog.get_event(event_id)
+	var record := _local_event_atlas.get(event_id, {}) as Dictionary
+	if record.is_empty():
+		detail_label.text = "这张明信片仍被封存。继续探索村庄区域，发现新的地方聚会。"
+		return
+	var recipe_id := _local_event_special_recipe(event_id)
+	var recipe_name := _recipe_name(recipe_id) if _is_special_recipe_researched(recipe_id) else "未知特色料理"
+	var reward_text := "%s种子" % _crop_display_name(str(config.get("reward_crop", ""))) if bool(record.get("reward_revealed", false)) else "神秘特殊奖励"
+	var perk_text := "；永久特性「%s」：%s" % [str(config.get("perk_name", "")), str(config.get("perk_description", ""))] if bool(record.get("reward_revealed", false)) else ""
+	detail_label.text = "%s：偏爱%s料理，最高%d星；特色料理「%s」%s。奖励：%s%s" % [str(config.get("name", event_id)), _crop_display_name(str(config.get("preferred_crop", ""))), int(record.get("best_stars", 0)), recipe_name, _local_flavor_research_state(event_id), reward_text, perk_text]
+
 func _create_map_codex_reward_line(kind: String, rewards: Array, count: int, total: int) -> Control:
 	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(0.0, 104.0)
+	var compact := _map_codex_is_compact()
+	wrap.name = "CodexRewardTrack"
+	wrap.custom_minimum_size = Vector2(0.0, 78.0 if compact else 92.0)
 	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wrap.draw.connect(_draw_map_codex_reward_line.bind(wrap, count, total))
 
@@ -12162,8 +12909,8 @@ func _create_map_codex_reward_line(kind: String, rewards: Array, count: int, tot
 	progress_text.anchor_top = 0.0
 	progress_text.anchor_right = 1.0
 	progress_text.anchor_bottom = 0.0
-	progress_text.offset_bottom = 20.0
-	progress_text.add_theme_font_size_override("font_size", 14)
+	progress_text.offset_bottom = 18.0
+	progress_text.add_theme_font_size_override("font_size", 11 if compact else 13)
 	progress_text.add_theme_color_override("font_color", Color(0.30, 0.20, 0.08))
 	wrap.add_child(progress_text)
 
@@ -12174,7 +12921,7 @@ func _create_map_codex_reward_line(kind: String, rewards: Array, count: int, tot
 		var state := _codex_reward_state(kind, threshold, count)
 
 		var node := Button.new()
-		node.text = "✓" if state == "claimed" else ("🎁" if state == "claimable" else "锁")
+		node.text = "✓" if state == "claimed" else ("礼" if state == "claimable" else "锁")
 		node.disabled = state != "claimable"
 		node.focus_mode = Control.FOCUS_NONE
 		node.anchor_left = ratio
@@ -12182,13 +12929,14 @@ func _create_map_codex_reward_line(kind: String, rewards: Array, count: int, tot
 		node.anchor_top = 0.0
 		node.anchor_bottom = 0.0
 		node.offset_left = track_offset - 14.0
-		node.offset_top = 28.0
+		node.offset_top = 25.0
 		node.offset_right = track_offset + 14.0
-		node.offset_bottom = 56.0
-		node.add_theme_font_size_override("font_size", 13)
-		node.add_theme_color_override("font_color", Color(0.94, 0.34, 0.12) if state == "claimable" else Color(0.55, 0.49, 0.39, 0.92))
-		node.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.58, 0.95) if state == "claimable" else Color(0.76, 0.70, 0.58, 0.54), Color(0.95, 0.72, 0.30, 0.7), 16.0, 1))
-		node.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.95, 0.68, 1.0), Color(1.0, 0.78, 0.32, 0.95), 16.0, 1))
+		node.offset_bottom = 53.0
+		node.add_theme_font_size_override("font_size", 11 if compact else 13)
+		node.add_theme_color_override("font_color", Color(1.0, 0.91, 0.68, 1.0) if state == "claimable" else Color(0.89, 0.81, 0.65, 0.94))
+		var seal_fill := Color(0.77, 0.13, 0.07, 0.98) if state == "claimable" else (Color(0.34, 0.52, 0.22, 0.92) if state == "claimed" else Color(0.42, 0.35, 0.27, 0.78))
+		node.add_theme_stylebox_override("normal", _make_round_style(seal_fill, Color(0.93, 0.67, 0.25, 0.92), 16.0, 2))
+		node.add_theme_stylebox_override("hover", _make_round_style(seal_fill.lightened(0.12), Color(1.0, 0.79, 0.34, 1.0), 16.0, 2))
 		node.pressed.connect(_on_map_codex_reward_pressed.bind(kind, threshold))
 		wrap.add_child(node)
 
@@ -12202,10 +12950,10 @@ func _create_map_codex_reward_line(kind: String, rewards: Array, count: int, tot
 		label.anchor_top = 0.0
 		label.anchor_bottom = 0.0
 		label.offset_left = track_offset - 46.0
-		label.offset_top = 64.0
+		label.offset_top = 57.0
 		label.offset_right = track_offset + 46.0
-		label.offset_bottom = 100.0
-		label.add_theme_font_size_override("font_size", 10)
+		label.offset_bottom = 89.0
+		label.add_theme_font_size_override("font_size", 8 if compact else 9)
 		label.add_theme_color_override("font_color", Color(0.32, 0.22, 0.10, 0.9) if state != "locked" else Color(0.48, 0.43, 0.36, 0.72))
 		wrap.add_child(label)
 	return wrap
@@ -12214,13 +12962,13 @@ func _draw_map_codex_reward_line(control: Control, count: int, total: int) -> vo
 	if control == null:
 		return
 	var width := maxf(control.size.x, 1.0)
-	var y := 44.0
+	var y := 39.0
 	var left := 18.0
 	var right := maxf(width - 18.0, left + 1.0)
 	var bar_width := right - left
 	var fill_ratio := clampf(float(count) / float(maxi(total, 1)), 0.0, 1.0)
-	control.draw_rect(Rect2(Vector2(left, y - 5.0), Vector2(bar_width, 10.0)), Color(0.62, 0.55, 0.41, 0.35), true, 5.0)
-	control.draw_rect(Rect2(Vector2(left, y - 5.0), Vector2(bar_width * fill_ratio, 10.0)), Color(0.98, 0.76, 0.32, 0.74), true, 5.0)
+	control.draw_line(Vector2(left, y), Vector2(right, y), Color(0.45, 0.28, 0.12, 0.64), 7.0, true)
+	control.draw_line(Vector2(left, y), Vector2(left + bar_width * fill_ratio, y), Color(0.90, 0.55, 0.16, 0.92), 7.0, true)
 
 func _codex_reward_state(kind: String, threshold: int, count: int) -> String:
 	if bool(_codex_claimed_rewards.get("%s:%d" % [kind, threshold], false)):
@@ -12375,17 +13123,166 @@ func _record_codex_crop(crop_type: String) -> void:
 	_update_map_codex_panel()
 	_sync_progression_world_state()
 
+func _make_map_texture_style(texture_path: String, tint: Color = Color.WHITE, horizontal_margin: float = 0.0, vertical_margin: float = 0.0) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = _load_ui_texture(texture_path)
+	style.texture_margin_left = horizontal_margin
+	style.texture_margin_right = horizontal_margin
+	style.texture_margin_top = vertical_margin
+	style.texture_margin_bottom = vertical_margin
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 5.0
+	style.content_margin_bottom = 5.0
+	style.modulate_color = tint
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	return style
+
+func _make_map_cream_style(fill: Color, radius: float, border_width: int = 2) -> StyleBoxFlat:
+	var style := _make_round_style(fill, Color(0.608, 0.502, 0.357, 0.96), radius, border_width)
+	style.content_margin_left = 8.0
+	style.content_margin_right = 8.0
+	style.content_margin_top = 4.0
+	style.content_margin_bottom = 4.0
+	style.shadow_color = Color(0.23, 0.18, 0.13, 0.18)
+	style.shadow_size = 3
+	style.shadow_offset = Vector2(0.0, 2.0)
+	return style
+
+func _apply_map_cream_button_style(button: Button, font_size: int = 16, radius: float = 20.0) -> void:
+	if button == null:
+		return
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", font_size)
+	button.add_theme_color_override("font_color", Color(0.357, 0.286, 0.196, 1.0))
+	button.add_theme_color_override("font_hover_color", Color(0.28, 0.22, 0.15, 1.0))
+	button.add_theme_color_override("font_pressed_color", Color(0.40, 0.33, 0.24, 1.0))
+	button.add_theme_color_override("icon_normal_color", Color.WHITE)
+	button.add_theme_color_override("icon_hover_color", Color(1.0, 1.0, 0.97, 1.0))
+	button.add_theme_color_override("icon_pressed_color", Color(0.88, 0.84, 0.75, 1.0))
+	button.add_theme_stylebox_override("normal", _make_map_cream_style(Color(0.957, 0.910, 0.788, 0.96), radius, 2))
+	button.add_theme_stylebox_override("hover", _make_map_cream_style(Color(1.0, 0.961, 0.863, 0.99), radius, 2))
+	button.add_theme_stylebox_override("pressed", _make_map_cream_style(Color(0.871, 0.816, 0.678, 0.98), radius, 2))
+
+func _map_shell_scale() -> float:
+	var viewport_size := get_viewport().get_visible_rect().size
+	return clampf(minf(viewport_size.x / 1600.0, viewport_size.y / 960.0), 0.82, 1.0)
+
+func _map_texture_display_rect() -> Rect2:
+	if _map_popup == null:
+		return Rect2()
+	var popup_size := _map_popup.size
+	var fallback := Rect2(_map_popup.position, popup_size)
+	if _map_image == null or _map_image.texture == null:
+		return fallback
+	var texture_size := _map_image.texture.get_size()
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0 or popup_size.x <= 0.0 or popup_size.y <= 0.0:
+		return fallback
+	var fit_scale := minf(popup_size.x / texture_size.x, popup_size.y / texture_size.y)
+	var display_size := texture_size * fit_scale
+	var display_offset := (popup_size - display_size) * 0.5
+	return Rect2(_map_popup.position + display_offset, display_size)
+
+func _layout_map_shell_controls() -> void:
+	if _map_panel == null:
+		return
+	var panel_size := _map_panel.size
+	if panel_size.x <= 1.0 or panel_size.y <= 1.0:
+		panel_size = get_viewport().get_visible_rect().size
+	var ui_scale := _map_shell_scale()
+	var entry_diameter := 60.0 * ui_scale
+	if _map_codex_panel != null:
+		var map_rect := _map_texture_display_rect()
+		var entry_center := map_rect.position + map_rect.size * MAP_CODEX_ENTRY_POINT
+		_map_codex_panel.position = entry_center - Vector2(entry_diameter, entry_diameter) * 0.5
+		_map_codex_panel.size = Vector2(entry_diameter, entry_diameter + 12.0 * ui_scale)
+	if _map_codex_entry_button != null:
+		_map_codex_entry_button.position = Vector2.ZERO
+		_map_codex_entry_button.size = Vector2(entry_diameter, entry_diameter)
+	if _map_codex_entry_count_label != null:
+		var count_size := Vector2(45.0, 18.0) * ui_scale
+		_map_codex_entry_count_label.position = Vector2((entry_diameter - count_size.x) * 0.5, entry_diameter - 10.0 * ui_scale)
+		_map_codex_entry_count_label.size = count_size
+		_map_codex_entry_count_label.add_theme_font_size_override("font_size", maxi(10, int(round(11.0 * ui_scale))))
+	if _map_codex_entry_red_dot != null:
+		var notice_size := Vector2(18.0, 18.0) * ui_scale
+		_map_codex_entry_red_dot.position = Vector2(entry_diameter - notice_size.x * 0.72, -notice_size.y * 0.20)
+		_map_codex_entry_red_dot.size = notice_size
+	var exit_size := Vector2(108.0, 46.0) * ui_scale
+	if _map_exit_button != null:
+		_map_exit_button.position = Vector2(panel_size.x - exit_size.x - 18.0 * ui_scale, 16.0 * ui_scale)
+		_map_exit_button.size = exit_size
+		_map_exit_button.add_theme_font_size_override("font_size", maxi(14, int(round(17.0 * ui_scale))))
+	var arrow_size := 58.0 * ui_scale
+	var arrow_y := (panel_size.y - arrow_size) * 0.5
+	if _map_page_left_button != null:
+		_map_page_left_button.position = Vector2(12.0 * ui_scale, arrow_y)
+		_map_page_left_button.size = Vector2(arrow_size, arrow_size)
+		_map_page_left_button.add_theme_font_size_override("font_size", maxi(23, int(round(29.0 * ui_scale))))
+	if _map_page_right_button != null:
+		_map_page_right_button.position = Vector2(panel_size.x - arrow_size - 12.0 * ui_scale, arrow_y)
+		_map_page_right_button.size = Vector2(arrow_size, arrow_size)
+		_map_page_right_button.add_theme_font_size_override("font_size", maxi(23, int(round(29.0 * ui_scale))))
+	if _map_page_dots != null:
+		var dots_size := Vector2(104.0, 18.0) * ui_scale
+		_map_page_dots.position = Vector2((panel_size.x - dots_size.x) * 0.5, panel_size.y - 36.0 * ui_scale)
+		_map_page_dots.size = dots_size
+		for child in _map_page_dots.get_children():
+			if child is Control:
+				(child as Control).custom_minimum_size = Vector2(15.0, 15.0) * ui_scale
+	if _map_page_locked_label != null:
+		var toast_size := Vector2(190.0, 36.0) * ui_scale
+		_map_page_locked_label.size = toast_size
+		_map_page_locked_label.position = Vector2((panel_size.x - toast_size.x) * 0.5, panel_size.y - 82.0 * ui_scale)
+		_map_page_locked_label.add_theme_font_size_override("font_size", maxi(13, int(round(15.0 * ui_scale))))
+
+func _apply_map_plaque_button_style(button: Button, font_size: int = 16) -> void:
+	if button == null:
+		return
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", font_size)
+	button.add_theme_color_override("font_color", Color(0.28, 0.15, 0.045, 1.0))
+	button.add_theme_color_override("font_hover_color", Color(0.19, 0.10, 0.03, 1.0))
+	button.add_theme_color_override("font_pressed_color", Color(0.35, 0.20, 0.06, 1.0))
+	button.add_theme_color_override("font_shadow_color", Color(1.0, 0.86, 0.50, 0.34))
+	button.add_theme_constant_override("shadow_offset_y", 1)
+	button.add_theme_stylebox_override("normal", _make_map_texture_style(MAP_WOOD_PLAQUE_PATH, Color.WHITE))
+	button.add_theme_stylebox_override("hover", _make_map_texture_style(MAP_WOOD_PLAQUE_PATH, Color(1.08, 1.04, 0.91, 1.0)))
+	button.add_theme_stylebox_override("pressed", _make_map_texture_style(MAP_WOOD_PLAQUE_PATH, Color(0.82, 0.76, 0.66, 1.0)))
+
 func _create_map_page_button(button_name: String, label_text: String) -> Button:
 	var button := Button.new()
 	button.name = button_name
 	button.text = label_text
-	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_size_override("font_size", 34)
-	button.add_theme_color_override("font_color", Color(0.32, 0.23, 0.12))
-	button.add_theme_stylebox_override("normal", _make_round_style(Color(0.92, 0.84, 0.62, 0.78), Color(1.0, 0.95, 0.74, 0.92), 22.0, 2))
-	button.add_theme_stylebox_override("hover", _make_round_style(Color(0.98, 0.88, 0.63, 0.94), Color(1.0, 0.98, 0.82, 1.0), 22.0, 2))
-	button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.78, 0.64, 0.43, 0.94), Color(0.98, 0.90, 0.68, 1.0), 22.0, 2))
+	_apply_map_cream_button_style(button, 29, 30.0)
+	button.tooltip_text = "相邻区域尚未开放"
+	_add_map_button_lock_badge(button)
 	return button
+
+func _add_map_button_lock_badge(button: Button) -> void:
+	var badge := PanelContainer.new()
+	badge.name = "LockBadge"
+	badge.z_index = 2
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.anchor_left = 1.0
+	badge.anchor_top = 1.0
+	badge.anchor_right = 1.0
+	badge.anchor_bottom = 1.0
+	badge.offset_left = -19.0
+	badge.offset_top = -19.0
+	badge.offset_right = 1.0
+	badge.offset_bottom = 1.0
+	badge.add_theme_stylebox_override("panel", _make_round_style(Color(0.871, 0.816, 0.678, 1.0), Color(0.608, 0.502, 0.357, 1.0), 10.0, 1))
+	var lock_label := Label.new()
+	lock_label.text = "锁"
+	lock_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lock_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lock_label.add_theme_font_size_override("font_size", 8)
+	lock_label.add_theme_color_override("font_color", Color(0.357, 0.286, 0.196, 1.0))
+	badge.add_child(lock_label)
+	button.add_child(badge)
 
 func _on_map_page_left_pressed() -> void:
 	_show_map_page_locked(-1)
@@ -12394,11 +13291,19 @@ func _on_map_page_right_pressed() -> void:
 	_show_map_page_locked(1)
 
 func _show_map_page_locked(side: int) -> void:
+	if _is_map_codex_open():
+		return
 	_map_page_locked_side = side
-	_map_page_locked_time = 1.45
+	_map_page_locked_time = 1.2
 	if _map_page_locked_label != null:
 		_map_page_locked_label.modulate.a = 0.0
 		_map_page_locked_label.move_to_front()
+	var button := _map_page_left_button if side < 0 else _map_page_right_button
+	if button != null:
+		button.pivot_offset = button.size * 0.5
+		var tween := create_tween()
+		tween.tween_property(button, "scale", Vector2(0.90, 0.96), 0.07)
+		tween.tween_property(button, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_position_map_camper()
 
 func _reset_inventory_slot_items() -> void:
@@ -13309,6 +14214,8 @@ func _try_execute_selected_interaction_option() -> bool:
 			return _start_formal_kitchen_business()
 		"use_kitchen_equipment":
 			return _use_kitchen_equipment_instance(str(option.get("instance_id", _nearest_kitchen_equipment_id())))
+		"store_kitchen_equipment":
+			return _store_kitchen_equipment_instance(str(option.get("instance_id", _nearest_kitchen_equipment_id())))
 		"open_research_table":
 			return _open_research_table_panel()
 		"opening_sign_status":
@@ -13382,6 +14289,9 @@ func _update_interaction_options() -> void:
 		var nearest_type := _kitchen_instance_type(nearest_equipment)
 		_interaction_options.append({"action": "use_kitchen_equipment", "instance_id": nearest_equipment, "text": "使用%s %d号" % [_equipment_name(nearest_type), _kitchen_instance_index(nearest_equipment)]})
 	if not _kitchen_business_active:
+		if nearest_equipment != "":
+			var nearest_type := _kitchen_instance_type(nearest_equipment)
+			_interaction_options.append({"action": "store_kitchen_equipment", "instance_id": nearest_equipment, "text": "收起%s %d号" % [_equipment_name(nearest_type), _kitchen_instance_index(nearest_equipment)]})
 		var nearest_research_table := _nearest_kitchen_equipment_id("research_table")
 		if nearest_research_table != "":
 			_interaction_options.append({"action": "open_research_table", "instance_id": nearest_research_table, "text": "查看料理研究"})
@@ -13482,7 +14392,7 @@ func _is_repeatable_interaction_action(action: String) -> bool:
 	# 设备、仓库和操作台的 F / 点击提示只在首次靠近时教学，避免经营中反复遮挡订单。
 	if action == "use_kitchen_equipment" and (_held_crop_item != "" or _kitchen_held_item != ""):
 		return true
-	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "open_research_table", "business_prep", "drive_camper", "camper", "rebas_shop", "local_event", "mainline_site", "wardrobe_tailor", "wardrobe_trunk"]
+	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "store_kitchen_equipment", "open_research_table", "business_prep", "drive_camper", "camper", "rebas_shop", "local_event", "mainline_site", "wardrobe_tailor", "wardrobe_trunk"]
 
 func _has_shown_interaction_prompt(text: String) -> bool:
 	return _shown_interaction_prompt_texts.has(text.strip_edges())
@@ -13542,7 +14452,7 @@ func _position_interaction_prompt_for_option(option: Dictionary) -> void:
 			if kitchen_item != null and is_instance_valid(kitchen_item):
 				_position_interaction_prompt_near_world(kitchen_item.global_position + Vector3(0.0, 1.1, 0.0))
 				return
-		"use_kitchen_equipment", "open_research_table":
+		"use_kitchen_equipment", "store_kitchen_equipment", "open_research_table":
 			var equipment_id := str(option.get("instance_id", _nearest_kitchen_equipment_id()))
 			var equipment := _kitchen_root_for_instance(equipment_id)
 			if equipment != null and is_instance_valid(equipment):
@@ -14677,16 +15587,33 @@ func _start_kitchen_equipment_adjustment(equipment_id: String) -> void:
 	if instances.size() == 1:
 		_begin_kitchen_equipment_adjustment(str(instances[0]))
 		return
-	_show_kitchen_instance_selector(equipment_id, instances)
+	_show_kitchen_instance_selector(equipment_id, instances, "adjust")
 
-func _show_kitchen_instance_selector(equipment_id: String, instances: Array[String]) -> void:
+func _start_kitchen_equipment_storage(equipment_id: String) -> void:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能收起设备")
+		return
+	var instances := _kitchen_instance_ids_for_type(equipment_id)
+	if instances.is_empty():
+		_show_side_toast("还没有可收起的%s" % _equipment_name(equipment_id))
+		return
+	if instances.size() == 1:
+		_store_kitchen_equipment_instance(str(instances[0]))
+		return
+	_show_kitchen_instance_selector(equipment_id, instances, "store")
+
+func _show_kitchen_instance_selector(equipment_id: String, instances: Array[String], action: String = "adjust") -> void:
 	if _kitchen_instance_selector == null or not is_instance_valid(_kitchen_instance_selector):
 		return
 	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
 		return
 	_kitchen_instance_selector_equipment = equipment_id
+	_kitchen_instance_selector_action = action
 	if _kitchen_instance_selector_title != null and is_instance_valid(_kitchen_instance_selector_title):
-		_kitchen_instance_selector_title.text = "选择要调整的%s" % _equipment_name(equipment_id)
+		_kitchen_instance_selector_title.text = ("选择要收起的%s" if action == "store" else "选择要调整的%s") % _equipment_name(equipment_id)
+	if _kitchen_instance_selector_hint != null and is_instance_valid(_kitchen_instance_selector_hint):
+		_kitchen_instance_selector_hint.text = "请选择编号，只会收起这一台" if action == "store" else "请选择编号，只会移动这一台"
 	for child in _kitchen_instance_selector_buttons.get_children():
 		_kitchen_instance_selector_buttons.remove_child(child)
 		child.queue_free()
@@ -14697,13 +15624,17 @@ func _show_kitchen_instance_selector(equipment_id: String, instances: Array[Stri
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_size_override("font_size", 14)
 		_apply_kitchen_parchment_button_style(button)
-		button.pressed.connect(_begin_kitchen_equipment_adjustment.bind(instance_id))
+		if action == "store":
+			button.pressed.connect(_store_kitchen_equipment_instance.bind(instance_id))
+		else:
+			button.pressed.connect(_begin_kitchen_equipment_adjustment.bind(instance_id))
 		_kitchen_instance_selector_buttons.add_child(button)
 	_kitchen_instance_selector.visible = true
 	_kitchen_instance_selector.move_to_front()
 
 func _hide_kitchen_instance_selector() -> void:
 	_kitchen_instance_selector_equipment = ""
+	_kitchen_instance_selector_action = ""
 	if _kitchen_instance_selector != null and is_instance_valid(_kitchen_instance_selector):
 		_kitchen_instance_selector.visible = false
 	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
@@ -14737,6 +15668,36 @@ func _begin_kitchen_equipment_adjustment(instance_id: String) -> void:
 	_mouse_released_by_escape = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_update_kitchen_equipment_placement_preview()
+
+func _store_kitchen_equipment_instance(instance_id: String) -> bool:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能收起设备")
+		return true
+	if instance_id == "":
+		return false
+	var root := _kitchen_root_for_instance(instance_id)
+	if root == null or not is_instance_valid(root):
+		_show_side_toast("这台设备已经不在当前布局中")
+		_rebuild_kitchen_equipment_grid()
+		return true
+	var equipment_id := _kitchen_instance_type(instance_id)
+	var equipment_name := _equipment_name(equipment_id)
+	var equipment_index := _kitchen_instance_index(instance_id)
+	AudioManager.stop_kitchen_loop(instance_id)
+	_kitchen_equipment_progress.erase(instance_id)
+	_kitchen_cook_states.erase(instance_id)
+	_remove_kitchen_equipment_instance_blocker(instance_id)
+	_kitchen_equipment_bubbles.erase(instance_id)
+	_kitchen_equipment_roots.erase(instance_id)
+	if _kitchen_prompt_overlay != null and is_instance_valid(_kitchen_prompt_overlay):
+		_kitchen_prompt_overlay.clear_all()
+	root.queue_free()
+	_refresh_kitchen_equipment_level_label(equipment_id)
+	_rebuild_kitchen_equipment_grid()
+	_update_post_tutorial_objective()
+	_show_side_toast("%s %d号 已收进房车" % [equipment_name, equipment_index])
+	return true
 
 func _handle_kitchen_placement_input(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
@@ -16849,6 +17810,8 @@ func _record_completed_recipe(recipe: String) -> void:
 	_update_map_codex_panel()
 
 func _begin_flower_gift_for_business() -> void:
+	if not _can_use_business_flower_gift():
+		return
 	var selected_before := FlowerGardenManager.selected_gift
 	var active_gift := FlowerGardenManager.begin_business_gift()
 	if active_gift == "":
@@ -17006,7 +17969,8 @@ func _finish_kitchen_business() -> void:
 		if traveler_unlocked_now:
 			_show_notification("旅人诺亚带来南瓜种子 x2；标记树上还藏着甜椒种子")
 	if level_id == 5 and level_passed:
-		flower_garden_unlocked_now = FlowerGardenManager.unlock()
+		flower_garden_unlocked_now = previous_stars < 1
+		FlowerGardenManager.unlock()
 		if flower_garden_unlocked_now:
 			_show_notification("地图发生了些许变化：晨露花圃已经开放，去找找看吧。获得金盏花种包 x3、花材 x4")
 	if level_id >= 2 and level_passed and _business_active_first_commission_level == level_id:
@@ -17995,7 +18959,7 @@ func _tutorial_planted_carrot_count() -> int:
 			count += 1
 	return mini(count, TUTORIAL_CARROT_COUNT)
 
-func _tutorial_watered_carrot_count() -> int:
+func _current_watered_tutorial_carrot_count() -> int:
 	var count := 0
 	for raw_key in _crop_nodes.keys():
 		var key := str(raw_key)
@@ -18008,6 +18972,38 @@ func _tutorial_watered_carrot_count() -> int:
 		if _is_crop_watered(center):
 			count += 1
 	return mini(count, TUTORIAL_CARROT_COUNT)
+
+func _tutorial_watered_carrot_progress() -> int:
+	if _watering_guide_completed:
+		return TUTORIAL_CARROT_COUNT
+	# 兼容旧运行状态：成熟作物必须浇水后才能收获，因此“已收获 + 当前已浇水”
+	# 可以恢复更新前丢失的累计进度。
+	var recovered := _tutorial_harvested_carrot_count + _current_watered_tutorial_carrot_count()
+	return mini(maxi(_tutorial_watered_carrot_total, recovered), TUTORIAL_CARROT_COUNT)
+
+func _sync_tutorial_watering_completion(show_feedback: bool = false) -> void:
+	if not _chapter_one_active:
+		return
+	var progress := _tutorial_watered_carrot_progress()
+	_tutorial_watered_carrot_total = maxi(_tutorial_watered_carrot_total, progress)
+	if progress < TUTORIAL_CARROT_COUNT:
+		return
+	var was_completed := _watering_guide_completed
+	_watering_guide_completed = true
+	_tutorial_watered_carrot_total = TUTORIAL_CARROT_COUNT
+	if not _scythe_collected and not _scythe_task_prompt_active:
+		_scythe_task_prompt_active = true
+		if show_feedback and not was_completed:
+			_show_good_job_feedback()
+
+func _record_tutorial_carrot_watered(soil_center: Vector2) -> void:
+	if not _chapter_one_active or _watering_guide_completed:
+		return
+	var crop_type := str(_crop_types.get(_crop_key(soil_center), ""))
+	if crop_type != CROP_CARROT:
+		return
+	_tutorial_watered_carrot_total = mini(_tutorial_watered_carrot_total + 1, TUTORIAL_CARROT_COUNT)
+	_sync_tutorial_watering_completion(true)
 
 func _tutorial_carrot_cycle_count() -> int:
 	return mini(_tutorial_harvested_carrot_count + _tutorial_planted_carrot_count(), TUTORIAL_CARROT_COUNT)
@@ -18180,6 +19176,8 @@ func _try_harvest_crop() -> bool:
 	_crop_qualities.erase(crop_key)
 	_remove_center_from_array(_planted_seed_centers, center)
 	_remove_center_from_array(_watered_soil_centers, center)
+	if crop_type == CROP_CARROT:
+		_sync_tutorial_watering_completion()
 	_dry_soil_patch(center)
 	_start_empty_soil_decay(center)
 	_create_harvest_pop(center, crop_type, quality)
@@ -19092,11 +20090,9 @@ func _try_start_watering_fill() -> bool:
 	if not _is_player_near_pond_edge():
 		return false
 	if _water_amount >= 0.995:
-		return true
 		_show_notification("水壶已经装满了")
 		return true
 	_water_filling = true
-	return true
 	_show_notification("正在补水...")
 	return true
 
@@ -19118,13 +20114,10 @@ func _update_watering_can_fill(delta: float) -> void:
 		if _water_fill_effect_cooldown <= 0.0:
 			_create_water_fill_effect()
 			_water_fill_effect_cooldown = 0.18
-		return
-		_show_notification("正在补水...")
 	if _water_amount >= 0.995:
 		_water_amount = 1.0
 		_stop_watering_fill()
 		_update_inventory_bar()
-		return
 		_show_notification("水壶装满了，可以去浇水了")
 
 func _is_player_near_pond_edge() -> bool:
@@ -19135,22 +20128,6 @@ func _is_player_near_pond_edge() -> bool:
 
 func _use_watering_can() -> bool:
 	if _water_amount + 0.001 < WATER_PER_USE:
-		return true
-	var preview_yaw := _get_player_visual_yaw()
-	var preview_forward := Vector3(sin(preview_yaw), 0.0, cos(preview_yaw))
-	var preview_target := _player.global_position + preview_forward * 2.0
-	var preview_soil_center := _find_tilled_soil_center_at(preview_target)
-	if preview_soil_center.x == INF:
-		return true
-	var preview_planted := false
-	for preview_center in _planted_seed_centers:
-		if preview_center.distance_squared_to(preview_soil_center) <= 0.25:
-			preview_planted = true
-			break
-	if not preview_planted:
-		return true
-	if _water_amount + 0.001 < WATER_PER_USE:
-		return true
 		_show_notification("水壶没水了，去湖边长按补水")
 		return true
 	var yaw := _get_player_visual_yaw()
@@ -19173,15 +20150,12 @@ func _use_watering_can() -> bool:
 			return true
 	_water_amount = maxf(_water_amount - WATER_PER_USE, 0.0)
 	_watered_soil_centers.append(soil_center)
-	_watering_guide_completed = _tutorial_watered_carrot_count() >= TUTORIAL_CARROT_COUNT
+	_record_tutorial_carrot_watered(soil_center)
 	_darkened_watered_soil_patch(soil_center)
 	_update_inventory_bar()
 	AudioManager.play_sfx("farm_water_pour", 0.0, randf_range(0.96, 1.04))
 	_play_watering_can_use(yaw, soil_center)
 	_create_watering_effect(soil_center)
-	if _watering_guide_completed and not _scythe_collected and not _scythe_task_prompt_active:
-		_scythe_task_prompt_active = true
-		_show_good_job_feedback()
 	return true
 
 func _create_water_fill_effect() -> void:
@@ -22181,6 +23155,7 @@ func _create_chapter_one_task_card(task: Dictionary) -> PanelContainer:
 
 func _update_post_tutorial_objective() -> void:
 	_sync_food_chest_tutorial_state()
+	_sync_tutorial_watering_completion()
 	if _post_tutorial_objective == null or _post_tutorial_objective_label == null:
 		return
 	if _is_chapter_one_task_system_active():
@@ -22229,7 +23204,7 @@ func _update_post_tutorial_objective() -> void:
 		text = "目标：回去和%s学习浇水" % MOM_NAME
 		hide_when_mom_interactable = true
 	elif _watering_task_active and not _watering_guide_completed:
-		text = "目标：给 5 颗胡萝卜浇水（%d/%d）" % [_tutorial_watered_carrot_count(), TUTORIAL_CARROT_COUNT]
+		text = "目标：给 5 颗胡萝卜浇水（%d/%d）" % [_tutorial_watered_carrot_progress(), TUTORIAL_CARROT_COUNT]
 	elif _scythe_task_prompt_active and not _scythe_collected:
 		text = "目标：回去和%s领取除草工具" % MOM_NAME
 		hide_when_mom_interactable = true
@@ -22777,6 +23752,7 @@ func _grant_food_chest() -> void:
 	_set_inventory_slot_item(target_slot, INVENTORY_ITEM_FOOD_CHEST)
 	_selected_inventory_slot = target_slot
 	_update_inventory_bar()
+	AudioManager.play_sfx("food_chest_pickup", 1.0, randf_range(0.94, 1.03))
 	_show_pickup_toast("食材箱子", 1)
 
 func _try_place_food_chest_from_inventory() -> bool:
@@ -22791,6 +23767,7 @@ func _try_place_food_chest_from_inventory() -> bool:
 		return true
 	_place_food_chest(place_position)
 	_consume_food_chest_from_inventory()
+	AudioManager.play_sfx("food_chest_place", 1.0, randf_range(0.94, 1.02))
 	return true
 
 func _consume_food_chest_from_inventory() -> void:
@@ -22955,6 +23932,7 @@ func _try_pickup_placed_food_chest() -> bool:
 		_set_inventory_slot_item(target_slot, INVENTORY_ITEM_FOOD_CHEST)
 		_selected_inventory_slot = target_slot
 		_update_inventory_bar()
+		AudioManager.play_sfx("food_chest_pickup", 1.0, randf_range(0.94, 1.03))
 		_show_pickup_toast("食材箱子", 1)
 		return true
 	return false
@@ -23046,7 +24024,9 @@ func _open_map_popup() -> void:
 	_position_map_camper()
 	if _map_panel != null:
 		_map_panel.visible = true
+		_layout_map_shell_controls()
 		call_deferred("_position_map_camper")
+	_layout_map_codex_popup(true)
 	_update_inventory_bar()
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = false
@@ -23065,6 +24045,14 @@ func _close_map_popup() -> void:
 
 func _update_map_popup(delta: float) -> void:
 	_position_map_camper()
+	_layout_map_shell_controls()
+	_layout_map_codex_popup()
+	if _is_map_codex_open():
+		_map_dragging = false
+		_map_drag_vector = Vector2.ZERO
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = false
+		return
 	var move_dir := _get_map_move_direction()
 	if move_dir.length_squared() > 0.0:
 		move_dir = move_dir.normalized()
@@ -23075,7 +24063,7 @@ func _update_map_popup(delta: float) -> void:
 	var near_village := _is_map_camper_near_village()
 	var locked_site_index := -1 if near_village else _get_near_locked_site_index()
 	var near_flower_garden := locked_site_index == 0
-	var flower_garden_available := near_flower_garden and FlowerGardenManager.unlocked
+	var flower_garden_available := near_flower_garden and _is_flower_garden_available()
 	# 花圃在正式解锁前属于未知区域，不提前显示名称、入口或锁定提示。
 	var near_locked_site := locked_site_index >= 0 and (not near_flower_garden or flower_garden_available)
 	if near_village:
@@ -23103,13 +24091,13 @@ func _update_map_popup(delta: float) -> void:
 		_map_page_locked_time = maxf(_map_page_locked_time - delta, 0.0)
 	if _map_page_locked_label != null:
 		var page_locked_target_alpha := 1.0 if _map_page_locked_time > 0.0 else 0.0
-		_map_page_locked_label.modulate.a = move_toward(_map_page_locked_label.modulate.a, page_locked_target_alpha, delta * 5.2)
+		_map_page_locked_label.modulate.a = move_toward(_map_page_locked_label.modulate.a, page_locked_target_alpha, delta * 6.0)
 	var should_show_map_prompt := near_locked_site or not _map_village_guide_completed
 	if _interaction_prompt_label != null and should_show_map_prompt:
 		if near_village:
 			_interaction_prompt_label.text = "F / 点击  返回当前位置" if _chapter_one_active else "F / 点击  进入村庄"
 		elif near_locked_site:
-			_interaction_prompt_label.text = "F / 点击  进入晨露花圃" if flower_garden_available else "此地暂未解锁"
+			_interaction_prompt_label.text = "F / 点击  前往晨露花圃停车区" if flower_garden_available else "此地暂未解锁"
 		else:
 			_interaction_prompt_label.text = "WASD / 滑动  开往村庄"
 		_fit_interaction_prompt_to_lines([_interaction_prompt_label.text])
@@ -23159,12 +24147,9 @@ func _position_map_camper() -> void:
 		var locked_idle_float := sin(_map_locked_label_time * 2.2) * 2.0
 		_map_locked_label.position = popup_size * MAP_LOCKED_LABEL_POINTS[_map_locked_site_index] + Vector2(-130.0, -46.0 + locked_appear_lift + locked_idle_float)
 	if _map_page_locked_label != null:
-		var page_locked_lift := lerpf(10.0, 0.0, clampf((1.45 - _map_page_locked_time) * 3.0, 0.0, 1.0))
-		var page_locked_y := _map_panel.size.y * 0.5 - 92.0 + page_locked_lift
-		if _map_page_locked_side < 0:
-			_map_page_locked_label.position = Vector2(42.0, page_locked_y)
-		elif _map_page_locked_side > 0:
-			_map_page_locked_label.position = Vector2(maxf(_map_panel.size.x - 262.0, 42.0), page_locked_y)
+		var ui_scale := _map_shell_scale()
+		var page_locked_lift := lerpf(8.0 * ui_scale, 0.0, clampf((1.2 - _map_page_locked_time) * 3.6, 0.0, 1.0))
+		_map_page_locked_label.position = Vector2((_map_panel.size.x - _map_page_locked_label.size.x) * 0.5, _map_panel.size.y - 82.0 * ui_scale + page_locked_lift)
 
 func _is_map_camper_near_village() -> bool:
 	return _map_camper_pos.distance_squared_to(MAP_VILLAGE_POINT) <= MAP_VILLAGE_RADIUS * MAP_VILLAGE_RADIUS
@@ -23177,6 +24162,11 @@ func _get_near_locked_site_index() -> int:
 	return -1
 
 func _handle_map_input(event: InputEvent) -> void:
+	if _is_map_codex_open():
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_hide_map_codex_detail_popup()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_close_map_popup()
 		get_viewport().set_input_as_handled()
@@ -23254,11 +24244,11 @@ func _try_enter_map_destination() -> bool:
 		return false
 	var site_index := _get_near_locked_site_index()
 	if site_index == 0:
-		if not FlowerGardenManager.unlocked:
+		if not _is_flower_garden_available():
 			return false
 		_close_map_popup()
 		if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
-			_flower_garden_controller.call("enter_garden", "camper_map")
+			_flower_garden_controller.call("arrive_at_parking", "camper_map")
 		return true
 	return _try_enter_village()
 
@@ -23342,7 +24332,7 @@ func _force_finish_chapter_one_transition(transition_layer: CanvasLayer) -> void
 	_finish_chapter_one_transition()
 
 func _build_chapter_one_scene() -> void:
-	var legacy_level_five_cleared := _business_level_star_count(5) >= 1
+	var legacy_level_five_stars := _business_level_star_count(5)
 	_chapter_one_active = true
 	_wardrobe_system = null
 	_map_camper_pos = MAP_VILLAGE_POINT
@@ -23521,6 +24511,11 @@ func _build_chapter_one_scene() -> void:
 	_business_prep_reward_box = null
 	_business_opened_detail_card = null
 	_business_flower_gift_button = null
+	_business_flower_gift_icon = null
+	_business_flower_gift_symbol = null
+	_business_flower_gift_title = null
+	_business_flower_gift_status = null
+	_business_flower_gift_lock_badge = null
 	_business_duel_button = null
 	_kitchen_status_panel = null
 	_kitchen_status_label = null
@@ -23612,9 +24607,11 @@ func _build_chapter_one_scene() -> void:
 	_create_camera()
 	_create_dialogue_ui()
 	_setup_wardrobe_system()
+	# Preserve the authoritative garden unlock when an older progressed runtime
+	# transitions into the chapter-one scene, which otherwise resets level stars.
+	if legacy_level_five_stars >= 1:
+		_business_level_stars["5"] = legacy_level_five_stars
 	_create_flower_garden_controller()
-	if legacy_level_five_cleared and not FlowerGardenManager.unlocked:
-		FlowerGardenManager.unlock()
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = false
 
@@ -23627,8 +24624,9 @@ func _create_flower_garden_controller() -> void:
 	_flower_garden_controller.call("setup", self)
 	if not FlowerGardenManager.state_changed.is_connected(_on_flower_garden_state_changed):
 		FlowerGardenManager.state_changed.connect(_on_flower_garden_state_changed)
-	# 兼容已有主线进度：第5关已有至少1星但旧版尚无花圃存档时自动补发开园礼包。
-	if _business_level_star_count(5) >= 1 and not FlowerGardenManager.unlocked:
+	# Mainline progress is authoritative. The independent garden save only owns
+	# garden contents and receives compatibility unlocks after progress is valid.
+	if _is_flower_garden_available() and not FlowerGardenManager.unlocked:
 		FlowerGardenManager.unlock()
 
 func _on_flower_garden_state_changed() -> void:
@@ -24109,6 +25107,13 @@ func _yaw_toward(from_position: Vector3, to_position: Vector3) -> float:
 	return atan2(direction.x, direction.z)
 
 func _add_camper_blocker(camper: Node3D, model: Node3D) -> void:
+	var blocker := _camper_blocker_data(camper, model)
+	if not blocker.is_empty():
+		_solid_blockers.append(blocker)
+
+func _camper_blocker_data(camper: Node3D, model: Node3D) -> Dictionary:
+	if camper == null or model == null or not is_instance_valid(camper) or not is_instance_valid(model):
+		return {}
 	var bounds := _get_model_bounds(model)
 	var center_local := bounds.get_center()
 	var center_world := model.global_transform * center_local
@@ -24116,13 +25121,13 @@ func _add_camper_blocker(camper: Node3D, model: Node3D) -> void:
 		maxf(bounds.size.x * model.scale.x * 0.5 * CAMPER_BLOCKER_SHRINK + CAMPER_BLOCKER_PADDING.x, 0.9),
 		maxf(bounds.size.z * model.scale.z * 0.5 * CAMPER_BLOCKER_SHRINK + CAMPER_BLOCKER_PADDING.y, 1.45)
 	)
-	_solid_blockers.append({
+	return {
 		"shape": "box",
 		"center": center_world,
 		"yaw": camper.rotation.y,
 		"half_extents": half_extents,
 		"camper": true,
-	})
+	}
 
 func _remove_camper_blocker() -> void:
 	for index in range(_solid_blockers.size() - 1, -1, -1):
@@ -24158,13 +25163,14 @@ func _add_circle_blocker(center: Vector3, radius: float) -> void:
 		"radius": radius,
 	})
 
-func _add_box_blocker(center: Vector3, yaw: float, half_extents: Vector2, house_interior_only: bool = false) -> void:
+func _add_box_blocker(center: Vector3, yaw: float, half_extents: Vector2, house_interior_only: bool = false, garden_only: bool = false) -> void:
 	_solid_blockers.append({
 		"shape": "box",
 		"center": center,
 		"yaw": yaw,
 		"half_extents": half_extents,
 		"house_interior_only": house_interior_only,
+		"garden_only": garden_only,
 	})
 
 func _add_model_box_blocker(root: Node3D, model: Node3D, padding: Vector2, shrink: float = 1.0) -> void:
@@ -24266,19 +25272,26 @@ func _is_blocked_by_solid(world_position: Vector3) -> bool:
 	return false
 
 func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
+	return _is_point_inside_blocker_with_clearance(point, blocker, 0.0)
+
+func _is_point_inside_blocker_with_clearance(point: Vector2, blocker: Dictionary, clearance: float) -> bool:
+	var inside_garden := _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden"))
+	if bool(blocker.get("garden_only", false)) != inside_garden and (inside_garden or bool(blocker.get("garden_only", false))):
+		return false
 	if bool(blocker.get("house_interior_only", false)) and not _inside_house:
 		return false
 	var shape: String = blocker["shape"]
 	var center_3d: Vector3 = blocker["center"]
 	var center := Vector2(center_3d.x, center_3d.z)
+	var safe_clearance := maxf(clearance, 0.0)
 	if shape == "box":
 		var yaw: float = blocker["yaw"]
 		var half_extents: Vector2 = blocker["half_extents"]
 		var local := (point - center).rotated(-yaw)
-		return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
+		return absf(local.x) <= half_extents.x + safe_clearance and absf(local.y) <= half_extents.y + safe_clearance
 	elif shape == "circle" or shape == "tree":
 		var radius: float = blocker["radius"]
-		return point.distance_squared_to(center) <= radius * radius
+		return point.distance_squared_to(center) <= (radius + safe_clearance) * (radius + safe_clearance)
 	return false
 
 func _is_point_inside_house_interior_floor(point: Vector2) -> bool:
@@ -24371,13 +25384,56 @@ func _apply_camera() -> void:
 	_camera.look_at(target, Vector3.UP)
 
 func _height_at(x: float, z: float) -> float:
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden")):
+		return float(_flower_garden_controller.call("garden_world_height", x, z))
 	if _inside_house and _is_point_inside_house_interior_floor(Vector2(x, z)):
 		return HOUSE_INTERIOR_FLOOR_Y
-	var rolling := sin(x * 0.026 + z * 0.014) * 1.35
-	var cross_slope := cos(x * 0.018 - z * 0.024 + 1.2) * 0.95
-	var meadow := sin(x * 0.056) * 0.42 + cos(z * 0.049) * 0.38
-	var small := sin((x + z) * 0.105) * 0.16
-	return rolling + cross_slope + meadow + small
+	var point := Vector2(x, z)
+	var height := _macro_height_at(x, z)
+	var road_sample := _world_road_sample(point)
+	if road_sample.x < WORLD_ROAD_GRASS_CLEAR_WIDTH:
+		var road_blend := 1.0 - smoothstep(WORLD_ROAD_WIDTH * 0.48, WORLD_ROAD_GRASS_CLEAR_WIDTH, road_sample.x)
+		height = lerpf(height, road_sample.y, road_blend)
+	for pad in WORLD_FLAT_PADS:
+		var center := Vector2(pad.x, pad.y)
+		var distance := point.distance_to(center)
+		if distance >= pad.z:
+			continue
+		var pad_height := _macro_height_at(center.x, center.y)
+		var pad_blend := 1.0 - smoothstep(pad.z * 0.25, pad.z, distance)
+		height = lerpf(height, pad_height, pad_blend)
+	return height
+
+func _macro_height_at(x: float, z: float) -> float:
+	var rolling := sin(x * 0.018 + z * 0.011) * 2.2
+	var cross_slope := cos(x * 0.013 - z * 0.017 + 1.2) * 1.45
+	var meadow := sin(x * 0.044) * 0.52 + cos(z * 0.039) * 0.48
+	var small := sin((x + z) * 0.084) * 0.18
+	var north_highland := smoothstep(24.0, 185.0, z) * 12.0
+	var west_ridge := smoothstep(34.0, 188.0, -x) * (8.0 + maxf(z, 0.0) * 0.014)
+	var south_valley := smoothstep(42.0, 188.0, -z) * -5.4
+	var eastern_swell := smoothstep(70.0, 190.0, x) * 2.8
+	return rolling + cross_slope + meadow + small + north_highland + west_ridge + south_valley + eastern_swell
+
+func _world_road_sample(point: Vector2) -> Vector2:
+	var best_distance := INF
+	var best_height := _macro_height_at(point.x, point.y)
+	for raw_route in WORLD_ROAD_ROUTES:
+		for index in range(raw_route.size() - 1):
+			var a: Vector2 = raw_route[index]
+			var b: Vector2 = raw_route[index + 1]
+			var segment := b - a
+			var length_squared := segment.length_squared()
+			if length_squared <= 0.0001:
+				continue
+			var t := clampf((point - a).dot(segment) / length_squared, 0.0, 1.0)
+			var nearest := a + segment * t
+			var distance := point.distance_to(nearest)
+			if distance >= best_distance:
+				continue
+			best_distance = distance
+			best_height = lerpf(_macro_height_at(a.x, a.y), _macro_height_at(b.x, b.y), t)
+	return Vector2(best_distance, best_height)
 
 func _normal_at(x: float, z: float) -> Vector3:
 	var sample_distance := 1.0

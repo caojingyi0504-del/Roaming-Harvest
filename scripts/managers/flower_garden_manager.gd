@@ -58,6 +58,7 @@ var active_gift := ""
 var active_quality_remaining := 0
 var active_bonus_coins := 0
 var active_quality_orders := 0
+var _persistence_suspended := false
 
 
 func _ready() -> void:
@@ -378,6 +379,8 @@ func _clear_active_gift() -> void:
 
 
 func _save_state() -> void:
+	if _persistence_suspended:
+		return
 	var snapshot := {
 		"version": SAVE_VERSION,
 		"unlocked": unlocked,
