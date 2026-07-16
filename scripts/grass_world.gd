@@ -888,8 +888,10 @@ var _kitchen_equipment_panel: PanelContainer
 var _kitchen_equipment_grid: GridContainer
 var _kitchen_instance_selector: PanelContainer
 var _kitchen_instance_selector_title: Label
+var _kitchen_instance_selector_hint: Label
 var _kitchen_instance_selector_buttons: GridContainer
 var _kitchen_instance_selector_equipment := ""
+var _kitchen_instance_selector_action := ""
 var _kitchen_upgrade_panel: PanelContainer
 var _kitchen_upgrade_grid: GridContainer
 var _kitchen_upgrade_tab := "equipment"
@@ -7589,13 +7591,13 @@ func _create_kitchen_instance_selector(host: Control) -> void:
 	_kitchen_instance_selector_title.add_theme_color_override("font_color", Color(0.25, 0.15, 0.06, 1.0))
 	box.add_child(_kitchen_instance_selector_title)
 
-	var hint := Label.new()
-	hint.text = "请选择编号，只会移动这一台"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", Color(0.38, 0.27, 0.13, 0.90))
-	box.add_child(hint)
+	_kitchen_instance_selector_hint = Label.new()
+	_kitchen_instance_selector_hint.text = "请选择编号，只会移动这一台"
+	_kitchen_instance_selector_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_kitchen_instance_selector_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_instance_selector_hint.add_theme_font_size_override("font_size", 12)
+	_kitchen_instance_selector_hint.add_theme_color_override("font_color", Color(0.38, 0.27, 0.13, 0.90))
+	box.add_child(_kitchen_instance_selector_hint)
 
 	_kitchen_instance_selector_buttons = GridContainer.new()
 	_kitchen_instance_selector_buttons.columns = 3
@@ -9654,25 +9656,34 @@ func _create_kitchen_equipment_slot(equipment_id: String, equipment_name: String
 	content.add_child(name_label)
 	var actions := HBoxContainer.new()
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 4)
+	actions.add_theme_constant_override("separation", 2)
 	content.add_child(actions)
 	var add_button := Button.new()
 	add_button.text = "新增"
-	add_button.custom_minimum_size = Vector2(40.0, 25.0)
+	add_button.custom_minimum_size = Vector2(28.0, 25.0)
 	add_button.focus_mode = Control.FOCUS_NONE
 	add_button.disabled = not unlocked or placed >= level or _kitchen_business_active
 	add_button.tooltip_text = "达到当前数量等级上限" if placed >= level else "摆放一台新的%s" % equipment_name
-	add_button.add_theme_font_size_override("font_size", 10)
+	add_button.add_theme_font_size_override("font_size", 9)
 	add_button.pressed.connect(_start_kitchen_equipment_placement.bind(equipment_id))
 	actions.add_child(add_button)
 	var move_button := Button.new()
 	move_button.text = "调整"
-	move_button.custom_minimum_size = Vector2(40.0, 25.0)
+	move_button.custom_minimum_size = Vector2(28.0, 25.0)
 	move_button.focus_mode = Control.FOCUS_NONE
 	move_button.disabled = not unlocked or placed <= 0 or _kitchen_business_active
-	move_button.add_theme_font_size_override("font_size", 10)
+	move_button.add_theme_font_size_override("font_size", 9)
 	move_button.pressed.connect(_start_kitchen_equipment_adjustment.bind(equipment_id))
 	actions.add_child(move_button)
+	var store_button := Button.new()
+	store_button.text = "收起"
+	store_button.custom_minimum_size = Vector2(28.0, 25.0)
+	store_button.focus_mode = Control.FOCUS_NONE
+	store_button.disabled = not unlocked or placed <= 0 or _kitchen_business_active
+	store_button.tooltip_text = "收进房车，之后可以重新摆放"
+	store_button.add_theme_font_size_override("font_size", 9)
+	store_button.pressed.connect(_start_kitchen_equipment_storage.bind(equipment_id))
+	actions.add_child(store_button)
 	return slot
 
 func _is_kitchen_equipment_unlocked(equipment_id: String) -> bool:
@@ -13526,6 +13537,8 @@ func _try_execute_selected_interaction_option() -> bool:
 			return _start_formal_kitchen_business()
 		"use_kitchen_equipment":
 			return _use_kitchen_equipment_instance(str(option.get("instance_id", _nearest_kitchen_equipment_id())))
+		"store_kitchen_equipment":
+			return _store_kitchen_equipment_instance(str(option.get("instance_id", _nearest_kitchen_equipment_id())))
 		"open_research_table":
 			return _open_research_table_panel()
 		"opening_sign_status":
@@ -13599,6 +13612,9 @@ func _update_interaction_options() -> void:
 		var nearest_type := _kitchen_instance_type(nearest_equipment)
 		_interaction_options.append({"action": "use_kitchen_equipment", "instance_id": nearest_equipment, "text": "使用%s %d号" % [_equipment_name(nearest_type), _kitchen_instance_index(nearest_equipment)]})
 	if not _kitchen_business_active:
+		if nearest_equipment != "":
+			var nearest_type := _kitchen_instance_type(nearest_equipment)
+			_interaction_options.append({"action": "store_kitchen_equipment", "instance_id": nearest_equipment, "text": "收起%s %d号" % [_equipment_name(nearest_type), _kitchen_instance_index(nearest_equipment)]})
 		var nearest_research_table := _nearest_kitchen_equipment_id("research_table")
 		if nearest_research_table != "":
 			_interaction_options.append({"action": "open_research_table", "instance_id": nearest_research_table, "text": "查看料理研究"})
@@ -13699,7 +13715,7 @@ func _is_repeatable_interaction_action(action: String) -> bool:
 	# 设备、仓库和操作台的 F / 点击提示只在首次靠近时教学，避免经营中反复遮挡订单。
 	if action == "use_kitchen_equipment" and (_held_crop_item != "" or _kitchen_held_item != ""):
 		return true
-	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "open_research_table", "business_prep", "drive_camper", "camper", "rebas_shop", "local_event", "mainline_site", "wardrobe_tailor", "wardrobe_trunk"]
+	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "store_kitchen_equipment", "open_research_table", "business_prep", "drive_camper", "camper", "rebas_shop", "local_event", "mainline_site", "wardrobe_tailor", "wardrobe_trunk"]
 
 func _has_shown_interaction_prompt(text: String) -> bool:
 	return _shown_interaction_prompt_texts.has(text.strip_edges())
@@ -13759,7 +13775,7 @@ func _position_interaction_prompt_for_option(option: Dictionary) -> void:
 			if kitchen_item != null and is_instance_valid(kitchen_item):
 				_position_interaction_prompt_near_world(kitchen_item.global_position + Vector3(0.0, 1.1, 0.0))
 				return
-		"use_kitchen_equipment", "open_research_table":
+		"use_kitchen_equipment", "store_kitchen_equipment", "open_research_table":
 			var equipment_id := str(option.get("instance_id", _nearest_kitchen_equipment_id()))
 			var equipment := _kitchen_root_for_instance(equipment_id)
 			if equipment != null and is_instance_valid(equipment):
@@ -14894,16 +14910,33 @@ func _start_kitchen_equipment_adjustment(equipment_id: String) -> void:
 	if instances.size() == 1:
 		_begin_kitchen_equipment_adjustment(str(instances[0]))
 		return
-	_show_kitchen_instance_selector(equipment_id, instances)
+	_show_kitchen_instance_selector(equipment_id, instances, "adjust")
 
-func _show_kitchen_instance_selector(equipment_id: String, instances: Array[String]) -> void:
+func _start_kitchen_equipment_storage(equipment_id: String) -> void:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能收起设备")
+		return
+	var instances := _kitchen_instance_ids_for_type(equipment_id)
+	if instances.is_empty():
+		_show_side_toast("还没有可收起的%s" % _equipment_name(equipment_id))
+		return
+	if instances.size() == 1:
+		_store_kitchen_equipment_instance(str(instances[0]))
+		return
+	_show_kitchen_instance_selector(equipment_id, instances, "store")
+
+func _show_kitchen_instance_selector(equipment_id: String, instances: Array[String], action: String = "adjust") -> void:
 	if _kitchen_instance_selector == null or not is_instance_valid(_kitchen_instance_selector):
 		return
 	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
 		return
 	_kitchen_instance_selector_equipment = equipment_id
+	_kitchen_instance_selector_action = action
 	if _kitchen_instance_selector_title != null and is_instance_valid(_kitchen_instance_selector_title):
-		_kitchen_instance_selector_title.text = "选择要调整的%s" % _equipment_name(equipment_id)
+		_kitchen_instance_selector_title.text = ("选择要收起的%s" if action == "store" else "选择要调整的%s") % _equipment_name(equipment_id)
+	if _kitchen_instance_selector_hint != null and is_instance_valid(_kitchen_instance_selector_hint):
+		_kitchen_instance_selector_hint.text = "请选择编号，只会收起这一台" if action == "store" else "请选择编号，只会移动这一台"
 	for child in _kitchen_instance_selector_buttons.get_children():
 		_kitchen_instance_selector_buttons.remove_child(child)
 		child.queue_free()
@@ -14914,13 +14947,17 @@ func _show_kitchen_instance_selector(equipment_id: String, instances: Array[Stri
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_size_override("font_size", 14)
 		_apply_kitchen_parchment_button_style(button)
-		button.pressed.connect(_begin_kitchen_equipment_adjustment.bind(instance_id))
+		if action == "store":
+			button.pressed.connect(_store_kitchen_equipment_instance.bind(instance_id))
+		else:
+			button.pressed.connect(_begin_kitchen_equipment_adjustment.bind(instance_id))
 		_kitchen_instance_selector_buttons.add_child(button)
 	_kitchen_instance_selector.visible = true
 	_kitchen_instance_selector.move_to_front()
 
 func _hide_kitchen_instance_selector() -> void:
 	_kitchen_instance_selector_equipment = ""
+	_kitchen_instance_selector_action = ""
 	if _kitchen_instance_selector != null and is_instance_valid(_kitchen_instance_selector):
 		_kitchen_instance_selector.visible = false
 	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
@@ -14954,6 +14991,36 @@ func _begin_kitchen_equipment_adjustment(instance_id: String) -> void:
 	_mouse_released_by_escape = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_update_kitchen_equipment_placement_preview()
+
+func _store_kitchen_equipment_instance(instance_id: String) -> bool:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能收起设备")
+		return true
+	if instance_id == "":
+		return false
+	var root := _kitchen_root_for_instance(instance_id)
+	if root == null or not is_instance_valid(root):
+		_show_side_toast("这台设备已经不在当前布局中")
+		_rebuild_kitchen_equipment_grid()
+		return true
+	var equipment_id := _kitchen_instance_type(instance_id)
+	var equipment_name := _equipment_name(equipment_id)
+	var equipment_index := _kitchen_instance_index(instance_id)
+	AudioManager.stop_kitchen_loop(instance_id)
+	_kitchen_equipment_progress.erase(instance_id)
+	_kitchen_cook_states.erase(instance_id)
+	_remove_kitchen_equipment_instance_blocker(instance_id)
+	_kitchen_equipment_bubbles.erase(instance_id)
+	_kitchen_equipment_roots.erase(instance_id)
+	if _kitchen_prompt_overlay != null and is_instance_valid(_kitchen_prompt_overlay):
+		_kitchen_prompt_overlay.clear_all()
+	root.queue_free()
+	_refresh_kitchen_equipment_level_label(equipment_id)
+	_rebuild_kitchen_equipment_grid()
+	_update_post_tutorial_objective()
+	_show_side_toast("%s %d号 已收进房车" % [equipment_name, equipment_index])
+	return true
 
 func _handle_kitchen_placement_input(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
