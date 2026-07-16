@@ -7,10 +7,16 @@ const MUSIC_FADE_IN_SECONDS := 1.5
 const MUSIC_FADE_OUT_SECONDS := 1.2
 const MUSIC_BUSINESS_DUCK_SECONDS := 0.35
 const MUSIC_BUSINESS_RESTORE_SECONDS := 0.6
+const MUSIC_GARDEN_DB := -14.0
+const MUSIC_CONTEXT_FADE_SECONDS := 1.35
+const GARDEN_CREEK_DB := -23.0
 const SFX_POOL_SIZE := 12
 
 const STREAM_PATHS := {
 	"bgm_world": "res://audio/v2/bgm_loop_core_v2.wav",
+	"bgm_garden": "res://audio/v2/bgm_garden_v1.wav",
+	"garden_creek": "res://audio/v2/garden_creek_v1.wav",
+	"garden_bird": "res://audio/v2/garden_bird_v1.wav",
 	"ui_hover": "res://audio/v2/ui_hover_v2.wav",
 	"ui_press": "res://audio/v2/ui_press_v2.wav",
 	"ui_back": "res://audio/v2/ui_back_v2.wav",
@@ -51,12 +57,17 @@ const BACK_BUTTON_KEYWORDS := [
 
 var _streams: Dictionary = {}
 var _music_player: AudioStreamPlayer
+var _music_standby_player: AudioStreamPlayer
 var _music_tween: Tween
+var _ambience_tween: Tween
+var _garden_creek_player: AudioStreamPlayer
 var _sfx_pool: Array[AudioStreamPlayer] = []
 var _next_sfx_player := 0
 var _kitchen_loop_players: Dictionary = {}
 var _business_mode := false
 var _world_music_requested := false
+var _music_context := "world"
+var _garden_bird_left := 5.0
 var _last_hover_tick := -1000
 
 
@@ -80,30 +91,53 @@ func _input(event: InputEvent) -> void:
 		play_sfx("ui_locked")
 
 
+func _process(delta: float) -> void:
+	if not _world_music_requested or _music_context != "garden":
+		return
+	_garden_bird_left -= maxf(delta, 0.0)
+	if _garden_bird_left <= 0.0:
+		play_sfx("garden_bird", -8.0, randf_range(0.94, 1.08))
+		_garden_bird_left = randf_range(7.0, 14.0)
+
+
 func enter_intro_mode() -> void:
 	_world_music_requested = false
 	_business_mode = false
+	_music_context = "world"
 	_kill_music_tween()
 	if _music_player != null:
 		_music_player.stop()
 		_music_player.volume_db = MUSIC_START_DB
+	if _music_standby_player != null:
+		_music_standby_player.stop()
+		_music_standby_player.volume_db = MUSIC_START_DB
+	_set_garden_ambience(false, 0.0)
 	stop_all_kitchen_loops()
 	stop_all_sfx()
 
 
 func start_world_music() -> void:
 	_world_music_requested = true
-	if _music_player == null or not _streams.has("bgm_world"):
-		return
-	if not _music_player.playing:
-		_music_player.stream = _make_loop_stream(_streams["bgm_world"] as AudioStream)
-		_music_player.volume_db = MUSIC_START_DB
-		_music_player.play()
-	_tween_music_to(_target_music_db(), MUSIC_FADE_IN_SECONDS)
+	_play_music_context(_music_context, MUSIC_FADE_IN_SECONDS)
+	_set_garden_ambience(_music_context == "garden", MUSIC_FADE_IN_SECONDS)
+
+
+func set_music_context(context_id: String, fade_seconds: float = MUSIC_CONTEXT_FADE_SECONDS) -> void:
+	var next_context := "garden" if context_id == "garden" else "world"
+	_music_context = next_context
+	_garden_bird_left = randf_range(4.0, 8.0)
+	if _world_music_requested:
+		_play_music_context(_music_context, fade_seconds)
+	_set_garden_ambience(_world_music_requested and _music_context == "garden", fade_seconds)
+
+
+func get_music_context() -> String:
+	return _music_context
 
 
 func stop_world_music(fade_seconds: float = MUSIC_FADE_OUT_SECONDS) -> void:
 	_world_music_requested = false
+	_set_garden_ambience(false, fade_seconds)
 	if _music_player == null or not _music_player.playing:
 		return
 	_kill_music_tween()
@@ -111,6 +145,8 @@ func stop_world_music(fade_seconds: float = MUSIC_FADE_OUT_SECONDS) -> void:
 	_music_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_music_tween.tween_property(_music_player, "volume_db", MUSIC_START_DB, maxf(fade_seconds, 0.0))
 	_music_tween.tween_callback(_music_player.stop)
+	if _music_standby_player != null:
+		_music_tween.tween_callback(_music_standby_player.stop)
 
 
 func set_business_mode(active: bool) -> void:
@@ -198,6 +234,16 @@ func _create_players() -> void:
 	_music_player.process_mode = Node.PROCESS_MODE_ALWAYS
 	_music_player.volume_db = MUSIC_START_DB
 	add_child(_music_player)
+	_music_standby_player = AudioStreamPlayer.new()
+	_music_standby_player.name = "MusicStandby"
+	_music_standby_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	_music_standby_player.volume_db = MUSIC_START_DB
+	add_child(_music_standby_player)
+	_garden_creek_player = AudioStreamPlayer.new()
+	_garden_creek_player.name = "GardenCreekAmbience"
+	_garden_creek_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	_garden_creek_player.volume_db = MUSIC_START_DB
+	add_child(_garden_creek_player)
 	for index in range(SFX_POOL_SIZE):
 		var player := AudioStreamPlayer.new()
 		player.name = "Sfx_%02d" % index
@@ -221,7 +267,58 @@ func _make_loop_stream(stream: AudioStream) -> AudioStream:
 
 
 func _target_music_db() -> float:
+	if _music_context == "garden":
+		return MUSIC_GARDEN_DB
 	return MUSIC_BUSINESS_DB if _business_mode else MUSIC_WORLD_DB
+
+
+func _play_music_context(context_id: String, duration: float) -> void:
+	var stream_id := "bgm_garden" if context_id == "garden" else "bgm_world"
+	var stream := _streams.get(stream_id) as AudioStream
+	if stream == null or _music_player == null or _music_standby_player == null:
+		return
+	if _music_player.playing and str(_music_player.get_meta("music_stream_id", "")) == stream_id:
+		_tween_music_to(_target_music_db(), duration)
+		return
+	var outgoing := _music_player
+	var incoming := _music_standby_player
+	incoming.stop()
+	incoming.stream = _make_loop_stream(stream)
+	incoming.set_meta("music_stream_id", stream_id)
+	incoming.volume_db = MUSIC_START_DB
+	incoming.play()
+	_kill_music_tween()
+	_music_tween = create_tween()
+	_music_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_music_tween.set_parallel(true)
+	_music_tween.tween_property(incoming, "volume_db", _target_music_db(), maxf(duration, 0.0))
+	if outgoing.playing:
+		_music_tween.tween_property(outgoing, "volume_db", MUSIC_START_DB, maxf(duration, 0.0))
+	_music_tween.set_parallel(false)
+	_music_tween.tween_callback(outgoing.stop)
+	_music_player = incoming
+	_music_standby_player = outgoing
+
+
+func _set_garden_ambience(active: bool, duration: float) -> void:
+	if _garden_creek_player == null:
+		return
+	if _ambience_tween != null and _ambience_tween.is_valid():
+		_ambience_tween.kill()
+	_ambience_tween = create_tween()
+	_ambience_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	if active:
+		if not _garden_creek_player.playing:
+			var stream := _streams.get("garden_creek") as AudioStream
+			if stream == null:
+				return
+			_garden_creek_player.stream = _make_loop_stream(stream)
+			_garden_creek_player.volume_db = MUSIC_START_DB
+			_garden_creek_player.play()
+		_ambience_tween.tween_property(_garden_creek_player, "volume_db", GARDEN_CREEK_DB, maxf(duration, 0.0))
+	else:
+		_ambience_tween.tween_property(_garden_creek_player, "volume_db", MUSIC_START_DB, maxf(duration, 0.0))
+		_ambience_tween.tween_callback(_garden_creek_player.stop)
 
 
 func _tween_music_to(target_db: float, duration: float) -> void:
