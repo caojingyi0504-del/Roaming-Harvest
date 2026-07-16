@@ -4,11 +4,11 @@ extends Node3D
 signal startup_progress_changed(progress: float, stage: String)
 signal startup_completed
 
-@export_range(4000, 60000, 1000) var grass_count: int = 26000:
+@export_range(4000, 60000, 1000) var grass_count: int = 36000:
 	set(value):
 		grass_count = value
 		_queue_editor_rebuild()
-@export_range(20.0, 160.0, 1.0) var field_radius: float = 72.0:
+@export_range(20.0, 210.0, 1.0) var field_radius: float = 188.0:
 	set(value):
 		field_radius = value
 		_queue_editor_rebuild()
@@ -29,8 +29,8 @@ signal startup_completed
 		refresh_grass_preview = false
 		_queue_editor_rebuild()
 
-const TERRAIN_SIZE := 160.0
-const TERRAIN_STEPS := 80
+const TERRAIN_SIZE := 400.0
+const TERRAIN_STEPS := 160
 const STARTUP_SLICE_BUDGET_USEC := 4000
 const GRASS_SHADER := preload("res://shaders/grass_wind.gdshader")
 const FLOWER_GARDEN_CONTROLLER_SCRIPT := preload("res://scripts/flower_garden_controller.gd")
@@ -112,7 +112,7 @@ const CAMPER_DRIVE_REVERSE_SPEED := 3.2
 const CAMPER_DRIVE_ACCELERATION := 8.5
 const CAMPER_DRIVE_BRAKE := 11.0
 const CAMPER_DRIVE_TURN_SPEED := 1.25
-const CAMPER_DRIVE_FIELD_LIMIT := 66.0
+const CAMPER_DRIVE_FIELD_LIMIT := 190.0
 const CAMPER_DRIVE_HALF_EXTENTS := Vector2(4.35, 1.85)
 const CAMPER_EXIT_SIDE_OFFSET := 3.2
 const CAMPER_DRIVE_FORWARD_YAW_OFFSET := -PI * 0.5
@@ -201,6 +201,30 @@ const CHAPTER_ONE_CAMPER_PATH_GRASS_CLEAR_WIDTH := 3.0
 const START_CAMPER_PATH_WIDTH := 3.8
 const START_CAMPER_PATH_GRASS_CLEAR_WIDTH := 5.8
 const START_CAMPER_PATH_CORE_CLEAR_WIDTH := 3.2
+const WORLD_ROAD_WIDTH := 6.4
+const WORLD_ROAD_GRASS_CLEAR_WIDTH := 9.0
+const WORLD_ROAD_ROUTES := [
+	[Vector2(15.0, 8.0), Vector2(34.0, -5.0), Vector2(56.0, -28.0), Vector2(85.0, -68.0), Vector2(112.0, -94.0), Vector2(145.0, -130.0)],
+	[Vector2(8.0, 5.0), Vector2(-30.0, -6.0), Vector2(-44.0, -58.0), Vector2(-75.0, -95.0), Vector2(-108.0, -112.0), Vector2(-150.0, -150.0)],
+	[Vector2(-8.0, 9.0), Vector2(-42.0, 18.0), Vector2(-82.0, 24.0), Vector2(-118.0, 24.0), Vector2(-150.0, 25.0)],
+	[Vector2(4.0, 14.0), Vector2(9.0, 48.0), Vector2(14.0, 88.0), Vector2(17.0, 124.0), Vector2(20.0, 155.0)],
+	[Vector2(15.0, 18.0), Vector2(50.0, 38.0), Vector2(96.0, 57.0), Vector2(145.0, 75.0)],
+	[Vector2(-25.0, -7.0), Vector2(-58.0, -30.0), Vector2(-100.0, -57.0), Vector2(-145.0, -85.0)],
+	[Vector2(-18.0, 18.0), Vector2(-45.0, 52.0), Vector2(-72.0, 91.0), Vector2(-105.0, 125.0)],
+]
+const WORLD_FLAT_PADS := [
+	Vector3(7.0, 4.0, 28.0),
+	Vector3(85.0, -68.0, 18.0),
+	Vector3(-75.0, -95.0, 18.0),
+	Vector3(-150.0, 25.0, 18.0),
+	Vector3(20.0, 155.0, 18.0),
+	Vector3(145.0, -130.0, 18.0),
+	Vector3(145.0, 75.0, 18.0),
+	Vector3(-145.0, -85.0, 18.0),
+	Vector3(-105.0, 125.0, 18.0),
+	Vector3(-150.0, -150.0, 18.0),
+	Vector3(-132.0, -132.0, 9.0),
+]
 const RECORDED_NO_GRASS_CENTER := Vector2(7.514, 3.214)
 const RECORDED_NO_GRASS_RADIUS := 3.6
 const CHAPTER_ONE_HOUSE_TARGET_LENGTH := 24.0
@@ -441,6 +465,21 @@ const CHAPTER_ONE_PONDS := [
 		"position": Vector2(-34.0, 25.0),
 		"radius": Vector2(4.8, 3.1),
 		"rotation": 0.72,
+	},
+	{
+		"position": Vector2(112.0, 22.0),
+		"radius": Vector2(10.5, 6.4),
+		"rotation": -0.24,
+	},
+	{
+		"position": Vector2(72.0, 122.0),
+		"radius": Vector2(8.8, 5.1),
+		"rotation": 0.46,
+	},
+	{
+		"position": Vector2(-120.0, 78.0),
+		"radius": Vector2(9.6, 5.7),
+		"rotation": -0.68,
 	},
 ]
 
@@ -2155,7 +2194,7 @@ void fragment() {
 		fly.set_meta("base_y", fly.position.y)
 		fly.set_meta("phase", rng.randf_range(0.0, TAU))
 		_firefly_root.add_child(fly)
-	var light_positions := [Vector3(6.0, 3.2, -7.0), Vector3(15.8, 3.2, 8.8), Vector3(-43.0, 3.0, -28.0), Vector3(35.0, 3.0, 31.0), Vector3(-24.0, 3.0, 36.0), Vector3(49.0, 3.0, -22.0)]
+	var light_positions := [Vector3(6.0, 3.2, -7.0), Vector3(15.8, 3.2, 8.8), Vector3(-145.0, 3.0, -85.0), Vector3(145.0, 3.0, 75.0), Vector3(-105.0, 3.0, 125.0), Vector3(145.0, 3.0, -130.0)]
 	var light_event_ids := ["", "", LocalEventCatalog.FOREST_MARKET, LocalEventCatalog.BIRD_MARKET, LocalEventCatalog.CAMPFIRE_STORY, LocalEventCatalog.RABBIT_PARTY]
 	for index in range(light_positions.size()):
 		var lamp := OmniLight3D.new()
@@ -2186,20 +2225,23 @@ func _update_day_night(delta: float) -> void:
 	var dawn_glow := maxf(1.0 - absf(hours - 6.0) / 1.5, 0.0)
 	var warm_glow := maxf(sunset_glow, dawn_glow)
 	var night_alpha := 1.0 - daylight
+	var inside_flower_garden := _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden"))
 	if _world_sky_material != null:
 		var night_top := Color(0.025, 0.045, 0.12)
-		var day_top := Color(0.46, 0.72, 0.96)
-		var horizon := Color(0.12, 0.16, 0.28).lerp(Color(0.75, 0.88, 0.96), daylight)
+		var day_top := Color(0.52, 0.77, 0.94) if inside_flower_garden else Color(0.46, 0.72, 0.96)
+		var day_horizon := Color(0.88, 0.94, 0.86) if inside_flower_garden else Color(0.75, 0.88, 0.96)
+		var horizon := Color(0.12, 0.16, 0.28).lerp(day_horizon, daylight)
 		horizon = horizon.lerp(Color(1.0, 0.42, 0.20), warm_glow * 0.48)
 		_world_sky_material.sky_top_color = night_top.lerp(day_top, daylight)
 		_world_sky_material.sky_horizon_color = horizon
-		_world_sky_material.ground_bottom_color = Color(0.04, 0.07, 0.10).lerp(Color(0.72, 0.80, 0.68), daylight)
-		_world_sky_material.ground_horizon_color = Color(0.09, 0.12, 0.18).lerp(Color(0.83, 0.89, 0.80), daylight)
+		_world_sky_material.ground_bottom_color = Color(0.04, 0.07, 0.10).lerp(Color(0.65, 0.82, 0.64) if inside_flower_garden else Color(0.72, 0.80, 0.68), daylight)
+		_world_sky_material.ground_horizon_color = Color(0.09, 0.12, 0.18).lerp(Color(0.82, 0.92, 0.78) if inside_flower_garden else Color(0.83, 0.89, 0.80), daylight)
 	if _world_environment != null:
-		_world_environment.ambient_light_energy = lerpf(0.20, 0.72, daylight)
-		_world_environment.tonemap_exposure = lerpf(0.82, 1.08, daylight)
-		_world_environment.fog_light_color = Color(0.10, 0.14, 0.24).lerp(Color(0.78, 0.88, 0.94), daylight).lerp(Color(0.88, 0.42, 0.24), warm_glow * 0.28)
-		_world_environment.fog_density = lerpf(0.0031, 0.0018, daylight)
+		_world_environment.ambient_light_energy = lerpf(0.24, 0.84 if inside_flower_garden else 0.72, daylight)
+		_world_environment.tonemap_exposure = lerpf(0.82, 1.13 if inside_flower_garden else 1.08, daylight)
+		var fog_day := Color(0.78, 0.91, 0.84) if inside_flower_garden else Color(0.78, 0.88, 0.94)
+		_world_environment.fog_light_color = Color(0.10, 0.14, 0.24).lerp(fog_day, daylight).lerp(Color(0.88, 0.42, 0.24), warm_glow * 0.28)
+		_world_environment.fog_density = lerpf(0.0031, 0.0026 if inside_flower_garden else 0.0018, daylight)
 	if _world_cloud_material != null:
 		_world_cloud_material.albedo_color = Color(0.20, 0.25, 0.38, 0.52).lerp(Color(0.96, 0.98, 0.94, 0.88), daylight).lerp(Color(0.96, 0.58, 0.38, 0.82), warm_glow * 0.28)
 	var solar_angle := (hours - 6.0) / 24.0 * TAU
@@ -2682,7 +2724,9 @@ func _is_inside_chapter_one_house_grass_clear(x: float, z: float) -> bool:
 	return absf(door_local.x) <= 4.4 and absf(door_local.y) <= 3.0
 
 func _is_inside_chapter_one_camper_path_clear(x: float, z: float) -> bool:
-	return false
+	if not _chapter_one_active:
+		return false
+	return _distance_to_world_roads(Vector2(x, z)) <= WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.5
 
 func _is_inside_start_camper_path_clear(x: float, z: float) -> bool:
 	if _chapter_one_active:
@@ -2691,7 +2735,14 @@ func _is_inside_start_camper_path_clear(x: float, z: float) -> bool:
 
 func _start_camper_path_grass_density_multiplier(x: float, z: float) -> float:
 	if _chapter_one_active:
-		return 1.0
+		var world_distance := _distance_to_world_roads(Vector2(x, z))
+		var world_core := WORLD_ROAD_WIDTH * 0.52
+		var world_outer := WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.72
+		if world_distance <= world_core:
+			return 0.0
+		if world_distance >= world_outer:
+			return 1.0
+		return lerpf(0.10, 1.0, smoothstep(world_core, world_outer, world_distance))
 	var distance := _distance_to_polyline(Vector2(x, z), _start_camper_path_points())
 	var core := START_CAMPER_PATH_CORE_CLEAR_WIDTH * 0.5
 	var outer := START_CAMPER_PATH_GRASS_CLEAR_WIDTH * 0.5
@@ -2723,6 +2774,15 @@ func _start_camper_path_points() -> Array[Vector2]:
 		Vector2(0.0, 8.7),
 	]
 
+func _distance_to_world_roads(point: Vector2) -> float:
+	var best := INF
+	for raw_route in WORLD_ROAD_ROUTES:
+		var route: Array[Vector2] = []
+		for raw_point in raw_route:
+			route.append(raw_point as Vector2)
+		best = minf(best, _distance_to_polyline(point, route))
+	return best
+
 func _distance_to_polyline(point: Vector2, points: Array[Vector2]) -> float:
 	if points.is_empty():
 		return INF
@@ -2742,6 +2802,8 @@ func _distance_to_polyline(point: Vector2, points: Array[Vector2]) -> float:
 	return best
 
 func _is_inside_pond(x: float, z: float, padding: float = 0.0) -> bool:
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden")):
+		return false
 	var effective_padding := padding
 	if _chapter_one_active:
 		var camper_point := Vector2(CHAPTER_ONE_CAMPER_POSITION.x, CHAPTER_ONE_CAMPER_POSITION.z)
@@ -2789,6 +2851,7 @@ func _create_ponds() -> void:
 
 func _create_chapter_one_camper_path() -> void:
 	if _chapter_one_active:
+		_create_world_road_network()
 		return
 	var points := _chapter_one_camper_path_points() if _chapter_one_active else _start_camper_path_points()
 	if points.size() < 2:
@@ -2844,6 +2907,48 @@ func _create_chapter_one_camper_path() -> void:
 		stone.material_override = edge_mat if rng.randf() < (0.55 if not _chapter_one_active else 0.62) else pebble_mat
 		stone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(stone)
+
+func _create_world_road_network() -> void:
+	var root := Node3D.new()
+	root.name = "WorldRoadNetwork"
+	_mark_generated(root)
+	add_child(root)
+	var road_mat := StandardMaterial3D.new()
+	road_mat.albedo_color = Color(0.78, 0.72, 0.55, 1.0)
+	road_mat.roughness = 0.96
+	road_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var verge_mat := StandardMaterial3D.new()
+	verge_mat.albedo_color = Color(0.88, 0.83, 0.65, 1.0)
+	verge_mat.roughness = 0.98
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260716
+	for route_index in range(WORLD_ROAD_ROUTES.size()):
+		var points: Array[Vector2] = []
+		for raw_point in WORLD_ROAD_ROUTES[route_index]:
+			points.append(raw_point as Vector2)
+		var render_points := _subdivide_polyline(points, 2.1)
+		var path := MeshInstance3D.new()
+		path.name = "CountryRoad_%02d" % route_index
+		path.mesh = _create_path_strip_mesh(render_points, WORLD_ROAD_WIDTH, 0.055)
+		path.material_override = road_mat
+		path.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(path)
+		for marker_index in range(16):
+			var sample := _sample_polyline(points, (float(marker_index) + rng.randf_range(0.15, 0.85)) / 16.0)
+			var tangent := _polyline_tangent_at(points, sample)
+			var normal := Vector2(-tangent.y, tangent.x) * (-1.0 if (marker_index + route_index) % 2 == 0 else 1.0)
+			var point := sample + normal * rng.randf_range(WORLD_ROAD_WIDTH * 0.38, WORLD_ROAD_WIDTH * 0.52)
+			if _is_inside_pond(point.x, point.y, 0.5):
+				continue
+			var verge := MeshInstance3D.new()
+			verge.name = "RoadsideStone"
+			var verge_mesh := BoxMesh.new()
+			verge_mesh.size = Vector3(rng.randf_range(0.26, 0.62), rng.randf_range(0.08, 0.16), rng.randf_range(0.20, 0.46))
+			verge.mesh = verge_mesh
+			verge.position = Vector3(point.x, _height_at(point.x, point.y) + verge_mesh.size.y * 0.5, point.y)
+			verge.rotation.y = rng.randf_range(0.0, TAU)
+			verge.material_override = verge_mat
+			root.add_child(verge)
 
 func _create_path_strip_mesh(points: Array[Vector2], width: float, height_offset: float = 0.035, natural_width: bool = false) -> ArrayMesh:
 	var vertices := PackedVector3Array()
@@ -3185,7 +3290,7 @@ func _create_background_trees() -> void:
 
 	for i in range(72):
 		var a := rng.randf_range(0.0, TAU)
-		var r := rng.randf_range(82.0, 122.0)
+		var r := rng.randf_range(164.0, 190.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3220,7 +3325,7 @@ func _create_background_trees() -> void:
 
 	for i in range(44):
 		var a := TAU * float(i) / 44.0 + rng.randf_range(-0.035, 0.035)
-		var r := rng.randf_range(128.0, 150.0)
+		var r := rng.randf_range(192.0, 207.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3255,7 +3360,7 @@ func _create_background_trees_staged() -> void:
 
 	for i in range(72):
 		var a := rng.randf_range(0.0, TAU)
-		var r := rng.randf_range(82.0, 122.0)
+		var r := rng.randf_range(164.0, 190.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3295,7 +3400,7 @@ func _create_background_trees_staged() -> void:
 
 	for i in range(44):
 		var a := TAU * float(i) / 44.0 + rng.randf_range(-0.035, 0.035)
-		var r := rng.randf_range(128.0, 150.0)
+		var r := rng.randf_range(192.0, 207.0)
 		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
 		pos.y = _height_at(pos.x, pos.z)
 		var tree := Node3D.new()
@@ -3347,6 +3452,26 @@ func _create_asset_trees() -> void:
 		Vector3(-52.0, 0.0, 40.0),
 		Vector3(55.0, 0.0, -30.0),
 		Vector3(-48.0, 0.0, -44.0),
+		Vector3(74.0, 0.0, -44.0),
+		Vector3(104.0, 0.0, -78.0),
+		Vector3(128.0, 0.0, -108.0),
+		Vector3(82.0, 0.0, 48.0),
+		Vector3(119.0, 0.0, 61.0),
+		Vector3(152.0, 0.0, 94.0),
+		Vector3(45.0, 0.0, 94.0),
+		Vector3(34.0, 0.0, 138.0),
+		Vector3(5.0, 0.0, 174.0),
+		Vector3(-62.0, 0.0, 70.0),
+		Vector3(-88.0, 0.0, 112.0),
+		Vector3(-124.0, 0.0, 143.0),
+		Vector3(-92.0, 0.0, 12.0),
+		Vector3(-132.0, 0.0, 8.0),
+		Vector3(-169.0, 0.0, 42.0),
+		Vector3(-86.0, 0.0, -70.0),
+		Vector3(-122.0, 0.0, -101.0),
+		Vector3(-165.0, 0.0, -76.0),
+		Vector3(-92.0, 0.0, -139.0),
+		Vector3(-169.0, 0.0, -164.0),
 	]
 
 	var rng := RandomNumberGenerator.new()
@@ -3413,6 +3538,26 @@ func _create_asset_trees_staged() -> void:
 		Vector3(-52.0, 0.0, 40.0),
 		Vector3(55.0, 0.0, -30.0),
 		Vector3(-48.0, 0.0, -44.0),
+		Vector3(74.0, 0.0, -44.0),
+		Vector3(104.0, 0.0, -78.0),
+		Vector3(128.0, 0.0, -108.0),
+		Vector3(82.0, 0.0, 48.0),
+		Vector3(119.0, 0.0, 61.0),
+		Vector3(152.0, 0.0, 94.0),
+		Vector3(45.0, 0.0, 94.0),
+		Vector3(34.0, 0.0, 138.0),
+		Vector3(5.0, 0.0, 174.0),
+		Vector3(-62.0, 0.0, 70.0),
+		Vector3(-88.0, 0.0, 112.0),
+		Vector3(-124.0, 0.0, 143.0),
+		Vector3(-92.0, 0.0, 12.0),
+		Vector3(-132.0, 0.0, 8.0),
+		Vector3(-169.0, 0.0, 42.0),
+		Vector3(-86.0, 0.0, -70.0),
+		Vector3(-122.0, 0.0, -101.0),
+		Vector3(-165.0, 0.0, -76.0),
+		Vector3(-92.0, 0.0, -139.0),
+		Vector3(-169.0, 0.0, -164.0),
 	]
 
 	var rng := RandomNumberGenerator.new()
@@ -3455,9 +3600,14 @@ func _create_asset_trees_staged() -> void:
 		await get_tree().process_frame
 
 func _should_skip_asset_tree(point: Vector3) -> bool:
+	var point_2d := Vector2(point.x, point.z)
+	if _chapter_one_active and _distance_to_world_roads(point_2d) <= WORLD_ROAD_GRASS_CLEAR_WIDTH * 0.78:
+		return true
+	for pad in WORLD_FLAT_PADS:
+		if point_2d.distance_to(Vector2(pad.x, pad.y)) <= pad.z + 2.0:
+			return true
 	if not _chapter_one_active:
 		return false
-	var point_2d := Vector2(point.x, point.z)
 	var house_point := Vector2(CHAPTER_ONE_HOUSE_POSITION.x, CHAPTER_ONE_HOUSE_POSITION.z)
 	return point_2d.distance_squared_to(house_point) <= CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS * CHAPTER_ONE_HOUSE_TREE_CLEAR_RADIUS
 
@@ -3509,6 +3659,7 @@ func _create_player() -> void:
 		return
 	_player.name = "Player"
 	_player.add_to_group("player")
+	_player.set("field_limit", CAMPER_DRIVE_FIELD_LIMIT)
 	_player.position = Vector3(PLAYER_START.x, _height_at(PLAYER_START.x, PLAYER_START.z) + 0.04, PLAYER_START.z)
 	_mark_generated(_player)
 	add_child(_player)
@@ -3524,6 +3675,7 @@ func _create_chapter_one_player() -> void:
 		return
 	_player.name = "Player"
 	_player.add_to_group("player")
+	_player.set("field_limit", CAMPER_DRIVE_FIELD_LIMIT)
 	_player.position = Vector3(CHAPTER_ONE_PLAYER_START.x, _height_at(CHAPTER_ONE_PLAYER_START.x, CHAPTER_ONE_PLAYER_START.z) + 0.04, CHAPTER_ONE_PLAYER_START.z)
 	_player.rotation.y = 0.0
 	var visual_root := _player.get_node_or_null("VisualRoot") as Node3D
@@ -3860,6 +4012,8 @@ func _create_camper(camper_position: Vector3 = CAMPER_POSITION, camper_yaw: floa
 	camper.add_child(model)
 	_fit_model_to_footprint_length(model, CAMPER_TARGET_LENGTH)
 	_ground_model(model)
+	model.set_meta("ground_base_rotation", model.rotation)
+	_update_camper_ground_alignment(1.0)
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_camper_blocker(camper, model)
 
@@ -3963,7 +4117,20 @@ func _update_camper_driving(delta: float) -> void:
 			_show_side_toast("前方无法通行")
 	if _player != null and is_instance_valid(_player):
 		_player.global_position = _camper.global_position
+	_update_camper_ground_alignment(delta)
 	_update_camper_business_location_discovery()
+
+func _update_camper_ground_alignment(delta: float) -> void:
+	if _camper == null or _camper_model == null or not is_instance_valid(_camper_model):
+		return
+	var world_normal := _normal_at(_camper.global_position.x, _camper.global_position.z)
+	var local_normal := (_camper.global_basis.inverse() * world_normal).normalized()
+	var base_rotation: Vector3 = _camper_model.get_meta("ground_base_rotation", Vector3.ZERO)
+	var target_pitch := clampf(atan2(local_normal.z, maxf(local_normal.y, 0.001)), -0.20, 0.20)
+	var target_roll := clampf(-atan2(local_normal.x, maxf(local_normal.y, 0.001)), -0.20, 0.20)
+	var blend := 1.0 if delta >= 1.0 else 1.0 - exp(-8.0 * maxf(delta, 0.0))
+	_camper_model.rotation.x = lerp_angle(_camper_model.rotation.x, base_rotation.x + target_pitch, blend)
+	_camper_model.rotation.z = lerp_angle(_camper_model.rotation.z, base_rotation.z + target_roll, blend)
 
 func _is_camper_drive_position_valid(position: Vector3, yaw: float) -> bool:
 	var center := Vector2(position.x, position.z)
@@ -7875,7 +8042,7 @@ func _create_business_result_ui(root: Control) -> void:
 	_business_result_buttons.add_child(_create_business_result_button("再来一次", Callable(self, "_on_business_result_retry"), false))
 	_business_result_next_button = _create_business_result_button("下一关", Callable(self, "_on_business_result_next"), true)
 	_business_result_buttons.add_child(_business_result_next_button)
-	_business_result_garden_button = _create_business_result_button("立即前往花圃", Callable(self, "_on_business_result_garden"), true)
+	_business_result_garden_button = _create_business_result_button("前往花圃停车区", Callable(self, "_on_business_result_garden"), true)
 	_business_result_garden_button.visible = false
 	_business_result_buttons.add_child(_business_result_garden_button)
 	_business_result_duel_button = _create_business_result_button("双人料理竞速", Callable(self, "_on_business_result_duel"), true)
@@ -9365,7 +9532,7 @@ func _on_business_result_garden() -> void:
 	if _business_prep_overlay != null:
 		_business_prep_overlay.visible = false
 	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
-		_flower_garden_controller.call("enter_garden", "level_result")
+		_flower_garden_controller.call("arrive_at_parking", "level_result")
 
 func _on_business_result_duel() -> void:
 	_open_duel_overlay()
@@ -23109,7 +23276,7 @@ func _update_map_popup(delta: float) -> void:
 		if near_village:
 			_interaction_prompt_label.text = "F / 点击  返回当前位置" if _chapter_one_active else "F / 点击  进入村庄"
 		elif near_locked_site:
-			_interaction_prompt_label.text = "F / 点击  进入晨露花圃" if flower_garden_available else "此地暂未解锁"
+			_interaction_prompt_label.text = "F / 点击  前往晨露花圃停车区" if flower_garden_available else "此地暂未解锁"
 		else:
 			_interaction_prompt_label.text = "WASD / 滑动  开往村庄"
 		_fit_interaction_prompt_to_lines([_interaction_prompt_label.text])
@@ -23258,7 +23425,7 @@ func _try_enter_map_destination() -> bool:
 			return false
 		_close_map_popup()
 		if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
-			_flower_garden_controller.call("enter_garden", "camper_map")
+			_flower_garden_controller.call("arrive_at_parking", "camper_map")
 		return true
 	return _try_enter_village()
 
@@ -24158,13 +24325,14 @@ func _add_circle_blocker(center: Vector3, radius: float) -> void:
 		"radius": radius,
 	})
 
-func _add_box_blocker(center: Vector3, yaw: float, half_extents: Vector2, house_interior_only: bool = false) -> void:
+func _add_box_blocker(center: Vector3, yaw: float, half_extents: Vector2, house_interior_only: bool = false, garden_only: bool = false) -> void:
 	_solid_blockers.append({
 		"shape": "box",
 		"center": center,
 		"yaw": yaw,
 		"half_extents": half_extents,
 		"house_interior_only": house_interior_only,
+		"garden_only": garden_only,
 	})
 
 func _add_model_box_blocker(root: Node3D, model: Node3D, padding: Vector2, shrink: float = 1.0) -> void:
@@ -24266,6 +24434,9 @@ func _is_blocked_by_solid(world_position: Vector3) -> bool:
 	return false
 
 func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
+	var inside_garden := _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden"))
+	if bool(blocker.get("garden_only", false)) != inside_garden and (inside_garden or bool(blocker.get("garden_only", false))):
+		return false
 	if bool(blocker.get("house_interior_only", false)) and not _inside_house:
 		return false
 	var shape: String = blocker["shape"]
@@ -24371,13 +24542,56 @@ func _apply_camera() -> void:
 	_camera.look_at(target, Vector3.UP)
 
 func _height_at(x: float, z: float) -> float:
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden")):
+		return float(_flower_garden_controller.call("garden_world_height", x, z))
 	if _inside_house and _is_point_inside_house_interior_floor(Vector2(x, z)):
 		return HOUSE_INTERIOR_FLOOR_Y
-	var rolling := sin(x * 0.026 + z * 0.014) * 1.35
-	var cross_slope := cos(x * 0.018 - z * 0.024 + 1.2) * 0.95
-	var meadow := sin(x * 0.056) * 0.42 + cos(z * 0.049) * 0.38
-	var small := sin((x + z) * 0.105) * 0.16
-	return rolling + cross_slope + meadow + small
+	var point := Vector2(x, z)
+	var height := _macro_height_at(x, z)
+	var road_sample := _world_road_sample(point)
+	if road_sample.x < WORLD_ROAD_GRASS_CLEAR_WIDTH:
+		var road_blend := 1.0 - smoothstep(WORLD_ROAD_WIDTH * 0.48, WORLD_ROAD_GRASS_CLEAR_WIDTH, road_sample.x)
+		height = lerpf(height, road_sample.y, road_blend)
+	for pad in WORLD_FLAT_PADS:
+		var center := Vector2(pad.x, pad.y)
+		var distance := point.distance_to(center)
+		if distance >= pad.z:
+			continue
+		var pad_height := _macro_height_at(center.x, center.y)
+		var pad_blend := 1.0 - smoothstep(pad.z * 0.25, pad.z, distance)
+		height = lerpf(height, pad_height, pad_blend)
+	return height
+
+func _macro_height_at(x: float, z: float) -> float:
+	var rolling := sin(x * 0.018 + z * 0.011) * 2.2
+	var cross_slope := cos(x * 0.013 - z * 0.017 + 1.2) * 1.45
+	var meadow := sin(x * 0.044) * 0.52 + cos(z * 0.039) * 0.48
+	var small := sin((x + z) * 0.084) * 0.18
+	var north_highland := smoothstep(24.0, 185.0, z) * 12.0
+	var west_ridge := smoothstep(34.0, 188.0, -x) * (8.0 + maxf(z, 0.0) * 0.014)
+	var south_valley := smoothstep(42.0, 188.0, -z) * -5.4
+	var eastern_swell := smoothstep(70.0, 190.0, x) * 2.8
+	return rolling + cross_slope + meadow + small + north_highland + west_ridge + south_valley + eastern_swell
+
+func _world_road_sample(point: Vector2) -> Vector2:
+	var best_distance := INF
+	var best_height := _macro_height_at(point.x, point.y)
+	for raw_route in WORLD_ROAD_ROUTES:
+		for index in range(raw_route.size() - 1):
+			var a: Vector2 = raw_route[index]
+			var b: Vector2 = raw_route[index + 1]
+			var segment := b - a
+			var length_squared := segment.length_squared()
+			if length_squared <= 0.0001:
+				continue
+			var t := clampf((point - a).dot(segment) / length_squared, 0.0, 1.0)
+			var nearest := a + segment * t
+			var distance := point.distance_to(nearest)
+			if distance >= best_distance:
+				continue
+			best_distance = distance
+			best_height = lerpf(_macro_height_at(a.x, a.y), _macro_height_at(b.x, b.y), t)
+	return Vector2(best_distance, best_height)
 
 func _normal_at(x: float, z: float) -> Vector3:
 	var sample_distance := 1.0
