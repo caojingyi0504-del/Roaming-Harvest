@@ -1,0 +1,9 @@
+{$DUEL_DOMAIN} {
+	encode zstd gzip
+
+	@duel path /duel /duel/*
+	reverse_proxy @duel duel-server:9080
+
+	respond /healthz "ok" 200
+}
+

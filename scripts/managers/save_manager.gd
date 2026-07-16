@@ -35,7 +35,7 @@ func load_game(path: String = DEFAULT_SAVE_PATH) -> bool:
 
 func create_snapshot() -> Dictionary:
 	return {
-		"version": 1,
+		"version": 4,
 		"player": _collect_player_snapshot(),
 		"inventory": _call_manager("InventoryManager", "get_inventory_snapshot", {}),
 		"crops": _call_manager("CropManager", "get_crop_snapshot", {}),
@@ -46,12 +46,71 @@ func create_snapshot() -> Dictionary:
 	}
 
 func apply_snapshot(snapshot: Dictionary) -> void:
+	snapshot = _migrate_snapshot(snapshot)
 	_apply_player_snapshot(snapshot.get("player", {}))
 	_call_manager("InventoryManager", "apply_inventory_snapshot", null, [snapshot.get("inventory", {})])
 	_call_manager("CropManager", "apply_crop_snapshot", null, [snapshot.get("crops", {})])
 	_call_manager("WorldManager", "apply_world_snapshot", null, [snapshot.get("world", {})])
 	_call_manager("TimeManager", "apply_time_snapshot", null, [snapshot.get("time", {})])
 	_apply_component_snapshots(snapshot.get("components", {}))
+
+func _migrate_snapshot(source: Dictionary) -> Dictionary:
+	var snapshot := source.duplicate(true)
+	var version := int(snapshot.get("version", 1))
+	if version < 2:
+		var world := snapshot.get("world", {}) as Dictionary
+		var world_state := world.get("world_state", {}) as Dictionary
+		if not world_state.has("roaming_harvest_progression_v2"):
+			world_state["roaming_harvest_progression_v2"] = {
+				"unlocked_crops": {"carrot": true},
+				"codex_discovered_crops": {},
+				"codex_harvested_crops": {},
+				"local_event_state": {},
+				"local_event_perks": {},
+				"local_event_atlas": {},
+				"scheduled_day_event": "",
+				"scheduled_night_event": "",
+				"schedule_day": -1,
+			}
+		world["world_state"] = world_state
+		snapshot["world"] = world
+		snapshot["version"] = 2
+		version = 2
+	if version < 3:
+		var world_v3 := snapshot.get("world", {}) as Dictionary
+		var world_state_v3 := world_v3.get("world_state", {}) as Dictionary
+		var progression := world_state_v3.get("roaming_harvest_progression_v2", {}) as Dictionary
+		if not progression.has("codex_discovered_cooking"):
+			progression["needs_cooking_codex_inference"] = true
+			progression["codex_discovered_cooking"] = {}
+		if not progression.has("codex_revealed_cooking"):
+			progression["codex_revealed_cooking"] = {}
+		if not progression.has("codex_claimed_rewards"):
+			progression["codex_claimed_rewards"] = {}
+		if not progression.has("research_table_unlocked"):
+			progression["research_table_unlocked"] = false
+		if not progression.has("researched_special_recipes"):
+			progression["researched_special_recipes"] = {}
+		if not progression.has("special_recipe_first_served"):
+			progression["special_recipe_first_served"] = {}
+		world_state_v3["roaming_harvest_progression_v2"] = progression
+		world_v3["world_state"] = world_state_v3
+		snapshot["world"] = world_v3
+		snapshot["version"] = 3
+		version = 3
+	if version < 4:
+		var world_v4 := snapshot.get("world", {}) as Dictionary
+		var world_state_v4 := world_v4.get("world_state", {}) as Dictionary
+		var progression_v4 := world_state_v4.get("roaming_harvest_progression_v2", {}) as Dictionary
+		if not progression_v4.has("business_discovery_states"):
+			progression_v4["business_discovery_states"] = {}
+		if not progression_v4.has("business_discovery_rumors"):
+			progression_v4["business_discovery_rumors"] = {}
+		world_state_v4["roaming_harvest_progression_v2"] = progression_v4
+		world_v4["world_state"] = world_state_v4
+		snapshot["world"] = world_v4
+		snapshot["version"] = 4
+	return snapshot
 
 func _collect_player_snapshot() -> Dictionary:
 	var player: Node = _get_player()

@@ -9,10 +9,35 @@ extends CharacterBody3D
 
 @onready var visual_root: Node3D = $VisualRoot
 
+var current_outfit_id := "default_traveler"
+
 func _ready() -> void:
 	_disable_real_shadows(self)
 
+func apply_outfit(outfit_id: String, model_path: String) -> bool:
+	if visual_root == null or model_path == "" or not ResourceLoader.exists(model_path, "PackedScene"):
+		return false
+	var scene := ResourceLoader.load(model_path) as PackedScene
+	if scene == null:
+		return false
+	var next_model := scene.instantiate() as Node3D
+	if next_model == null:
+		return false
+	next_model.name = "Model"
+	visual_root.add_child(next_model)
+	_disable_real_shadows(next_model)
+	for child in visual_root.get_children():
+		if child == next_model:
+			continue
+		visual_root.remove_child(child)
+		child.queue_free()
+	current_outfit_id = outfit_id
+	return true
+
 func _physics_process(delta: float) -> void:
+	if get_parent().has_method("_is_camper_driving") and get_parent()._is_camper_driving():
+		velocity = Vector3.ZERO
+		return
 	if get_parent().has_method("_is_chapter_transitioning") and get_parent()._is_chapter_transitioning():
 		velocity = Vector3.ZERO
 		return
@@ -20,6 +45,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 	if get_parent().has_method("_is_map_open") and get_parent()._is_map_open():
+		velocity = Vector3.ZERO
+		return
+	if get_parent().has_method("_is_kitchen_equipment_placement_active") and get_parent()._is_kitchen_equipment_placement_active():
 		velocity = Vector3.ZERO
 		return
 

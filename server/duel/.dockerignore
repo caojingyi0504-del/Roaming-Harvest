@@ -1,0 +1,5 @@
+build/**
+!build/server/
+!build/server/RoamingHarvestDuelServer.x86_64
+!build/server/RoamingHarvestDuelServer.pck
+

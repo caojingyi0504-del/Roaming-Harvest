@@ -1,6 +1,9 @@
 @tool
 extends Node3D
 
+signal startup_progress_changed(progress: float, stage: String)
+signal startup_completed
+
 @export_range(4000, 60000, 1000) var grass_count: int = 26000:
 	set(value):
 		grass_count = value
@@ -28,7 +31,9 @@ extends Node3D
 
 const TERRAIN_SIZE := 160.0
 const TERRAIN_STEPS := 80
+const STARTUP_SLICE_BUDGET_USEC := 4000
 const GRASS_SHADER := preload("res://shaders/grass_wind.gdshader")
+const FLOWER_GARDEN_CONTROLLER_SCRIPT := preload("res://scripts/flower_garden_controller.gd")
 const PLAYER_SCENE_PATH := "res://scenes/Player.tscn"
 const CAMPER_SCENE_PATH := "res://3d建模/房车3d建模/9074167cffdd2b26a03baf531b4fae76.glb"
 const MOM_SCENE_PATH := "res://3d建模/妈妈3d建模/95b973b63a8027c98172bc0efdb9bd68.glb"
@@ -43,27 +48,54 @@ const WATERING_CAN_SCENE_PATH := "res://3d建模/工具/水壶.glb"
 const SCYTHE_SCENE_PATH := "res://3d建模/工具/镰刀.glb"
 const FOOD_CHEST_SCENE_PATH := "res://3d建模/设备/食材箱.glb"
 const SEED_ICON_PATH := "res://ui/icons/seed_icon.png"
-const COOP_COIN_BAR_PATH := "res://ui/合作金币.png"
-const PERSONAL_COIN_BAR_PATH := "res://ui/个人金币.png"
-const STAMINA_BAR_PATH := "res://ui/体力.png"
-const POPULARITY_BAR_PATH := "res://ui/人气.png"
-const TOP_RESOURCE_HUD_PATH := "res://ui/top_resource_hud_v1.png"
-const BUSINESS_RESULT_PANEL_PATH := "res://ui/business_result_panel_lowpoly.png"
+const REBAS_SHOP_PANEL_PATH := "res://ui/rebas_shop_panel_v1.png"
+const HUD_STAMINA_BAR_PATH := "res://ui/hud_stamina_bar_v2.png"
+const HUD_PERSONAL_COIN_BAR_PATH := "res://ui/hud_personal_coin_bar_v2.png"
+const HUD_COOP_COIN_BAR_PATH := "res://ui/hud_coop_coin_bar_v2.png"
+const HUD_POPULARITY_BAR_PATH := "res://ui/hud_popularity_bar_v2.png"
+const DAY_CLOCK_BAR_PATH := "res://ui/day_clock_bar_v2.png"
+const DAY_PHASE_DAWN_ICON_PATH := "res://ui/day_phase_dawn_v1.png"
+const DAY_PHASE_DAY_ICON_PATH := "res://ui/day_phase_day_v1.png"
+const DAY_PHASE_DUSK_ICON_PATH := "res://ui/day_phase_dusk_v1.png"
+const DAY_PHASE_NIGHT_ICON_PATH := "res://ui/day_phase_night_v1.png"
+const BUSINESS_RESULT_PANEL_PATH := "res://ui/business_result_panel_lowpoly_transparent.png"
 const BUSINESS_RESULT_BADGE_PATH := "res://ui/business_result_wanderer_badge.png"
 const BUSINESS_RESULT_REWARD_CARD_PATH := "res://ui/business_result_reward_card.png"
 const BUSINESS_RESULT_BUTTON_PATH := "res://ui/business_result_button.png"
+const BUSINESS_LEVEL_CARD_PATH := "res://ui/business_level_card_v1.png"
+const DUEL_CLIENT_SCENE := preload("res://scenes/duel/DuelClient.tscn")
+const TOOL_REWARD_PANEL_PATH := "res://ui/tool_reward_panel_v2.png"
+const BUSINESS_STAR_REWARD_PATH := "res://ui/business_star_reward_v1.png"
+const WIND_CHASE_ICON_PATH := "res://ui/wind_chase_eggplant_icon.png"
+const STREAM_SIFTER_PANEL_PATH := "res://ui/stream_sifter_panel_v1.png"
+const STREAM_SIFTER_ITEMS_PATH := "res://ui/stream_sifter_items_v1.png"
 const WOOD_NOTICE_BUTTON_PATH := "res://ui/wood_notice_button.png"
 const NOTICE_BOARD_PANEL_PATH := "res://ui/notice_board_panel_v1.png"
+const WAREHOUSE_CABINET_PATH := "res://ui/warehouse_cabinet_v1.png"
+const WAREHOUSE_ICON_OPENING_SIGN_PATH := "res://ui/warehouse_icons/opening_sign_v1.png"
+const WAREHOUSE_ICON_COOKING_TABLE_TICKET_PATH := "res://ui/warehouse_icons/cooking_table_ticket_v1.svg"
+const WAREHOUSE_ICON_SPARE_CRATE_PATH := "res://ui/warehouse_icons/spare_crate_v1.svg"
+const WAREHOUSE_ICON_UPGRADE_MATERIAL_PATH := "res://ui/warehouse_icons/upgrade_material_v1.svg"
+const WAREHOUSE_ICON_MYSTERY_SAMPLE_PATH := "res://ui/warehouse_icons/mystery_sample_v1.svg"
+const WAREHOUSE_ICON_MOON_DEW_SEED_PATH := "res://ui/warehouse_icons/moon_dew_seed_v1.svg"
+const REWARD_ICON_PERSONAL_COIN_PATH := "res://ui/个人金币.png"
+const REWARD_ICON_COOP_COIN_PATH := "res://ui/合作金币.png"
 const TASK_TAB_PATH := "res://ui/task_tab_v1.png"
+const INTERACTION_PROMPT_FRAME_PATH := "res://ui/interaction_prompt_frame_v3.png"
+const KITCHEN_EQUIPMENT_PANEL_PATH := "res://ui/kitchen_equipment_panel_v1.png"
+const KITCHEN_UPGRADE_PANEL_PATH := "res://ui/kitchen_upgrade_panel_v2.png"
+const KITCHEN_EQUIPMENT_SLOT_PATH := "res://ui/kitchen_equipment_slot_v1.png"
+const INVENTORY_SLOT_PATH := "res://ui/inventory_slot_v1.png"
+const KITCHEN_ORDER_BOARD_PATH := "res://ui/kitchen_order_board_v2.png"
+const KITCHEN_ORDER_CARD_PATH := "res://ui/kitchen_order_card_v2.png"
 const WOOD_TASK_BOARD_PATH := "res://ui/wood_task_board.png"
-const RESOURCE_BAR_SIZE := Vector2(220.0, 96.0)
+const RESOURCE_BAR_SIZE := Vector2(172.0, 58.0)
 const STAMINA_BAR_POS := Vector2(0.0, 0.0)
-const PERSONAL_COIN_BAR_POS := Vector2(220.0, 0.0)
-const COOP_COIN_BAR_POS := Vector2(440.0, 0.0)
-const POPULARITY_BAR_POS := Vector2(660.0, 0.0)
+const PERSONAL_COIN_BAR_POS := Vector2(184.0, 0.0)
+const COOP_COIN_BAR_POS := Vector2(368.0, 0.0)
+const POPULARITY_BAR_POS := Vector2(552.0, 0.0)
 const KITCHEN_ORDER_UI_REFRESH_INTERVAL := 0.25
 const BUSINESS_UI_FONT_SCALE := 1.0
-const KITCHEN_EQUIPMENT_BUBBLE_FONT_SIZE := 52
 const MOM_PORTRAIT_PATH := "res://聊天框/安提莉尔.png"
 const PLAYER_PORTRAIT_PATH := "res://聊天框/我.png"
 const REBAS_PORTRAIT_PATH := "res://聊天框/老伯.png"
@@ -75,6 +107,18 @@ const MOM_POSITION := Vector3(0.0, 0.0, -4.0)
 const CAMPER_TARGET_LENGTH := 8.8
 const CAMPER_BLOCKER_PADDING := Vector2(0.12, 0.16)
 const CAMPER_BLOCKER_SHRINK := 0.74
+const CAMPER_DRIVE_FORWARD_SPEED := 7.0
+const CAMPER_DRIVE_REVERSE_SPEED := 3.2
+const CAMPER_DRIVE_ACCELERATION := 8.5
+const CAMPER_DRIVE_BRAKE := 11.0
+const CAMPER_DRIVE_TURN_SPEED := 1.25
+const CAMPER_DRIVE_FIELD_LIMIT := 66.0
+const CAMPER_DRIVE_HALF_EXTENTS := Vector2(4.35, 1.85)
+const CAMPER_EXIT_SIDE_OFFSET := 3.2
+const CAMPER_DRIVE_FORWARD_YAW_OFFSET := -PI * 0.5
+const CAMPER_COMPASS_FADE_SECONDS := 0.16
+const CAMPER_COMPASS_WARM_DISTANCE := 25.0
+const CAMPER_COMPASS_NEAR_DISTANCE := 12.0
 const MOM_MODEL_SCALE := 2.35
 const MOM_BLOCKER_RADIUS := 1.05
 const MOM_FACE_PLAYER_OFFSET := 0.0
@@ -106,6 +150,7 @@ const MAP_CAMPER_SPEED := 0.24
 const MAP_CAMPER_RIGHT_FACING_YAW := PI
 const MAP_CAMPER_YAW_OFFSET := MAP_CAMPER_RIGHT_FACING_YAW - PI * 0.5
 const DIALOGUE_CHARS_PER_SECOND := 28.0
+const DIALOGUE_TYPE_SOUND_INTERVAL := 2
 const MOM_NAME := "安提莉尔"
 const TREE_BLOCKER_RADIUS := 1.05
 const TREE_CLICK_SHAKE_RADIUS := 1.25
@@ -143,7 +188,6 @@ const SOIL_WEED_INITIAL_GROW_MAX_SECONDS := 90.0
 const CROP_THROW_FULL_CHARGE_SECONDS := 1.25
 const CROP_THROW_MIN_DISTANCE := 3.2
 const CROP_THROW_MAX_DISTANCE := 18.0
-const HELD_CROP_ROT_SECONDS := 120.0
 const CHAPTER_ONE_PLAYER_START := Vector3(0.4, 0.0, 7.6)
 const CHAPTER_ONE_HOUSE_POSITION := Vector3(6.0, 0.0, -7.0)
 const CHAPTER_ONE_HOUSE_YAW := -24.0
@@ -200,11 +244,22 @@ const INVENTORY_ITEM_WATERING_CAN := "watering_can"
 const INVENTORY_ITEM_SCYTHE := "scythe"
 const INVENTORY_ITEM_FOOD_CHEST := "food_chest"
 const CROP_CARROT := "carrot"
-const CROP_EGGPLANT := "eggplant"
 const CROP_PEA := "pea"
+const CROP_EGGPLANT := "eggplant"
+const CROP_TOMATO := "tomato"
 const CROP_BELL_PEPPER := "bell_pepper"
+const CROP_PUMPKIN := "pumpkin"
+const CROP_STRAWBERRY := "strawberry"
+const CROP_SWEET_CORN := "sweet_corn"
+const CROP_MOON_MUSHROOM := "moon_mushroom"
 const CROP_MARSHMALLOW := "marshmallow"
-const CROP_TYPES := [CROP_CARROT, CROP_EGGPLANT, CROP_PEA]
+const CropCatalog = preload("res://scripts/crop_catalog.gd")
+const LocalEventCatalog = preload("res://scripts/local_event_catalog.gd")
+const BusinessProgressionCatalog = preload("res://scripts/business_progression_catalog.gd")
+const BusinessDiscoveryCatalog = preload("res://scripts/business_discovery_catalog.gd")
+const ResearchRecipeCatalog = preload("res://scripts/research_recipe_catalog.gd")
+const CROP_TYPES := [CROP_CARROT, CROP_PEA, CROP_EGGPLANT, CROP_TOMATO, CROP_BELL_PEPPER, CROP_PUMPKIN]
+const BUSINESS_LOCATION_BONUSES := []
 const CODEX_CROP_TOTAL := 10
 const CODEX_COOKING_TOTAL := 10
 const CODEX_CROP_REWARDS := [
@@ -215,7 +270,7 @@ const CODEX_CROP_REWARDS := [
 ]
 const CODEX_COOKING_REWARDS := [
 	{"count": 1, "label": "20 金币", "coins": 20},
-	{"count": 3, "label": "料理研究台线索", "toast": "料理研究台线索已记录"},
+	{"count": 3, "label": "料理研究台设计图", "unlock_research_table": true, "toast": "料理研究台已加入设备列表"},
 	{"count": 6, "label": "120 金币", "coins": 120},
 	{"count": 10, "label": "村庄料理委托", "toast": "村庄料理委托已记录"},
 ]
@@ -225,6 +280,7 @@ const KITCHEN_EQUIPMENT_TYPES := [
 	{"id": "pot", "name": "煮锅", "path": "res://3d建模/设备/煮锅.glb"},
 	{"id": "grill", "name": "烧烤架", "path": "res://3d建模/设备/烧烤架.glb"},
 	{"id": "prep_shelf", "name": "备菜架", "path": "res://3d建模/设备/备菜架.glb"},
+	{"id": "research_table", "name": "料理研究台", "path": "res://scenes/ResearchTable.tscn", "upgradeable": false, "max_quantity": 1},
 ]
 const FIRST_DAY_KITCHEN_EQUIPMENT_IDS := ["sink", "pot", "prep_shelf"]
 const FORMAL_KITCHEN_EQUIPMENT_IDS := ["sink", "pot", "grill", "prep_shelf"]
@@ -233,18 +289,40 @@ const KITCHEN_EQUIPMENT_FOOTPRINT_HALF_EXTENTS := Vector2(1.08, 0.88)
 const KITCHEN_EQUIPMENT_GRASS_CLEAR_PADDING := Vector2(1.15, 0.95)
 const KITCHEN_EQUIPMENT_POND_PADDING := 0.42
 const KITCHEN_EQUIPMENT_INTERACT_RADIUS := 2.0
+const KITCHEN_EQUIPMENT_ROTATION_STEP := PI * 0.25
+const KITCHEN_EQUIPMENT_NUDGE_STEP := 0.25
+const KITCHEN_EQUIPMENT_PLACE_LIMIT := 71.0
+const KITCHEN_EQUIPMENT_RAY_DISTANCE := 220.0
+const KITCHEN_QUANTITY_MAX_LEVEL := 5
+const KitchenUpgradeCatalog = preload("res://scripts/kitchen_upgrade_catalog.gd")
+const KitchenUpgradeVisuals = preload("res://scripts/kitchen_upgrade_visuals.gd")
+const KitchenPromptOverlayScript = preload("res://scripts/kitchen_prompt_overlay.gd")
+const WardrobeCatalog = preload("res://scripts/wardrobe_catalog.gd")
+const WardrobeSystemScript = preload("res://scripts/wardrobe_system.gd")
 const KITCHEN_LAYOUT_PRESET_PATH := "user://kitchen_layout_preset.json"
 const KITCHEN_RECIPE_SOUP := "carrot_soup"
 const KITCHEN_RECIPE_GRILLED := "grilled_carrot"
 const KITCHEN_RECIPE_PEA_SOUP := "pea_soup"
 const KITCHEN_RECIPE_EGGPLANT_GRILL := "eggplant_grill"
 const KITCHEN_RECIPE_PEPPER_SKEWERS := "pepper_skewers"
+const KITCHEN_RECIPE_PEPPER_SOUP := "pepper_soup"
+const KITCHEN_RECIPE_TOMATO_STEW := "tomato_stew"
+const KITCHEN_RECIPE_TOMATO_ROAST := "tomato_roast"
+const KITCHEN_RECIPE_PUMPKIN_POTAGE := "pumpkin_potage"
+const KITCHEN_RECIPE_PUMPKIN_ROAST := "pumpkin_roast"
 const KITCHEN_RECIPE_DATA := {
-	KITCHEN_RECIPE_SOUP: {"name": "胡萝卜清汤", "price": 18, "scrap_price": 5, "crop": CROP_CARROT, "station": "pot", "needs_wash": true, "needs_cut": true},
+	# 首关只要求洗菜池、煮锅与备菜架；清汤在洗净后可直接下锅，
+	# 不再要求尚未解锁的料理台，避免流程断档。
+	KITCHEN_RECIPE_SOUP: {"name": "胡萝卜清汤", "price": 18, "scrap_price": 5, "crop": CROP_CARROT, "station": "pot", "needs_wash": true, "needs_cut": false},
 	KITCHEN_RECIPE_GRILLED: {"name": "烤胡萝卜", "price": 22, "scrap_price": 6, "crop": CROP_CARROT, "station": "grill", "needs_wash": true, "needs_cut": false},
 	KITCHEN_RECIPE_PEA_SOUP: {"name": "豌豆奶油汤", "price": 25, "scrap_price": 7, "crop": CROP_PEA, "station": "pot", "needs_wash": true, "needs_cut": false},
 	KITCHEN_RECIPE_EGGPLANT_GRILL: {"name": "炙烤茄子", "price": 29, "scrap_price": 8, "crop": CROP_EGGPLANT, "station": "grill", "needs_wash": true, "needs_cut": true},
 	KITCHEN_RECIPE_PEPPER_SKEWERS: {"name": "彩椒丰收串", "price": 34, "scrap_price": 9, "crop": CROP_BELL_PEPPER, "station": "grill", "needs_wash": true, "needs_cut": true},
+	KITCHEN_RECIPE_PEPPER_SOUP: {"name": "甜椒暖汤", "price": 32, "scrap_price": 9, "crop": CROP_BELL_PEPPER, "station": "pot", "needs_wash": true, "needs_cut": true},
+	KITCHEN_RECIPE_TOMATO_STEW: {"name": "番茄慢炖", "price": 31, "scrap_price": 9, "crop": CROP_TOMATO, "station": "pot", "needs_wash": true, "needs_cut": true},
+	KITCHEN_RECIPE_TOMATO_ROAST: {"name": "炙烤番茄", "price": 33, "scrap_price": 9, "crop": CROP_TOMATO, "station": "grill", "needs_wash": true, "needs_cut": true},
+	KITCHEN_RECIPE_PUMPKIN_POTAGE: {"name": "南瓜浓汤", "price": 38, "scrap_price": 11, "crop": CROP_PUMPKIN, "station": "pot", "needs_wash": true, "needs_cut": true},
+	KITCHEN_RECIPE_PUMPKIN_ROAST: {"name": "香烤南瓜", "price": 40, "scrap_price": 12, "crop": CROP_PUMPKIN, "station": "grill", "needs_wash": true, "needs_cut": true},
 }
 const KITCHEN_QUALITY_PRICE_MULTIPLIERS := [1.0, 1.25, 1.6, 2.1]
 const KITCHEN_FIRST_DAY_DURATION := 120.0
@@ -276,13 +354,7 @@ const KITCHEN_POPULARITY_MAX_LEVEL := 10
 const KITCHEN_POPULARITY_XP_THRESHOLDS := [0, 12, 30, 54, 84, 120, 162, 210, 264, 324]
 const TUTORIAL_CARROT_COUNT := 5
 const FIRST_KITCHEN_REQUIRED_CARROTS := TUTORIAL_CARROT_COUNT
-const BUSINESS_PREP_LEVELS := [
-	{"id": 1, "name": "第1关 试营业", "orders": 3, "duration": 120.0, "requirements": {"carrot": 5}, "recipes": [KITCHEN_RECIPE_SOUP, KITCHEN_RECIPE_SOUP, KITCHEN_RECIPE_SOUP], "star_times": [120.0, 95.0, 70.0], "popularity": 12},
-	{"id": 2, "name": "第2关 午间小摊", "orders": 4, "duration": 110.0, "requirements": {"carrot": 4, "pea": 2}, "recipes": [KITCHEN_RECIPE_SOUP, KITCHEN_RECIPE_GRILLED, KITCHEN_RECIPE_PEA_SOUP, KITCHEN_RECIPE_GRILLED], "star_times": [110.0, 86.0, 66.0], "popularity": 16},
-	{"id": 3, "name": "第3关 晚风订单", "orders": 5, "duration": 108.0, "requirements": {"carrot": 2, "pea": 3, "eggplant": 3}, "recipes": [KITCHEN_RECIPE_PEA_SOUP, KITCHEN_RECIPE_EGGPLANT_GRILL, KITCHEN_RECIPE_SOUP, KITCHEN_RECIPE_EGGPLANT_GRILL, KITCHEN_RECIPE_PEA_SOUP], "star_times": [108.0, 82.0, 62.0], "popularity": 22},
-	{"id": 4, "name": "第4关 丰收排队", "orders": 6, "duration": 104.0, "requirements": {"carrot": 2, "pea": 2, "eggplant": 3, "bell_pepper": 3}, "recipes": [KITCHEN_RECIPE_EGGPLANT_GRILL, KITCHEN_RECIPE_PEPPER_SKEWERS, KITCHEN_RECIPE_PEA_SOUP, KITCHEN_RECIPE_EGGPLANT_GRILL, KITCHEN_RECIPE_PEPPER_SKEWERS, KITCHEN_RECIPE_SOUP], "star_times": [104.0, 78.0, 58.0], "popularity": 28},
-	{"id": 5, "name": "第5关 招牌夜市", "orders": 7, "duration": 100.0, "requirements": {"carrot": 3, "pea": 2, "eggplant": 3, "bell_pepper": 3}, "recipes": [KITCHEN_RECIPE_SOUP, KITCHEN_RECIPE_PEPPER_SKEWERS, KITCHEN_RECIPE_EGGPLANT_GRILL, KITCHEN_RECIPE_PEA_SOUP, KITCHEN_RECIPE_GRILLED, KITCHEN_RECIPE_PEPPER_SKEWERS, KITCHEN_RECIPE_EGGPLANT_GRILL], "star_times": [100.0, 74.0, 54.0], "popularity": 55},
-]
+const BUSINESS_PREP_LEVELS := BusinessProgressionCatalog.LEVELS
 const BUSINESS_STAR_REWARDS := [
 	{"stars": 5, "label": "金币 x60"},
 	{"stars": 10, "label": "合作金币 x15"},
@@ -300,25 +372,40 @@ const WAREHOUSE_ITEM_COOKING_TABLE_UPGRADE_MATERIAL := "cooking_table_upgrade_ma
 const WAREHOUSE_ITEM_MYSTERY_CROP_SAMPLE := "mystery_crop_sample"
 const WAREHOUSE_ITEM_MOON_DEW_BERRY_SEED := "moon_dew_berry_seed"
 const CHAPTER_ONE_TASK_TOTAL := 40
+const CHAPTER_ONE_PHASE_REWARDS := [
+	{"threshold": 10, "title": "第一阶段奖励", "reward": "个人金币 x50", "coins": 50},
+	{"threshold": 20, "title": "第二阶段奖励", "reward": "个人金币 x50", "coins": 50},
+	{"threshold": 30, "title": "第三阶段奖励", "reward": "个人金币 x180、料理台升级材料 x1", "coins": 180, "warehouse_item": WAREHOUSE_ITEM_COOKING_TABLE_UPGRADE_MATERIAL, "warehouse_amount": 1},
+	{"threshold": 40, "title": "第四阶段奖励", "reward": "解锁新区域：月露溪谷", "unlock_new_area": true},
+]
 const OPENING_SIGN_DAILY_BONUS_COINS := 5
 const OPENING_SIGN_PLACE_RADIUS := 8.5
 const OPENING_SIGN_PREVIEW_DISTANCE := 2.0
 const OPENING_SIGN_FOOTPRINT_HALF_EXTENTS := Vector2(0.62, 0.38)
-const KITCHEN_UPGRADE_COSTS := {
-	"sink": 80,
-	"cutting_table": 80,
-	"pot": 120,
-	"grill": 120,
-	"prep_shelf": 100,
-}
 const REBAS_NAME := "瑞巴斯坎特"
 const REBAS_INTERACT_RADIUS := 2.0
 const SIFTER_NAME := "奥提"
 const TRAVELER_NAME := "诺亚"
 const SIFTER_INTERACT_RADIUS := 2.1
+const STREAM_SIFTER_ITEM_COUNT := 50
+const STREAM_SIFTER_DURATION := 20.0
+const STREAM_SIFTER_PRACTICE_COUNT := 4
+const STREAM_SIFTER_ITEMS := [
+	{"name": "饱满豌豆荚", "category": "seed", "column": 0, "row": 0},
+	{"name": "完整胡萝卜种囊", "category": "seed", "column": 1, "row": 0},
+	{"name": "茄子种荚", "category": "seed", "column": 2, "row": 0},
+	{"name": "彩椒种子簇", "category": "seed", "column": 3, "row": 0},
+	{"name": "溪石", "category": "debris", "column": 0, "row": 1},
+	{"name": "枯叶团", "category": "debris", "column": 1, "row": 1},
+	{"name": "断枝", "category": "debris", "column": 2, "row": 1},
+	{"name": "腐坏破裂种荚", "category": "debris", "column": 3, "row": 1},
+]
 const TRAVELER_INTERACT_RADIUS := 2.1
-const CHAPTER_ONE_SIFTER_POSITION := Vector3(-9.0, 0.0, -16.0)
+const CHAPTER_ONE_SIFTER_POSITION := Vector3(-31.4, 0.0, 21.9)
 const CHAPTER_ONE_TRAVELER_POSITION := Vector3(5.7, 0.0, 12.8)
+const CHAPTER_ONE_WIND_CHASE_POSITION := Vector3(-15.0, 0.0, -7.0)
+const WIND_CHASE_INTERACT_RADIUS := 2.8
+const WIND_CHASE_NEARBY_HINT_RADIUS := 7.5
 const SHOP_REFRESH_UTC8_HOUR := 5
 const SEED_DROP_SWING_MIN := 5
 const SEED_DROP_SWING_MAX := 20
@@ -368,6 +455,80 @@ var _player_visual: Node3D
 var _camper: Node3D
 var _camper_model: Node3D
 var _camper_is_highlighted := false
+var _camper_driving := false
+var _camper_drive_unlocked := false
+var _camper_drive_speed := 0.0
+var _camper_drive_collision_cooldown := 0.0
+var _camper_drive_attachments: Array[Dictionary] = []
+var _camper_drive_note_overlay: Control
+var _camper_drive_note_pending := false
+var _camper_drive_note_seen := false
+var _camper_drive_note_resume_action := ""
+var _camper_drive_note_resume_level := 0
+var _camper_compass_root: Control
+var _camper_compass_dial: Control
+var _camper_compass_heading: Control
+var _camper_compass_southeast_label: Label
+var _camper_compass_marker: Label
+var _camper_compass_glow: Panel
+var _camper_compass_hint: Label
+var _camper_compass_leaf_left: Label
+var _camper_compass_leaf_right: Label
+var _camper_compass_fade_tween: Tween
+var _camper_compass_visible_requested := false
+var _camper_compass_sense_level := -1
+var _camper_compass_hint_time := 0.0
+var _camper_compass_animation_time := 0.0
+var _business_location_discovered: Dictionary = {}
+var _active_business_location_bonus: Dictionary = {}
+var _business_location_bonus_coins := 0
+var _unlocked_crops: Dictionary = {CROP_CARROT: true}
+var _codex_harvested_crops: Dictionary = {}
+var _local_event_state: Dictionary = {}
+var _local_event_perks: Dictionary = {}
+var _local_event_atlas: Dictionary = {}
+var _scheduled_day_event := ""
+var _scheduled_night_event := ""
+var _active_world_event_id := ""
+var _local_event_business_id := ""
+var _local_event_visuals: Dictionary = {}
+var _local_event_proximity_notified: Dictionary = {}
+var _local_event_daily_first_order_key := ""
+var _pending_marked_tree_pepper_seeds := 0
+var _local_event_overlay: Control
+var _local_event_result_overlay: Control
+var _business_discovery_states: Dictionary = {}
+var _business_discovery_rumors: Dictionary = {}
+var _mainline_site_visuals: Dictionary = {}
+var _mainline_site_proximity_notified: Dictionary = {}
+var _mainline_commission_overlay: Control
+var _mainline_commission_level := 0
+var _business_active_first_commission_level := 0
+var _research_table_unlocked := false
+var _researched_special_recipes: Dictionary = {}
+var _special_recipe_first_served: Dictionary = {}
+var _research_overlay: Control
+var _research_panel: PanelContainer
+var _research_selected_recipe := ""
+var _research_selected_crop := ""
+var _research_selected_station := ""
+var _research_feedback := ""
+var _research_attempt_locked := false
+var _last_event_schedule_day := -1
+var _last_day_night_phase := ""
+var _world_environment: Environment
+var _world_sky_material: ProceduralSkyMaterial
+var _world_sun_light: DirectionalLight3D
+var _world_cloud_material: StandardMaterial3D
+var _visible_sun_mesh: MeshInstance3D
+var _visible_moon_mesh: MeshInstance3D
+var _night_stars_root: Node3D
+var _night_star_material: ShaderMaterial
+var _firefly_root: Node3D
+var _day_clock_panel: Control
+var _day_clock_icon: TextureRect
+var _day_clock_label: Label
+var _day_night_visual_time := 0.0
 var _mom: Node3D
 var _mom_model: Node3D
 var _mom_exclamation: Label3D
@@ -378,9 +539,60 @@ var _rebas_exclamation: Label3D
 var _rebas_is_highlighted := false
 var _seed_sifter: Node3D
 var _young_traveler: Node3D
+var _wardrobe_system: Node
+var _wardrobe_purchase_in_progress := false
+var _wind_chase_beacon: Node3D
+var _wind_chase_unlocked := false
+var _wind_chase_completed := false
+var _wind_chase_intro_pending := false
+var _wind_chase_guide_seen := false
+var _wind_chase_guide_resume_action := ""
+var _wind_chase_first_entry := true
+var _wind_chase_proximity_hint_shown := false
+var _wind_chase_guide_overlay: Control
+var _wind_chase_overlay: Control
+var _wind_chase_panel: Control
+var _wind_chase_track: Control
+var _wind_chase_marker: ColorRect
+var _wind_chase_status_label: Label
+var _wind_chase_progress_label: Label
+var _wind_chase_active := false
+var _wind_chase_phase := 0.0
+var _wind_chase_hits := 0
 var _sifter_intro_completed := false
+var _sifter_unlocked := false
+var _sifter_intro_pending := false
+var _sifter_guide_seen := false
+var _sifter_guide_resume_action := ""
+var _sifter_guide_resume_level := 0
 var _traveler_intro_completed := false
 var _sifter_last_reward_day := ""
+var _sifter_guide_overlay: Control
+var _sifter_game_overlay: Control
+var _sifter_game_panel: Control
+var _sifter_item_sheet: Texture2D
+var _sifter_item_texture: TextureRect
+var _sifter_item_name_label: Label
+var _sifter_header_label: Label
+var _sifter_footer_label: Label
+var _sifter_feedback_label: Label
+var _sifter_left_button: Button
+var _sifter_right_button: Button
+var _sifter_exit_button: Button
+var _sifter_result_panel: Control
+var _sifter_result_label: Label
+var _sifter_result_button: Button
+var _sifter_game_active := false
+var _sifter_practice_active := false
+var _sifter_transitioning := false
+var _sifter_time_left := 0.0
+var _sifter_queue: Array[Dictionary] = []
+var _sifter_item_index := 0
+var _sifter_correct_count := 0
+var _sifter_wrong_count := 0
+var _sifter_current_streak := 0
+var _sifter_best_streak := 0
+var _sifter_rng := RandomNumberGenerator.new()
 var _highlight_material: StandardMaterial3D
 var _dialogue_layer: CanvasLayer
 var _hud_root: Control
@@ -421,7 +633,9 @@ var _chapter_one_task_scroll: ScrollContainer
 var _chapter_one_task_list: VBoxContainer
 var _chapter_one_task_panel_signature := ""
 var _chapter_one_task_claimed: Dictionary = {}
-var _chapter_one_food_chest_capacity_bonus := 0
+var _chapter_one_phase_reward_claimed: Dictionary = {}
+var _chapter_one_phase_detail: PanelContainer
+var _chapter_one_task_claim_animation_running := false
 var _chapter_one_shop_refresh_tickets := 0
 var _chapter_one_backpack_unlock_bonus := 0
 var _chapter_one_unlocked_new_area := false
@@ -448,6 +662,7 @@ var _chapter_one_shop_eggplant_seed_obtained := false
 var _pickup_feed: VBoxContainer
 var _held_crop_quality_panel: PanelContainer
 var _held_crop_quality_label: Label
+var _held_crop_freshness_label: Label
 var _inventory_bar: HBoxContainer
 var _inventory_slots: Array[PanelContainer] = []
 var _inventory_slot_items: Array[String] = []
@@ -497,6 +712,7 @@ var _map_codex_crop_claim_button: Button
 var _map_codex_cooking_red_dot: Label
 var _map_codex_cooking_claim_button: Button
 var _map_codex_detail_popup: PanelContainer
+var _map_local_flavor_button: Button
 var _map_page_locked_time := 0.0
 var _map_page_locked_side := 0
 var _map_camper_pos := MAP_CAMPER_START
@@ -542,11 +758,14 @@ var _food_chest_guide_completed := false
 var _crop_throw_guide_completed := false
 var _kitchen_equipment_entry_guide_completed := false
 var _kitchen_upgrade_entry_guide_completed := false
+var _kitchen_upgrade_attention_acknowledged := false
+var _kitchen_upgrade_confetti_played := false
 var _water_amount := 0.0
 var _water_filling := false
 var _water_fill_effect_cooldown := 0.0
 var _notification_time := 0.0
 var _notification_text := ""
+var _notification_on_kitchen_board := false
 var _shown_interaction_prompt_texts: Dictionary = {}
 var _tilled_soil_root: Node3D
 var _tilled_soil_centers: Array[Vector2] = []
@@ -562,7 +781,6 @@ var _empty_soil_decay_remaining: Dictionary = {}
 var _matured_carrot_count := 0
 var _tutorial_harvested_carrot_count := 0
 var _tutorial_stored_carrot_count := 0
-var _crop_future_talk_completed := false
 var _find_food_chests_prompt_active := false
 var _food_chests_found := false
 var _chest_lesson_completed := false
@@ -571,19 +789,27 @@ var _opening_sign_placed := false
 var _opening_sign: Node3D
 var _opening_sign_bonus_day_key := ""
 var _warehouse_items: Dictionary = {}
+var _warehouse_modal_root: Control
 var _warehouse_panel: PanelContainer
 var _warehouse_grid: GridContainer
+var _warehouse_scroll: ScrollContainer
 var _warehouse_button: Button
+var _warehouse_tab_buttons: Dictionary = {}
+var _warehouse_tab_badges: Dictionary = {}
+var _warehouse_new_items: Dictionary = {}
 var _warehouse_tab := "decor"
 var _warehouse_panel_open := false
 var _warehouse_placing_item := ""
 var _warehouse_place_preview: Node3D
 var _opening_package_reward_panel: PanelContainer
+var _opening_package_reward_body: Label
+var _opening_package_reward_feedback_running := false
 var _opening_sign_status_panel: PanelContainer
 var _food_chest_nodes: Array[Node3D] = []
 var _placed_food_chests: Array[Node3D] = []
 var _food_chest_preview: Node3D
 var _stored_crop_counts: Dictionary = {}
+var _stored_crop_fresh_times: Dictionary = {}
 var _coins := 0
 var _coop_coins := 0
 var _codex_discovered_crops: Dictionary = {}
@@ -594,6 +820,7 @@ var _codex_claimed_rewards: Dictionary = {}
 var _rebas_intro_completed := false
 var _pending_open_rebas_shop := false
 var _shop_overlay: Control
+var _shop_panel: Control
 var _shop_grid: GridContainer
 var _shop_tab_sell: Button
 var _shop_tab_buy: Button
@@ -601,9 +828,13 @@ var _shop_coin_label: Label
 var _shop_refresh_label: Label
 var _shop_action_button: Button
 var _shop_select_all: CheckBox
+var _shop_summary_label: Label
+var _shop_card_nodes: Dictionary = {}
+var _shop_layout_signature := ""
 var _food_chest_overlay: Control
 var _food_chest_capacity_label: Label
 var _food_chest_grid: GridContainer
+var _food_chest_full_notice_shown := false
 var _shop_mode := "sell"
 var _shop_selected_quantities: Dictionary = {}
 var _shop_daily_key := ""
@@ -615,8 +846,32 @@ var _shop_hold_direction := 0
 var _shop_hold_time := 0.0
 var _kitchen_equipment_panel: PanelContainer
 var _kitchen_equipment_grid: GridContainer
+var _kitchen_instance_selector: PanelContainer
+var _kitchen_instance_selector_title: Label
+var _kitchen_instance_selector_buttons: GridContainer
+var _kitchen_instance_selector_equipment := ""
 var _kitchen_upgrade_panel: PanelContainer
 var _kitchen_upgrade_grid: GridContainer
+var _kitchen_upgrade_tab := "equipment"
+var _kitchen_upgrade_equipment_list: VBoxContainer
+var _kitchen_upgrade_level_box: VBoxContainer
+var _kitchen_upgrade_cards: VBoxContainer
+var _kitchen_upgrade_detail_label: Label
+var _kitchen_upgrade_purchase_button: Button
+var _kitchen_upgrade_slider: HSlider
+var _kitchen_upgrade_preview_viewport: SubViewport
+var _kitchen_upgrade_preview_container: SubViewportContainer
+var _kitchen_upgrade_preview_model: Node3D
+var _kitchen_upgrade_preview_camera: Camera3D
+var _kitchen_upgrade_selected_equipment := "sink"
+var _kitchen_upgrade_selected_index := 0
+var _kitchen_upgrade_preview_dragging := false
+var _kitchen_upgrade_preview_last_mouse := Vector2.ZERO
+var _kitchen_upgrade_preview_yaw := 0.0
+var _kitchen_upgrade_free_material_selected := false
+var _kitchen_upgrade_header_button: Button
+var _kitchen_upgrade_new_badge: PanelContainer
+var _kitchen_upgrade_badge_tween: Tween
 var _kitchen_button: Button
 var _kitchen_button_unlock_animation_pending := false
 var _kitchen_status_panel: PanelContainer
@@ -628,9 +883,9 @@ var _kitchen_order_ui_refresh_remaining := 0.0
 var _business_prep_overlay: Control
 var _business_prep_level_list: HBoxContainer
 var _business_prep_reward_box: VBoxContainer
-var _business_prep_detail_box: VBoxContainer
-var _business_level_detail_open: Dictionary = {}
-var _business_level_detail_tab: Dictionary = {}
+var _business_opened_detail_card: Control
+var _business_flower_gift_button: Button
+var _business_duel_button: Button
 var _business_level_stars: Dictionary = {}
 var _business_active_level_id := 0
 var _business_active_level_duration := 0.0
@@ -643,12 +898,20 @@ var _business_result_record_label: Label
 var _business_result_progress_label: Label
 var _business_result_buttons: HBoxContainer
 var _business_result_next_button: Button
+var _business_result_garden_button: Button
+var _business_result_duel_button: Button
 var _business_result_data: Dictionary = {}
 var _business_result_pending_open := false
+var _duel_client_instance: Node
+var _duel_previous_mouse_mode := Input.MOUSE_MODE_CAPTURED
+var _duel_previous_tree_paused := false
 var _kitchen_equipment_panel_open := false
 var _kitchen_upgrade_panel_open := false
 var _kitchen_placing_equipment := ""
+var _kitchen_placing_instance_id := ""
 var _kitchen_placing_yaw := 0.0
+var _kitchen_placing_position := Vector3.ZERO
+var _kitchen_placing_cursor_valid := false
 var _kitchen_equipment_preview: Node3D
 var _kitchen_equipment_roots: Dictionary = {}
 var _kitchen_saved_layout: Dictionary = {}
@@ -656,6 +919,7 @@ var _kitchen_washed_carrot := 0
 var _kitchen_chopped_carrot := 0
 var _kitchen_served_count := 0
 var _kitchen_failed_count := 0
+var _kitchen_service_combo_count := 0
 var _kitchen_business_active := false
 var _kitchen_first_day_completed := false
 var _kitchen_business_time := 0.0
@@ -668,12 +932,15 @@ var _kitchen_popularity_xp := 0
 var _kitchen_popularity_level := 1
 var _business_popularity_claimed: Dictionary = {}
 var _kitchen_upgrade_levels: Dictionary = {}
+var _kitchen_function_upgrades: Dictionary = {}
+var _village_upgrades: Dictionary = {}
+var _village_upgrade_visual_root: Node3D
 var _kitchen_orders: Array[Dictionary] = []
-var _kitchen_pot_state: Dictionary = {}
-var _kitchen_grill_state: Dictionary = {}
+var _kitchen_cook_states: Dictionary = {}
 var _kitchen_ready_dishes: Dictionary = {}
 var _kitchen_scrap_dishes: Dictionary = {}
 var _kitchen_scrap_income := 0
+var _kitchen_burnt_food_disposal_guide_completed := false
 var _kitchen_held_item := ""
 var _kitchen_held_recipe := ""
 var _kitchen_held_quality := 0
@@ -681,6 +948,7 @@ var _kitchen_held_fresh_time := 0.0
 var _kitchen_held_visual: Node3D
 var _kitchen_equipment_bubbles: Dictionary = {}
 var _kitchen_equipment_progress: Dictionary = {}
+var _kitchen_prompt_overlay: Control
 var _watered_soil_centers: Array[Vector2] = []
 var _held_crop_item := ""
 var _held_crop_quality := 0
@@ -724,18 +992,148 @@ var _active_ponds: Array = []
 var _orbit := Vector2(0.0, 0.42)
 var _zoom := 15.0
 var _editor_rebuild_queued := false
+var _flower_garden_controller: Node
+var _staged_startup_requested := false
+var _staged_startup_complete := false
+var _startup_activated := false
+var _staged_rebuild_state_only := false
+var _startup_started_usec := 0
 
 func _ready() -> void:
 	randomize()
 	if Engine.is_editor_hint():
 		call_deferred("_rebuild_scene")
 		return
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	if _staged_startup_requested:
+		call_deferred("_run_staged_startup")
+		return
 	_rebuild_scene()
+	_activate_staged_startup()
+
+func _prepare_staged_startup() -> void:
+	_staged_startup_requested = true
+	_staged_startup_complete = false
+	_startup_activated = false
+	visible = false
+	process_mode = Node.PROCESS_MODE_DISABLED
+
+func _activate_staged_startup() -> void:
+	if _startup_activated:
+		return
+	_startup_activated = true
+	visible = true
+	process_mode = Node.PROCESS_MODE_INHERIT
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	AudioManager.start_world_music()
+
+func _is_staged_startup_complete() -> bool:
+	return _staged_startup_complete
+
+func _run_staged_startup() -> void:
+	_startup_started_usec = Time.get_ticks_usec()
+	_emit_startup_progress(0.01, "整理存档状态")
+	_staged_rebuild_state_only = true
+	_rebuild_scene()
+	_staged_rebuild_state_only = false
+	await get_tree().process_frame
+
+	var phase_started := Time.get_ticks_usec()
+	_setup_world()
+	_create_visible_sun()
+	_create_night_sky_elements()
+	_create_background_clouds()
+	_create_falling_petals()
+	_log_startup_phase("environment", phase_started)
+	_emit_startup_progress(0.10, "铺设天空与光照")
+	await get_tree().process_frame
+
+	phase_started = Time.get_ticks_usec()
+	_create_terrain()
+	_create_ponds()
+	_log_startup_phase("terrain_and_ponds", phase_started)
+	_emit_startup_progress(0.18, "生成地形与水域")
+	await get_tree().process_frame
+
+	phase_started = Time.get_ticks_usec()
+	_create_chapter_one_camper_path()
+	_create_ground_petals()
+	_log_startup_phase("path_and_petals", phase_started)
+	_emit_startup_progress(0.24, "铺设道路与花瓣")
+	await get_tree().process_frame
+
+	phase_started = Time.get_ticks_usec()
+	await _create_grass_staged()
+	_log_startup_phase("grass", phase_started)
+	_emit_startup_progress(0.58, "草地生成完成")
+
+	phase_started = Time.get_ticks_usec()
+	await _create_background_trees_staged()
+	_log_startup_phase("background_trees", phase_started)
+	_emit_startup_progress(0.68, "生成远景树木")
+
+	phase_started = Time.get_ticks_usec()
+	await _create_asset_trees_staged()
+	_log_startup_phase("asset_trees", phase_started)
+	_emit_startup_progress(0.77, "摆放近景树木")
+
+	phase_started = Time.get_ticks_usec()
+	_create_mom()
+	_log_startup_phase("mom", phase_started)
+	_emit_startup_progress(0.81, "迎接旅伴")
+	await get_tree().process_frame
+
+	phase_started = Time.get_ticks_usec()
+	_create_camper()
+	_log_startup_phase("camper", phase_started)
+	_emit_startup_progress(0.85, "停放房车")
+	await get_tree().process_frame
+
+	phase_started = Time.get_ticks_usec()
+	_create_player()
+	_log_startup_phase("player", phase_started)
+	_emit_startup_progress(0.89, "准备角色")
+	await get_tree().process_frame
+
+	_create_camera()
+	_emit_startup_progress(0.91, "设置镜头")
+	await get_tree().process_frame
+
+	phase_started = Time.get_ticks_usec()
+	await _create_dialogue_ui_staged()
+	_log_startup_phase("hud", phase_started)
+	_emit_startup_progress(0.98, "整理界面")
+
+	phase_started = Time.get_ticks_usec()
+	_setup_wardrobe_system()
+	_log_startup_phase("wardrobe", phase_started)
+	_staged_startup_complete = true
+	_emit_startup_progress(1.0, "准备完成")
+	if OS.is_debug_build():
+		print("[Startup] world_ready total=%.2f ms" % ((Time.get_ticks_usec() - _startup_started_usec) / 1000.0))
+	startup_completed.emit()
+
+func _emit_startup_progress(progress: float, stage: String) -> void:
+	startup_progress_changed.emit(clampf(progress, 0.0, 1.0), stage)
+
+func _log_startup_phase(stage: String, started_usec: int) -> void:
+	if OS.is_debug_build():
+		print("[Startup] %s=%.2f ms" % [stage, (Time.get_ticks_usec() - started_usec) / 1000.0])
+
+func _exit_tree() -> void:
+	TimeManager.ui_paused = false
+	get_tree().paused = false
+	if _duel_client_instance != null and is_instance_valid(_duel_client_instance):
+		var close_callback := Callable(self, "_on_duel_overlay_closed")
+		if _duel_client_instance.has_signal("duel_closed") and _duel_client_instance.is_connected("duel_closed", close_callback):
+			_duel_client_instance.disconnect("duel_closed", close_callback)
+		_duel_client_instance.queue_free()
+	_duel_client_instance = null
 
 func _reset_chapter_one_task_state() -> void:
 	_chapter_one_task_claimed.clear()
-	_chapter_one_food_chest_capacity_bonus = 0
+	_chapter_one_phase_reward_claimed.clear()
+	_chapter_one_phase_detail = null
+	_chapter_one_task_claim_animation_running = false
 	_chapter_one_shop_refresh_tickets = 0
 	_chapter_one_backpack_unlock_bonus = 0
 	_chapter_one_unlocked_new_area = false
@@ -803,20 +1201,98 @@ func _rebuild_scene() -> void:
 	_chapter_one_task_list = null
 	_chapter_one_task_panel_signature = ""
 	_reset_chapter_one_task_state()
+	_warehouse_modal_root = null
 	_warehouse_panel = null
 	_warehouse_grid = null
+	_warehouse_scroll = null
 	_warehouse_button = null
+	_warehouse_tab_buttons.clear()
+	_warehouse_tab_badges.clear()
+	_warehouse_new_items.clear()
 	_warehouse_tab = "decor"
 	_warehouse_panel_open = false
 	_warehouse_placing_item = ""
 	_warehouse_place_preview = null
 	_opening_package_reward_panel = null
+	_opening_package_reward_body = null
+	_opening_package_reward_feedback_running = false
 	_opening_sign_status_panel = null
 	_camper = null
 	_camper_model = null
+	_camper_driving = false
+	_camper_drive_unlocked = false
+	_camper_drive_speed = 0.0
+	_camper_drive_collision_cooldown = 0.0
+	_camper_drive_attachments.clear()
+	_camper_drive_note_overlay = null
+	_camper_drive_note_pending = false
+	_camper_drive_note_seen = false
+	_camper_drive_note_resume_action = ""
+	_camper_drive_note_resume_level = 0
+	_camper_compass_root = null
+	_camper_compass_dial = null
+	_camper_compass_heading = null
+	_camper_compass_southeast_label = null
+	_camper_compass_marker = null
+	_camper_compass_glow = null
+	_camper_compass_hint = null
+	_camper_compass_leaf_left = null
+	_camper_compass_leaf_right = null
+	_camper_compass_fade_tween = null
+	_camper_compass_visible_requested = false
+	_camper_compass_sense_level = -1
+	_camper_compass_hint_time = 0.0
+	_camper_compass_animation_time = 0.0
+	_business_location_discovered.clear()
+	_active_business_location_bonus.clear()
+	_business_location_bonus_coins = 0
+	_business_discovery_states.clear()
+	_business_discovery_rumors.clear()
+	_mainline_site_visuals.clear()
+	_mainline_site_proximity_notified.clear()
+	_mainline_commission_overlay = null
+	_mainline_commission_level = 0
+	_business_active_first_commission_level = 0
+	_unlocked_crops = {CROP_CARROT: true}
+	_codex_harvested_crops.clear()
+	_local_event_state.clear()
+	_local_event_perks.clear()
+	_local_event_atlas.clear()
+	_scheduled_day_event = ""
+	_scheduled_night_event = ""
+	_active_world_event_id = ""
+	_local_event_business_id = ""
+	_local_event_visuals.clear()
+	_local_event_proximity_notified.clear()
+	_local_event_daily_first_order_key = ""
+	_pending_marked_tree_pepper_seeds = 0
+	_local_event_overlay = null
+	_local_event_result_overlay = null
+	_research_overlay = null
+	_research_panel = null
+	_research_selected_recipe = ""
+	_research_selected_crop = ""
+	_research_selected_station = ""
+	_research_feedback = ""
+	_research_attempt_locked = false
+	_last_event_schedule_day = -1
+	_last_day_night_phase = ""
+	_world_environment = null
+	_world_sky_material = null
+	_world_sun_light = null
+	_world_cloud_material = null
+	_visible_sun_mesh = null
+	_visible_moon_mesh = null
+	_night_stars_root = null
+	_night_star_material = null
+	_firefly_root = null
+	_day_clock_panel = null
+	_day_clock_icon = null
+	_day_clock_label = null
 	_map_camper_model = null
 	_map_codex_panel = null
 	_map_codex_detail_popup = null
+	_map_local_flavor_button = null
 	_mom = null
 	_mom_model = null
 	_mom_exclamation = null
@@ -826,7 +1302,49 @@ func _rebuild_scene() -> void:
 	_rebas_exclamation = null
 	_seed_sifter = null
 	_young_traveler = null
+	_wardrobe_system = null
+	_wind_chase_beacon = null
+	_wind_chase_unlocked = false
+	_wind_chase_completed = false
+	_wind_chase_intro_pending = false
+	_wind_chase_guide_seen = false
+	_wind_chase_guide_resume_action = ""
+	_wind_chase_first_entry = true
+	_wind_chase_proximity_hint_shown = false
+	_wind_chase_active = false
+	_wind_chase_phase = 0.0
+	_wind_chase_hits = 0
 	_sifter_intro_completed = false
+	_sifter_unlocked = false
+	_sifter_intro_pending = false
+	_sifter_guide_seen = false
+	_sifter_guide_resume_action = ""
+	_sifter_guide_resume_level = 0
+	_sifter_guide_overlay = null
+	_sifter_game_overlay = null
+	_sifter_game_panel = null
+	_sifter_item_sheet = null
+	_sifter_item_texture = null
+	_sifter_item_name_label = null
+	_sifter_header_label = null
+	_sifter_footer_label = null
+	_sifter_feedback_label = null
+	_sifter_left_button = null
+	_sifter_right_button = null
+	_sifter_exit_button = null
+	_sifter_result_panel = null
+	_sifter_result_label = null
+	_sifter_result_button = null
+	_sifter_game_active = false
+	_sifter_practice_active = false
+	_sifter_transitioning = false
+	_sifter_time_left = 0.0
+	_sifter_queue.clear()
+	_sifter_item_index = 0
+	_sifter_correct_count = 0
+	_sifter_wrong_count = 0
+	_sifter_current_streak = 0
+	_sifter_best_streak = 0
 	_traveler_intro_completed = false
 	_sifter_last_reward_day = ""
 	_rebas_is_highlighted = false
@@ -872,6 +1390,11 @@ func _rebuild_scene() -> void:
 	_crop_throw_guide_completed = false
 	_kitchen_equipment_entry_guide_completed = false
 	_kitchen_upgrade_entry_guide_completed = false
+	_kitchen_upgrade_attention_acknowledged = false
+	_kitchen_upgrade_confetti_played = false
+	if _kitchen_upgrade_badge_tween != null and _kitchen_upgrade_badge_tween.is_valid():
+		_kitchen_upgrade_badge_tween.kill()
+	_kitchen_upgrade_badge_tween = null
 	_kitchen_button_unlock_animation_pending = false
 	_water_amount = 0.0
 	_water_filling = false
@@ -903,7 +1426,6 @@ func _rebuild_scene() -> void:
 	_matured_carrot_count = 0
 	_tutorial_harvested_carrot_count = 0
 	_tutorial_stored_carrot_count = 0
-	_crop_future_talk_completed = false
 	_find_food_chests_prompt_active = false
 	_food_chests_found = false
 	_chest_lesson_completed = false
@@ -912,22 +1434,32 @@ func _rebuild_scene() -> void:
 	_opening_sign = null
 	_opening_sign_bonus_day_key = ""
 	_warehouse_items.clear()
+	_warehouse_new_items.clear()
 	_food_chest_nodes.clear()
 	_placed_food_chests.clear()
 	_food_chest_preview = null
 	_stored_crop_counts.clear()
+	_stored_crop_fresh_times.clear()
 	_coop_coins = 0
 	_codex_discovered_crops.clear()
 	_codex_discovered_cooking.clear()
 	_codex_revealed_crops.clear()
 	_codex_revealed_cooking.clear()
 	_codex_claimed_rewards.clear()
+	_research_table_unlocked = false
+	_researched_special_recipes.clear()
+	_special_recipe_first_served.clear()
 	_rebas_intro_completed = false
 	_pending_open_rebas_shop = false
 	_shop_overlay = null
+	_shop_panel = null
+	_shop_summary_label = null
+	_shop_card_nodes.clear()
+	_shop_layout_signature = ""
 	_food_chest_overlay = null
 	_food_chest_capacity_label = null
 	_food_chest_grid = null
+	_food_chest_full_notice_shown = false
 	_shop_grid = null
 	_rebas_seen_shop_key = ""
 	_shop_selected_quantities.clear()
@@ -937,6 +1469,10 @@ func _rebuild_scene() -> void:
 	_rebas_intro_completed = false
 	_pending_open_rebas_shop = false
 	_shop_overlay = null
+	_shop_panel = null
+	_shop_summary_label = null
+	_shop_card_nodes.clear()
+	_shop_layout_signature = ""
 	_food_chest_overlay = null
 	_food_chest_capacity_label = null
 	_food_chest_grid = null
@@ -949,18 +1485,19 @@ func _rebuild_scene() -> void:
 	_business_prep_overlay = null
 	_business_prep_level_list = null
 	_business_prep_reward_box = null
-	_business_prep_detail_box = null
+	_business_opened_detail_card = null
+	_business_flower_gift_button = null
+	_business_duel_button = null
 	_kitchen_status_panel = null
 	_kitchen_status_label = null
 	_kitchen_status_timer_label = null
 	_kitchen_order_scroll = null
 	_kitchen_order_list = null
 	_kitchen_order_ui_refresh_remaining = 0.0
-	_business_level_detail_open.clear()
-	_business_level_detail_tab.clear()
 	_business_level_stars.clear()
 	_business_active_level_id = 0
 	_business_active_level_duration = 0.0
+	_business_active_first_commission_level = 0
 	_business_result_overlay = null
 	_business_result_panel = null
 	_business_result_star_row = null
@@ -970,6 +1507,8 @@ func _rebuild_scene() -> void:
 	_business_result_progress_label = null
 	_business_result_buttons = null
 	_business_result_next_button = null
+	_business_result_garden_button = null
+	_business_result_duel_button = null
 	_business_result_data.clear()
 	_business_result_pending_open = false
 	_kitchen_saved_layout = _load_kitchen_layout_preset()
@@ -1024,10 +1563,18 @@ func _rebuild_scene() -> void:
 	_typewriter_total = 0
 	_solid_blockers.clear()
 	_wind_trees.clear()
+	_flower_garden_controller = null
 	_reset_kitchen_state()
+	_restore_progression_world_state()
 	_clear_generated()
+	if _staged_rebuild_state_only:
+		return
+	_build_scene_sync()
+
+func _build_scene_sync() -> void:
 	_setup_world()
 	_create_visible_sun()
+	_create_night_sky_elements()
 	_create_background_clouds()
 	_create_falling_petals()
 	_create_terrain()
@@ -1042,19 +1589,58 @@ func _rebuild_scene() -> void:
 	_create_player()
 	_create_camera()
 	_create_dialogue_ui()
+	_setup_wardrobe_system()
 
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	if _chapter_transitioning:
 		return
+	_update_day_night(delta)
+	_update_local_events(delta)
+	_update_mainline_discovery_sites(delta)
 	_update_kitchen_stamina_recovery(delta)
 	_update_coin_hud()
+	_enforce_sifter_level_gate()
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
+		_flower_garden_controller.call("tick", delta)
+		if bool(_flower_garden_controller.call("is_overlay_open")):
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+			return
+	if _mainline_commission_overlay != null and is_instance_valid(_mainline_commission_overlay) and _mainline_commission_overlay.visible:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		return
+	if _camper_drive_note_overlay != null and _camper_drive_note_overlay.visible:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		return
+	if _sifter_game_overlay != null and _sifter_game_overlay.visible:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		if _sifter_game_active:
+			_update_stream_sifter(delta)
+		return
+	if _wind_chase_guide_overlay != null and _wind_chase_guide_overlay.visible:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		return
+	if _sifter_guide_overlay != null and _sifter_guide_overlay.visible:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		return
+	if _try_show_pending_wind_chase_guide():
+		return
+	if _try_show_pending_camper_drive_note():
+		return
+	if _try_show_pending_sifter_guide():
+		return
+	if _wardrobe_system != null and is_instance_valid(_wardrobe_system):
+		_wardrobe_system.call("update", delta)
+		if bool(_wardrobe_system.call("is_overlay_open")):
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+			return
 	if _reward_overlay != null and _reward_overlay.visible:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		return
 	if _shop_overlay != null and _shop_overlay.visible:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		_layout_rebas_shop()
 		_update_shop_hold(delta)
 		_update_shop_header()
 		return
@@ -1064,32 +1650,43 @@ func _process(delta: float) -> void:
 	if _business_prep_overlay != null and _business_prep_overlay.visible:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		return
+	if _wind_chase_active:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		_update_wind_chase(delta)
+		return
+	if _camper_driving:
+		_update_camper_driving(delta)
+	_update_camper_drive_compass(delta)
 	_update_mouse_cursor_mode()
-	_update_inventory_press(delta)
-	_update_discard_hold(delta)
-	_update_watering_can_fill(delta)
-	_update_crop_throw_charge(delta)
+	if not _camper_driving:
+		_update_inventory_press(delta)
+		_update_discard_hold(delta)
+		_update_watering_can_fill(delta)
+		_update_crop_throw_charge(delta)
 	_update_crop_throw_charge_bar()
-	_update_food_chest_placement_preview()
-	_update_kitchen_equipment_placement_preview()
-	_update_warehouse_placement_preview()
+	if not _camper_driving:
+		_update_food_chest_placement_preview()
+		_update_kitchen_equipment_placement_preview()
+		_update_warehouse_placement_preview()
+	var freshness_delta := 0.0 if _is_crop_freshness_paused() else delta
 	_update_kitchen_business(delta)
-	_update_kitchen_equipment_progress(delta)
+	_update_kitchen_equipment_progress(delta, freshness_delta)
 	_update_kitchen_held_visual()
-	_update_kitchen_equipment_bubbles()
+	_update_kitchen_equipment_bubbles(delta)
 	_update_kitchen_status_panel(delta)
 	_update_kitchen_button()
 	_update_warehouse_button()
 	_reseat_existing_placeables()
 	_update_food_chest_deposits()
-	_update_crop_growth(delta)
+	_update_crop_growth(delta, freshness_delta)
 	_update_empty_soil_decay(delta)
-	_update_dropped_item_lifetimes(delta)
-	_update_held_crop_freshness(delta)
-	_update_kitchen_held_freshness(delta)
+	_update_dropped_item_lifetimes(delta, freshness_delta)
+	_update_held_crop_freshness(freshness_delta)
+	_update_kitchen_held_freshness(freshness_delta)
 	_update_post_tutorial_objective()
 	_update_kitchen_entry_guides()
 	_update_camera_shake(delta)
+	_update_wind_chase_beacon(delta)
 	_update_tree_wind(delta)
 	_update_grass_player_push()
 	_update_house_mom_pacing(delta)
@@ -1106,9 +1703,16 @@ func _process(delta: float) -> void:
 	_update_rebas_exclamation(delta)
 	_update_notification(delta)
 
+func _is_crop_freshness_paused() -> bool:
+	return _dialogue_open or _map_open or _warehouse_panel_open or _kitchen_equipment_panel_open or _kitchen_upgrade_panel_open or (_research_overlay != null and _research_overlay.visible) or (_opening_package_reward_panel != null and _opening_package_reward_panel.visible) or (_opening_sign_status_panel != null and _opening_sign_status_panel.visible) or (_wardrobe_system != null and is_instance_valid(_wardrobe_system) and bool(_wardrobe_system.call("is_overlay_open")))
+
 func _input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_kitchen_upgrade_preview_dragging = false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		_close_business_detail_for_click(event.position)
 	if event is InputEventMouseMotion and _inventory_dragging_item:
 		_update_inventory_drag(event.position)
 		get_viewport().set_input_as_handled()
@@ -1120,6 +1724,53 @@ func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
 	if _chapter_transitioning:
+		get_viewport().set_input_as_handled()
+		return
+	if _dialogue_open and event is InputEventKey:
+		var dialogue_key := event as InputEventKey
+		if dialogue_key.pressed and not dialogue_key.echo and dialogue_key.keycode == KEY_F:
+			_advance_dialogue()
+			get_viewport().set_input_as_handled()
+			return
+	if _wardrobe_system != null and is_instance_valid(_wardrobe_system) and bool(_wardrobe_system.call("handle_unhandled_input", event)):
+		get_viewport().set_input_as_handled()
+		return
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("handle_unhandled_input", event)):
+		get_viewport().set_input_as_handled()
+		return
+	if _mainline_commission_overlay != null and is_instance_valid(_mainline_commission_overlay) and _mainline_commission_overlay.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_close_mainline_commission_card()
+		get_viewport().set_input_as_handled()
+		return
+	if _camper_drive_note_overlay != null and _camper_drive_note_overlay.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_dismiss_camper_drive_note()
+		get_viewport().set_input_as_handled()
+		return
+	if _sifter_game_overlay != null and _sifter_game_overlay.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_exit_stream_sifter()
+		get_viewport().set_input_as_handled()
+		return
+	if _sifter_guide_overlay != null and _sifter_guide_overlay.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_dismiss_sifter_guide()
+		get_viewport().set_input_as_handled()
+		return
+	if _wind_chase_guide_overlay != null and _wind_chase_guide_overlay.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_dismiss_wind_chase_guide()
+		get_viewport().set_input_as_handled()
+		return
+	if _camper_driving:
+		if event is InputEventMouseMotion:
+			var drive_mouse_sensitivity := 0.0032
+			_orbit.x -= event.relative.x * drive_mouse_sensitivity
+			_orbit.y = clampf(_orbit.y + event.relative.y * drive_mouse_sensitivity, 0.08, 0.68)
+			_apply_camera()
+		if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+			_try_exit_camper_driving()
 		get_viewport().set_input_as_handled()
 		return
 	if _reward_overlay != null and _reward_overlay.visible:
@@ -1137,6 +1788,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			_close_food_chest_inventory_panel()
 			get_viewport().set_input_as_handled()
+		return
+	if _research_overlay != null and _research_overlay.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_close_research_table_panel()
+		get_viewport().set_input_as_handled()
 		return
 	if _business_prep_overlay != null and _business_prep_overlay.visible:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
@@ -1160,12 +1816,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _kitchen_placing_equipment != "" and _handle_kitchen_placement_input(event):
 		return
-	if _kitchen_upgrade_panel_open and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		_close_kitchen_upgrade_panel()
+	if _kitchen_upgrade_panel_open:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_close_kitchen_upgrade_panel()
 		get_viewport().set_input_as_handled()
 		return
 	if _kitchen_equipment_panel_open and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		_close_kitchen_equipment_panel()
+		if _is_kitchen_instance_selector_visible():
+			_hide_kitchen_instance_selector()
+		else:
+			_close_kitchen_equipment_panel()
 		get_viewport().set_input_as_handled()
 		return
 	if _map_open:
@@ -1260,7 +1920,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_stop_watering_fill()
 
 func _is_free_cursor_requested() -> bool:
-	return Input.is_key_pressed(KEY_ALT) or _inventory_dragging_item or _kitchen_equipment_panel_open or _kitchen_upgrade_panel_open or _warehouse_panel_open or _business_result_pending_open or (_business_result_overlay != null and _business_result_overlay.visible) or (_business_prep_overlay != null and _business_prep_overlay.visible) or (_opening_package_reward_panel != null and _opening_package_reward_panel.visible) or (_opening_sign_status_panel != null and _opening_sign_status_panel.visible)
+	return Input.is_key_pressed(KEY_ALT) or _inventory_dragging_item or _kitchen_placing_equipment != "" or _kitchen_equipment_panel_open or _kitchen_upgrade_panel_open or _warehouse_panel_open or _business_result_pending_open or (_business_result_overlay != null and _business_result_overlay.visible) or (_business_prep_overlay != null and _business_prep_overlay.visible) or (_mainline_commission_overlay != null and is_instance_valid(_mainline_commission_overlay) and _mainline_commission_overlay.visible) or (_opening_package_reward_panel != null and _opening_package_reward_panel.visible) or (_opening_sign_status_panel != null and _opening_sign_status_panel.visible) or (_wind_chase_guide_overlay != null and _wind_chase_guide_overlay.visible) or (_sifter_guide_overlay != null and _sifter_guide_overlay.visible) or (_sifter_game_overlay != null and _sifter_game_overlay.visible) or (_wardrobe_system != null and is_instance_valid(_wardrobe_system) and bool(_wardrobe_system.call("is_overlay_open"))) or (_flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_overlay_open")))
 
 func _update_mouse_cursor_mode() -> void:
 	if _dialogue_open or _map_open or _is_free_cursor_requested():
@@ -1313,6 +1973,8 @@ func _setup_world() -> void:
 	env.fog_density = 0.0018
 	env.fog_aerial_perspective = 0.08
 	world_env.environment = env
+	_world_environment = env
+	_world_sky_material = sky_mat
 	_mark_generated(world_env)
 	add_child(world_env)
 
@@ -1322,11 +1984,12 @@ func _setup_world() -> void:
 	sun.light_color = Color(1.0, 0.90, 0.62)
 	sun.light_energy = 5.6
 	sun.light_angular_distance = 1.2
-	sun.shadow_enabled = false
-	sun.shadow_opacity = 0.0
+	sun.shadow_enabled = true
+	sun.shadow_opacity = 0.68
 	sun.directional_shadow_max_distance = 80.0
 	_mark_generated(sun)
 	add_child(sun)
+	_world_sun_light = sun
 	sun.look_at(Vector3.ZERO, Vector3.UP)
 
 func _create_visible_sun() -> void:
@@ -1353,6 +2016,7 @@ func _create_visible_sun() -> void:
 	visible_sun.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mark_generated(visible_sun)
 	add_child(visible_sun)
+	_visible_sun_mesh = visible_sun
 
 	for halo in [
 		{"radius": 13.5, "alpha": 0.24, "energy": 1.8},
@@ -1383,11 +2047,200 @@ func _create_visible_sun() -> void:
 		_mark_generated(sun_halo)
 		add_child(sun_halo)
 
+func _create_night_sky_elements() -> void:
+	_night_stars_root = Node3D.new()
+	_night_stars_root.name = "NightStars"
+	_mark_generated(_night_stars_root)
+	add_child(_night_stars_root)
+	var star_mesh := QuadMesh.new()
+	star_mesh.size = Vector2(1.6, 1.6)
+	var star_shader := Shader.new()
+	star_shader.code = """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled;
+
+uniform float night_visibility : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 star_color : source_color = vec3(0.78, 0.88, 1.0);
+
+varying float star_brightness;
+varying float star_phase;
+varying float star_speed;
+
+void vertex() {
+	float star_size = mix(0.52, 1.16, INSTANCE_CUSTOM.a);
+	VERTEX *= star_size;
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(
+		INV_VIEW_MATRIX[0],
+		INV_VIEW_MATRIX[1],
+		INV_VIEW_MATRIX[2],
+		MODEL_MATRIX[3]
+	);
+	star_brightness = mix(0.58, 1.0, INSTANCE_CUSTOM.r);
+	star_phase = INSTANCE_CUSTOM.g * 6.28318530718;
+	star_speed = mix(0.35, 0.8, INSTANCE_CUSTOM.b);
+}
+
+void fragment() {
+	vec2 centered_uv = UV * 2.0 - 1.0;
+	float center_distance = length(centered_uv);
+	float core = 1.0 - smoothstep(0.08, 0.32, center_distance);
+	float glow = (1.0 - smoothstep(0.18, 1.0, center_distance)) * 0.34;
+	float vertical_ray = (1.0 - smoothstep(0.015, 0.075, abs(centered_uv.x)))
+		* (1.0 - smoothstep(0.25, 0.92, abs(centered_uv.y)));
+	float horizontal_ray = (1.0 - smoothstep(0.015, 0.075, abs(centered_uv.y)))
+		* (1.0 - smoothstep(0.25, 0.92, abs(centered_uv.x)));
+	float star_shape = max(core, max(vertical_ray, horizontal_ray) * 0.46) + glow;
+	float twinkle = 1.0 + sin(TIME * star_speed * 6.28318530718 + star_phase) * 0.15;
+	float strength = star_shape * star_brightness * twinkle * night_visibility;
+	ALBEDO = star_color;
+	EMISSION = star_color * (1.4 + star_brightness * 0.8);
+	ALPHA = clamp(strength, 0.0, 1.0);
+}
+"""
+	_night_star_material = ShaderMaterial.new()
+	_night_star_material.shader = star_shader
+	_night_star_material.set_shader_parameter("night_visibility", 0.0)
+	var star_instances := MultiMesh.new()
+	star_instances.transform_format = MultiMesh.TRANSFORM_3D
+	star_instances.use_custom_data = true
+	star_instances.mesh = star_mesh
+	star_instances.instance_count = 128
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 240519
+	for index in range(star_instances.instance_count):
+		var azimuth := rng.randf_range(0.0, TAU)
+		var elevation_ratio := pow(rng.randf(), 1.8)
+		var elevation := lerpf(deg_to_rad(3.0), deg_to_rad(78.0), elevation_ratio)
+		var radius := rng.randf_range(132.0, 148.0)
+		var position := Vector3(cos(azimuth) * cos(elevation), sin(elevation), sin(azimuth) * cos(elevation)) * radius
+		star_instances.set_instance_transform(index, Transform3D(Basis.IDENTITY, position))
+		star_instances.set_instance_custom_data(index, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf()))
+	var stars := MultiMeshInstance3D.new()
+	stars.name = "StarField"
+	stars.multimesh = star_instances
+	stars.material_override = _night_star_material
+	stars.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_night_stars_root.add_child(stars)
+
+	var moon_mesh := SphereMesh.new()
+	moon_mesh.radius = 4.2
+	moon_mesh.height = 8.4
+	moon_mesh.radial_segments = 32
+	moon_mesh.rings = 16
+	_visible_moon_mesh = MeshInstance3D.new()
+	_visible_moon_mesh.name = "VisibleMoon"
+	_visible_moon_mesh.mesh = moon_mesh
+	_visible_moon_mesh.material_override = _crop_part_material(Color(0.78, 0.88, 1.0), 2.2)
+	_visible_moon_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_night_stars_root.add_child(_visible_moon_mesh)
+
+	_firefly_root = Node3D.new()
+	_firefly_root.name = "NightFirefliesAndLights"
+	_mark_generated(_firefly_root)
+	add_child(_firefly_root)
+	var fly_material := _crop_part_material(Color(0.74, 1.0, 0.38), 4.0)
+	for index in range(24):
+		var fly := MeshInstance3D.new()
+		fly.name = "Firefly_%02d" % index
+		var fly_mesh := SphereMesh.new()
+		fly_mesh.radius = 0.055
+		fly_mesh.height = 0.11
+		fly_mesh.radial_segments = 5
+		fly_mesh.rings = 3
+		fly.mesh = fly_mesh
+		fly.material_override = fly_material
+		var angle := rng.randf_range(0.0, TAU)
+		var radius := rng.randf_range(8.0, 58.0)
+		fly.position = Vector3(cos(angle) * radius, rng.randf_range(0.6, 2.7), sin(angle) * radius)
+		fly.set_meta("base_y", fly.position.y)
+		fly.set_meta("phase", rng.randf_range(0.0, TAU))
+		_firefly_root.add_child(fly)
+	var light_positions := [Vector3(6.0, 3.2, -7.0), Vector3(15.8, 3.2, 8.8), Vector3(-43.0, 3.0, -28.0), Vector3(35.0, 3.0, 31.0), Vector3(-24.0, 3.0, 36.0), Vector3(49.0, 3.0, -22.0)]
+	var light_event_ids := ["", "", LocalEventCatalog.FOREST_MARKET, LocalEventCatalog.BIRD_MARKET, LocalEventCatalog.CAMPFIRE_STORY, LocalEventCatalog.RABBIT_PARTY]
+	for index in range(light_positions.size()):
+		var lamp := OmniLight3D.new()
+		lamp.name = "NightLamp_%d" % index
+		lamp.position = light_positions[index]
+		lamp.light_color = Color(1.0, 0.66, 0.28)
+		lamp.light_energy = 1.5
+		lamp.omni_range = 8.0
+		lamp.shadow_enabled = index < 2
+		lamp.set_meta("local_event_id", light_event_ids[index])
+		_firefly_root.add_child(lamp)
+
+func _world_time_hours() -> float:
+	return float(TimeManager.hour) + float(TimeManager.minute) / 60.0
+
+func _day_night_phase() -> String:
+	return str(TimeManager.get_phase()) if TimeManager.has_method("get_phase") else "day"
+
+func _day_night_should_pause() -> bool:
+	return _dialogue_open or _map_open or _kitchen_upgrade_panel_open or _warehouse_panel_open or _business_result_pending_open or (_business_result_overlay != null and _business_result_overlay.visible) or (_business_prep_overlay != null and _business_prep_overlay.visible) or (_mainline_commission_overlay != null and is_instance_valid(_mainline_commission_overlay) and _mainline_commission_overlay.visible) or (_reward_overlay != null and _reward_overlay.visible) or (_shop_overlay != null and _shop_overlay.visible) or (_food_chest_overlay != null and _food_chest_overlay.visible) or (_research_overlay != null and _research_overlay.visible) or (_local_event_overlay != null and _local_event_overlay.visible) or (_local_event_result_overlay != null and _local_event_result_overlay.visible)
+
+func _update_day_night(delta: float) -> void:
+	TimeManager.ui_paused = _day_night_should_pause()
+	_day_night_visual_time += maxf(delta, 0.0)
+	var hours := _world_time_hours()
+	var daylight := smoothstep(5.0, 7.0, hours) * (1.0 - smoothstep(17.0, 19.0, hours))
+	var sunset_glow := maxf(1.0 - absf(hours - 18.0) / 1.7, 0.0)
+	var dawn_glow := maxf(1.0 - absf(hours - 6.0) / 1.5, 0.0)
+	var warm_glow := maxf(sunset_glow, dawn_glow)
+	var night_alpha := 1.0 - daylight
+	if _world_sky_material != null:
+		var night_top := Color(0.025, 0.045, 0.12)
+		var day_top := Color(0.46, 0.72, 0.96)
+		var horizon := Color(0.12, 0.16, 0.28).lerp(Color(0.75, 0.88, 0.96), daylight)
+		horizon = horizon.lerp(Color(1.0, 0.42, 0.20), warm_glow * 0.48)
+		_world_sky_material.sky_top_color = night_top.lerp(day_top, daylight)
+		_world_sky_material.sky_horizon_color = horizon
+		_world_sky_material.ground_bottom_color = Color(0.04, 0.07, 0.10).lerp(Color(0.72, 0.80, 0.68), daylight)
+		_world_sky_material.ground_horizon_color = Color(0.09, 0.12, 0.18).lerp(Color(0.83, 0.89, 0.80), daylight)
+	if _world_environment != null:
+		_world_environment.ambient_light_energy = lerpf(0.20, 0.72, daylight)
+		_world_environment.tonemap_exposure = lerpf(0.82, 1.08, daylight)
+		_world_environment.fog_light_color = Color(0.10, 0.14, 0.24).lerp(Color(0.78, 0.88, 0.94), daylight).lerp(Color(0.88, 0.42, 0.24), warm_glow * 0.28)
+		_world_environment.fog_density = lerpf(0.0031, 0.0018, daylight)
+	if _world_cloud_material != null:
+		_world_cloud_material.albedo_color = Color(0.20, 0.25, 0.38, 0.52).lerp(Color(0.96, 0.98, 0.94, 0.88), daylight).lerp(Color(0.96, 0.58, 0.38, 0.82), warm_glow * 0.28)
+	var solar_angle := (hours - 6.0) / 24.0 * TAU
+	var sun_position := Vector3(cos(solar_angle) * 92.0, sin(solar_angle) * 82.0, -48.0)
+	if _world_sun_light != null:
+		_world_sun_light.position = sun_position
+		_world_sun_light.light_energy = lerpf(0.22, 4.4, daylight)
+		_world_sun_light.light_color = Color(0.52, 0.62, 0.92).lerp(Color(1.0, 0.91, 0.70), daylight).lerp(Color(1.0, 0.48, 0.24), warm_glow * 0.52)
+		_world_sun_light.look_at(Vector3.ZERO, Vector3.UP)
+	for child in get_children():
+		if child is MeshInstance3D and (child.name == "VisibleSun" or child.name == "VisibleSunHalo"):
+			(child as MeshInstance3D).position = sun_position
+			(child as MeshInstance3D).visible = daylight > 0.06
+	if _visible_moon_mesh != null:
+		_visible_moon_mesh.position = -sun_position.normalized() * 126.0
+	if _night_star_material != null:
+		var star_visibility := smoothstep(0.18, 0.72, night_alpha)
+		_night_star_material.set_shader_parameter("night_visibility", star_visibility)
+	if _night_stars_root != null:
+		_night_stars_root.visible = night_alpha > 0.10
+	if _firefly_root != null:
+		_firefly_root.visible = night_alpha > 0.22
+		for child in _firefly_root.get_children():
+			if child is MeshInstance3D and child.has_meta("base_y"):
+				var fly := child as MeshInstance3D
+				fly.position.y = float(fly.get_meta("base_y")) + sin(_day_night_visual_time * 1.7 + float(fly.get_meta("phase"))) * 0.22
+			elif child is OmniLight3D and child.has_meta("local_event_id"):
+				var lamp_event := str(child.get_meta("local_event_id"))
+				(child as OmniLight3D).visible = lamp_event == "" or lamp_event == _current_scheduled_local_event() or lamp_event == _local_event_business_id
+	var phase := _day_night_phase()
+	_update_day_clock_content(phase)
+	if phase != _last_day_night_phase:
+		_last_day_night_phase = phase
+		_on_day_night_phase_changed(phase)
+
 func _create_background_clouds() -> void:
 	var cloud_mat := StandardMaterial3D.new()
 	cloud_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	cloud_mat.albedo_color = Color(0.96, 0.98, 0.94, 0.88)
 	cloud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_world_cloud_material = cloud_mat
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2727
@@ -1650,6 +2503,83 @@ func _create_grass() -> void:
 	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mark_generated(grass)
 	add_child(grass)
+
+func _create_grass_staged() -> void:
+	_grass_spatial_cells.clear()
+	var grass_mesh := _make_grass_clump_mesh()
+	var mat := ShaderMaterial.new()
+	mat.shader = GRASS_SHADER
+	mat.set_shader_parameter("wind_strength", wind_strength)
+	mat.set_shader_parameter("wind_speed", wind_speed)
+	mat.set_shader_parameter("player_push_radius", 2.4)
+	mat.set_shader_parameter("player_push_strength", 0.0)
+	_grass_material = mat
+
+	var multimesh := MultiMesh.new()
+	_grass_multimesh = multimesh
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_colors = true
+	multimesh.use_custom_data = false
+	multimesh.mesh = grass_mesh
+	multimesh.instance_count = grass_count
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 424242
+	var cluster_centers := _make_grass_cluster_centers(rng, 96)
+	var placed := 0
+	var attempts := 0
+	var slice_started := Time.get_ticks_usec()
+	var max_slice_usec := 0
+	while placed < grass_count and attempts < grass_count * 8:
+		var slice_elapsed := Time.get_ticks_usec() - slice_started
+		if slice_elapsed >= STARTUP_SLICE_BUDGET_USEC:
+			max_slice_usec = maxi(max_slice_usec, slice_elapsed)
+			_emit_startup_progress(lerpf(0.24, 0.58, float(placed) / maxf(float(grass_count), 1.0)), "种植草地 %d/%d" % [placed, grass_count])
+			await get_tree().process_frame
+			slice_started = Time.get_ticks_usec()
+		attempts += 1
+		var x := 0.0
+		var z := 0.0
+		for retry in range(8):
+			var point := _pick_grass_point(rng, cluster_centers)
+			x = point.x
+			z = point.y
+			if _can_place_grass_at(x, z):
+				break
+		if not _can_place_grass_at(x, z):
+			continue
+
+		var density := _grass_density_at(x, z)
+		density *= _start_camper_path_grass_density_multiplier(x, z)
+		if rng.randf() > density * 0.95:
+			continue
+
+		var y := _height_at(x, z)
+		var height_variation := lerpf(0.62, 1.12, pow(rng.randf(), 0.72))
+		var density_height := lerpf(0.82, 1.08, density)
+		var scale := rng.randf_range(0.78, 1.08) * grass_height * density_height
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(scale * rng.randf_range(0.95, 1.18), scale * height_variation, scale * rng.randf_range(0.95, 1.18)))
+		multimesh.set_instance_transform(placed, Transform3D(basis, Vector3(x, y, z)))
+		var cell_key := _grass_cell_key(Vector2(x, z))
+		if not _grass_spatial_cells.has(cell_key):
+			_grass_spatial_cells[cell_key] = []
+		_grass_spatial_cells[cell_key].append(placed)
+		var shade := rng.randf()
+		var clump_color := Color(lerpf(0.35, 0.72, shade), lerpf(0.52, 0.82, shade), lerpf(0.26, 0.38, shade), 1.0)
+		multimesh.set_instance_color(placed, clump_color)
+		placed += 1
+
+	multimesh.instance_count = placed
+	var grass := MultiMeshInstance3D.new()
+	grass.name = "VeryDenseWindGrass"
+	grass.multimesh = multimesh
+	grass.material_override = mat
+	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_mark_generated(grass)
+	add_child(grass)
+	max_slice_usec = maxi(max_slice_usec, Time.get_ticks_usec() - slice_started)
+	if OS.is_debug_build():
+		print("[Startup] grass_max_slice=%.2f ms budget=%.2f ms" % [max_slice_usec / 1000.0, STARTUP_SLICE_BUDGET_USEC / 1000.0])
 
 func _update_grass_player_push() -> void:
 	if _grass_material == null:
@@ -2312,6 +3242,86 @@ func _create_background_trees() -> void:
 		crown.material_override = leaf_mat
 		tree.add_child(crown)
 
+func _create_background_trees_staged() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1212
+	var trunk_mat := StandardMaterial3D.new()
+	trunk_mat.albedo_color = Color(0.56, 0.51, 0.42)
+	var leaf_mat := StandardMaterial3D.new()
+	leaf_mat.albedo_color = Color(0.66, 0.74, 0.64)
+	leaf_mat.roughness = 0.95
+	var created := 0
+	var slice_started := Time.get_ticks_usec()
+
+	for i in range(72):
+		var a := rng.randf_range(0.0, TAU)
+		var r := rng.randf_range(82.0, 122.0)
+		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
+		pos.y = _height_at(pos.x, pos.z)
+		var tree := Node3D.new()
+		tree.name = "DistantLowPolyTree"
+		tree.position = pos
+		tree.rotation.y = rng.randf_range(0.0, TAU)
+		tree.scale = Vector3.ONE * rng.randf_range(0.68, 1.55)
+		_mark_generated(tree)
+		add_child(tree)
+
+		var trunk := MeshInstance3D.new()
+		var trunk_mesh := CylinderMesh.new()
+		trunk_mesh.top_radius = 0.18
+		trunk_mesh.bottom_radius = 0.26
+		trunk_mesh.height = 2.1
+		trunk_mesh.radial_segments = 6
+		trunk.mesh = trunk_mesh
+		trunk.position.y = 1.05
+		trunk.material_override = trunk_mat
+		tree.add_child(trunk)
+
+		var crown := MeshInstance3D.new()
+		var crown_mesh := CylinderMesh.new()
+		crown_mesh.bottom_radius = rng.randf_range(1.35, 2.15)
+		crown_mesh.top_radius = 0.0
+		crown_mesh.height = rng.randf_range(3.5, 5.2)
+		crown_mesh.radial_segments = 7
+		crown.mesh = crown_mesh
+		crown.position.y = 3.15
+		crown.material_override = leaf_mat
+		tree.add_child(crown)
+		created += 1
+		if Time.get_ticks_usec() - slice_started >= STARTUP_SLICE_BUDGET_USEC:
+			_emit_startup_progress(lerpf(0.58, 0.68, float(created) / 116.0), "生成远景树木 %d/116" % created)
+			await get_tree().process_frame
+			slice_started = Time.get_ticks_usec()
+
+	for i in range(44):
+		var a := TAU * float(i) / 44.0 + rng.randf_range(-0.035, 0.035)
+		var r := rng.randf_range(128.0, 150.0)
+		var pos := Vector3(cos(a) * r, 0.0, sin(a) * r)
+		pos.y = _height_at(pos.x, pos.z)
+		var tree := Node3D.new()
+		tree.name = "FarHorizonTreeLine"
+		tree.position = pos
+		tree.rotation.y = rng.randf_range(0.0, TAU)
+		tree.scale = Vector3.ONE * rng.randf_range(1.05, 2.45)
+		_mark_generated(tree)
+		add_child(tree)
+
+		var crown := MeshInstance3D.new()
+		var crown_mesh := CylinderMesh.new()
+		crown_mesh.bottom_radius = rng.randf_range(1.6, 2.4)
+		crown_mesh.top_radius = 0.0
+		crown_mesh.height = rng.randf_range(5.4, 7.2)
+		crown_mesh.radial_segments = 6
+		crown.mesh = crown_mesh
+		crown.position.y = crown_mesh.height * 0.48
+		crown.material_override = leaf_mat
+		tree.add_child(crown)
+		created += 1
+		if Time.get_ticks_usec() - slice_started >= STARTUP_SLICE_BUDGET_USEC:
+			_emit_startup_progress(lerpf(0.58, 0.68, float(created) / 116.0), "生成远景树木 %d/116" % created)
+			await get_tree().process_frame
+			slice_started = Time.get_ticks_usec()
+
 func _create_asset_trees() -> void:
 	var scene := load(TREE_SCENE_PATH)
 	if not scene is PackedScene:
@@ -2378,6 +3388,72 @@ func _create_asset_trees() -> void:
 		})
 		_add_tree_blocker(tree.position, TREE_BLOCKER_RADIUS, _wind_trees.size() - 1)
 
+func _create_asset_trees_staged() -> void:
+	var scene := load(TREE_SCENE_PATH)
+	if not scene is PackedScene:
+		push_warning("Could not load tree model: %s" % TREE_SCENE_PATH)
+		return
+
+	var tree_points := [
+		Vector3(-8.5, 0.0, -10.5),
+		Vector3(10.5, 0.0, -12.0),
+		Vector3(-16.0, 0.0, 3.5),
+		Vector3(15.0, 0.0, 5.5),
+		Vector3(-5.0, 0.0, 15.0),
+		Vector3(18.0, 0.0, -2.0),
+		Vector3(-14.0, 0.0, 27.0),
+		Vector3(-24.0, 0.0, 34.0),
+		Vector3(20.0, 0.0, 35.0),
+		Vector3(34.0, 0.0, 22.0),
+		Vector3(-36.0, 0.0, 8.0),
+		Vector3(42.0, 0.0, -4.0),
+		Vector3(-30.0, 0.0, -26.0),
+		Vector3(17.0, 0.0, -38.0),
+		Vector3(50.0, 0.0, 39.0),
+		Vector3(-52.0, 0.0, 40.0),
+		Vector3(55.0, 0.0, -30.0),
+		Vector3(-48.0, 0.0, -44.0),
+	]
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9090
+	for index in range(tree_points.size()):
+		var point: Vector3 = tree_points[index]
+		if _should_skip_asset_tree(point) or _is_inside_pond(point.x, point.z, 5.5):
+			continue
+		var tree := Node3D.new()
+		tree.name = "WindTree"
+		tree.position = Vector3(point.x, _height_at(point.x, point.z), point.z)
+		tree.rotation.y = rng.randf_range(0.0, TAU)
+		_mark_generated(tree)
+		add_child(tree)
+
+		var model := scene.instantiate() as Node3D
+		if model == null:
+			continue
+		model.name = "TreeModel"
+		tree.add_child(model)
+		var target_height := rng.randf_range(4.2, 8.8)
+		if index < 6:
+			target_height = [4.4, 7.9, 5.3, 8.5, 6.1, 4.8][index]
+		_fit_model_to_height(model, target_height)
+		_ground_model(model)
+		_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+		_wind_trees.append({
+			"node": tree,
+			"base_rotation": tree.rotation,
+			"phase": rng.randf_range(0.0, TAU),
+			"strength": rng.randf_range(0.018, 0.038),
+			"speed": rng.randf_range(0.75, 1.15),
+			"shake_time": 0.0,
+			"shake_axis": Vector2.ZERO,
+			"shake_phase": rng.randf_range(0.0, TAU),
+		})
+		_add_tree_blocker(tree.position, TREE_BLOCKER_RADIUS, _wind_trees.size() - 1)
+		_emit_startup_progress(lerpf(0.68, 0.77, float(index + 1) / float(tree_points.size())), "摆放近景树木 %d/%d" % [index + 1, tree_points.size()])
+		await get_tree().process_frame
+
 func _should_skip_asset_tree(point: Vector3) -> bool:
 	if not _chapter_one_active:
 		return false
@@ -2410,6 +3486,17 @@ func _update_tree_wind(delta: float) -> void:
 				var amount := TREE_SHAKE_STRENGTH * falloff * pulse
 				shake_rotation = Vector3(shake_axis.y * amount, 0.0, -shake_axis.x * amount)
 		tree.rotation = base_rotation + wind_rotation + shake_rotation
+
+func _setup_wardrobe_system() -> void:
+	if Engine.is_editor_hint() or _hud_root == null or _player == null or _camper == null:
+		return
+	if _wardrobe_system != null and is_instance_valid(_wardrobe_system):
+		_wardrobe_system.queue_free()
+	_wardrobe_system = WardrobeSystemScript.new()
+	_wardrobe_system.name = "WardrobeSystem"
+	_mark_generated(_wardrobe_system)
+	add_child(_wardrobe_system)
+	_wardrobe_system.call("setup", self, _hud_root, _player, _camper)
 
 func _create_player() -> void:
 	var scene := load(PLAYER_SCENE_PATH)
@@ -2653,6 +3740,99 @@ func _create_seed_sifter() -> void:
 		return
 	_seed_sifter = _create_story_npc(SIFTER_SCENE_PATH, "SeedSifterOtter", CHAPTER_ONE_SIFTER_POSITION, CHAPTER_ONE_PLAYER_START)
 
+func _enforce_sifter_level_gate() -> void:
+	if _business_level_star_count(1) >= 1:
+		return
+	if not _sifter_unlocked and (_seed_sifter == null or not is_instance_valid(_seed_sifter)):
+		return
+	_sifter_unlocked = false
+	_sifter_intro_pending = false
+	_sifter_guide_seen = false
+	_sifter_intro_completed = false
+	_sifter_guide_resume_action = ""
+	_sifter_guide_resume_level = 0
+	if _sifter_guide_overlay != null:
+		_sifter_guide_overlay.visible = false
+	_remove_sifter_circle_blocker()
+	if _seed_sifter != null and is_instance_valid(_seed_sifter):
+		_seed_sifter.queue_free()
+	_seed_sifter = null
+
+func _remove_sifter_circle_blocker() -> void:
+	var sifter_point := Vector2(CHAPTER_ONE_SIFTER_POSITION.x, CHAPTER_ONE_SIFTER_POSITION.z)
+	for index in range(_solid_blockers.size() - 1, -1, -1):
+		var blocker: Dictionary = _solid_blockers[index]
+		if str(blocker.get("shape", "")) != "circle" or absf(float(blocker.get("radius", 0.0)) - 0.82) > 0.05:
+			continue
+		var center: Vector3 = blocker.get("center", Vector3.ZERO)
+		if Vector2(center.x, center.z).distance_squared_to(sifter_point) <= 0.04:
+			_solid_blockers.remove_at(index)
+
+func _create_wind_chase_beacon() -> void:
+	if _wind_chase_beacon != null and is_instance_valid(_wind_chase_beacon):
+		return
+	_wind_chase_beacon = Node3D.new()
+	_wind_chase_beacon.name = "WindChaseBeacon"
+	_wind_chase_beacon.position = Vector3(CHAPTER_ONE_WIND_CHASE_POSITION.x, _height_at(CHAPTER_ONE_WIND_CHASE_POSITION.x, CHAPTER_ONE_WIND_CHASE_POSITION.z), CHAPTER_ONE_WIND_CHASE_POSITION.z)
+	_mark_generated(_wind_chase_beacon)
+	add_child(_wind_chase_beacon)
+
+	var icon := Sprite3D.new()
+	icon.name = "WindChaseIcon"
+	icon.texture = _load_ui_texture(WIND_CHASE_ICON_PATH)
+	icon.pixel_size = 0.0020
+	icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	icon.no_depth_test = true
+	icon.position = Vector3(0.0, 1.85, 0.0)
+	icon.modulate = Color(1.0, 1.0, 1.0, 0.84)
+	_wind_chase_beacon.add_child(icon)
+
+	var label := Label3D.new()
+	label.name = "WindChaseLabel"
+	label.text = "逐风已完成"
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.font_size = 22
+	label.outline_size = 5
+	label.modulate = Color(0.72, 0.76, 0.70, 0.82)
+	label.outline_modulate = Color(0.18, 0.26, 0.20, 0.92)
+	label.position = Vector3(0.0, 3.05, 0.0)
+	label.visible = _wind_chase_completed
+	_wind_chase_beacon.add_child(label)
+
+func _is_player_near_wind_chase() -> bool:
+	if _player == null or _wind_chase_beacon == null or not is_instance_valid(_wind_chase_beacon):
+		return false
+	var player_point := Vector2(_player.global_position.x, _player.global_position.z)
+	var beacon_point := Vector2(_wind_chase_beacon.global_position.x, _wind_chase_beacon.global_position.z)
+	return player_point.distance_squared_to(beacon_point) <= WIND_CHASE_INTERACT_RADIUS * WIND_CHASE_INTERACT_RADIUS
+
+func _update_wind_chase_beacon(delta: float) -> void:
+	if _wind_chase_beacon == null or not is_instance_valid(_wind_chase_beacon):
+		return
+	var time := Time.get_ticks_msec() * 0.001
+	var icon := _wind_chase_beacon.get_node_or_null("WindChaseIcon") as Sprite3D
+	if icon != null:
+		icon.position.y = 1.85 + sin(time * 2.4) * 0.10
+		icon.rotation.z += delta * (0.42 if not _wind_chase_completed else 0.12)
+		icon.modulate = Color(0.72, 0.76, 0.70, 0.68) if _wind_chase_completed else Color(1.0, 1.0, 1.0, 0.84)
+	var label := _wind_chase_beacon.get_node_or_null("WindChaseLabel") as Label3D
+	if label != null:
+		label.position.y = 3.05 + sin(time * 2.4) * 0.05
+		label.visible = _wind_chase_completed
+	_update_wind_chase_proximity_hint()
+
+func _update_wind_chase_proximity_hint() -> void:
+	if _wind_chase_proximity_hint_shown or not _wind_chase_unlocked or _wind_chase_completed:
+		return
+	if _player == null or _wind_chase_beacon == null or not is_instance_valid(_wind_chase_beacon):
+		return
+	var player_point := Vector2(_player.global_position.x, _player.global_position.z)
+	var beacon_point := Vector2(_wind_chase_beacon.global_position.x, _wind_chase_beacon.global_position.z)
+	if player_point.distance_squared_to(beacon_point) <= WIND_CHASE_NEARBY_HINT_RADIUS * WIND_CHASE_NEARBY_HINT_RADIUS:
+		_wind_chase_proximity_hint_shown = true
+		_show_notification("附近似乎有风种，跟着风找找看。")
+
 func _create_young_traveler() -> void:
 	if _young_traveler != null and is_instance_valid(_young_traveler):
 		return
@@ -2683,6 +3863,1191 @@ func _create_camper(camper_position: Vector3 = CAMPER_POSITION, camper_yaw: floa
 	_set_model_shadow(model, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_camper_blocker(camper, model)
 
+func _is_camper_driving() -> bool:
+	return _camper_driving
+
+func _is_camper_drive_unlocked() -> bool:
+	return _chapter_one_active and (_camper_drive_unlocked or _business_level_star_count(1) > 0)
+
+func _sync_camper_drive_unlock_state() -> void:
+	if not _chapter_one_active or _camper_drive_unlocked or _business_level_star_count(1) <= 0:
+		return
+	_camper_drive_unlocked = true
+	if not _camper_drive_note_seen:
+		_camper_drive_note_pending = true
+
+func _try_start_camper_driving() -> bool:
+	if not _is_camper_drive_unlocked() or not _is_player_near_camper():
+		return false
+	if _camper_driving:
+		return true
+	if _kitchen_business_active:
+		_show_notification("营业中不能驾驶房车")
+		return true
+	if _held_crop_item != "" or _kitchen_held_item != "":
+		_show_notification("先放下手中的食材再上车")
+		return true
+	if _warehouse_placing_item != "" or _kitchen_placing_equipment != "" or _inside_house:
+		_show_notification("先结束当前摆放操作再驾驶房车")
+		return true
+	_pack_camper_travel_attachments()
+	_remove_camper_blocker()
+	_clear_inventory_drag_state()
+	_clear_discard_hold_state()
+	_stop_watering_fill()
+	_clear_crop_throw_charge_state()
+	_hide_food_chest_preview()
+	if _kitchen_equipment_preview != null and is_instance_valid(_kitchen_equipment_preview):
+		_kitchen_equipment_preview.visible = false
+	if _warehouse_place_preview != null and is_instance_valid(_warehouse_place_preview):
+		_warehouse_place_preview.visible = false
+	_camper_driving = true
+	_camper_drive_speed = 0.0
+	_set_player_camper_driving_state(true)
+	_set_camper_highlight(false)
+	if _interaction_prompt != null:
+		_interaction_prompt.visible = true
+	_show_side_toast("已上车：W/S 行驶 · A/D 转向 · F 下车")
+	return true
+
+func _set_player_camper_driving_state(driving: bool) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	var visual := _player.get_node_or_null("VisualRoot") as Node3D
+	if visual != null:
+		visual.visible = not driving
+	var collision := _player.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if collision != null:
+		collision.set_deferred("disabled", driving)
+	_player.set_physics_process(not driving)
+	if driving and _camper != null:
+		_player.global_position = _camper.global_position
+
+func _camper_drive_forward() -> Vector3:
+	if _camper == null:
+		return Vector3.FORWARD
+	var yaw := _camper.rotation.y + CAMPER_DRIVE_FORWARD_YAW_OFFSET
+	return Vector3(sin(yaw), 0.0, cos(yaw)).normalized()
+
+func _update_camper_driving(delta: float) -> void:
+	if not _camper_driving or _camper == null or not is_instance_valid(_camper):
+		return
+	_camper_drive_collision_cooldown = maxf(_camper_drive_collision_cooldown - delta, 0.0)
+	var throttle := 0.0
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		throttle += 1.0
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		throttle -= 1.0
+	var target_speed := CAMPER_DRIVE_FORWARD_SPEED if throttle > 0.0 else (-CAMPER_DRIVE_REVERSE_SPEED if throttle < 0.0 else 0.0)
+	var rate := CAMPER_DRIVE_ACCELERATION if throttle != 0.0 else CAMPER_DRIVE_BRAKE
+	_camper_drive_speed = move_toward(_camper_drive_speed, target_speed, rate * delta)
+	var steering := 0.0
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		steering -= 1.0
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		steering += 1.0
+	var previous_yaw := _camper.rotation.y
+	if absf(_camper_drive_speed) > 0.08 and steering != 0.0:
+		var reverse_sign := 1.0 if _camper_drive_speed >= 0.0 else -1.0
+		var speed_ratio := clampf(absf(_camper_drive_speed) / CAMPER_DRIVE_FORWARD_SPEED, 0.25, 1.0)
+		_camper.rotation.y = wrapf(_camper.rotation.y + steering * CAMPER_DRIVE_TURN_SPEED * speed_ratio * reverse_sign * delta, -PI, PI)
+	var next_position := _camper.global_position + _camper_drive_forward() * _camper_drive_speed * delta
+	next_position.y = _height_at(next_position.x, next_position.z)
+	if _is_camper_drive_position_valid(next_position, _camper.rotation.y):
+		_camper.global_position = next_position
+	else:
+		_camper.rotation.y = previous_yaw
+		_camper_drive_speed = 0.0
+		if _camper_drive_collision_cooldown <= 0.0:
+			_camper_drive_collision_cooldown = 1.0
+			_show_side_toast("前方无法通行")
+	if _player != null and is_instance_valid(_player):
+		_player.global_position = _camper.global_position
+	_update_camper_business_location_discovery()
+
+func _is_camper_drive_position_valid(position: Vector3, yaw: float) -> bool:
+	var center := Vector2(position.x, position.z)
+	if absf(center.x) > CAMPER_DRIVE_FIELD_LIMIT or absf(center.y) > CAMPER_DRIVE_FIELD_LIMIT:
+		return false
+	if _is_placeable_footprint_over_pond(center, yaw, CAMPER_DRIVE_HALF_EXTENTS, 0.55):
+		return false
+	for blocker in _solid_blockers:
+		if bool(blocker.get("camper", false)):
+			continue
+		if _does_placeable_footprint_overlap_blocker(center, yaw, CAMPER_DRIVE_HALF_EXTENTS, blocker):
+			return false
+	for soil_center in _tilled_soil_centers:
+		var local := (soil_center - center).rotated(-yaw)
+		if absf(local.x) <= CAMPER_DRIVE_HALF_EXTENTS.x + SOIL_TILE_HALF_SIZE and absf(local.y) <= CAMPER_DRIVE_HALF_EXTENTS.y + SOIL_TILE_HALF_SIZE:
+			return false
+	return true
+
+func _try_exit_camper_driving() -> bool:
+	if not _camper_driving:
+		return false
+	if not _can_unpack_camper_travel_attachments():
+		_show_notification("这里空间不足以展开厨房，请把房车开到更宽阔的空地")
+		return true
+	var exit_position := _find_safe_camper_exit_position()
+	if exit_position.x == INF:
+		_show_notification("车门旁没有安全的下车位置，请稍微挪动车辆")
+		return true
+	_camper_driving = false
+	_camper_drive_speed = 0.0
+	_unpack_camper_travel_attachments()
+	_rebuild_camper_blocker()
+	if _player != null and is_instance_valid(_player):
+		_player.global_position = exit_position
+	_set_player_camper_driving_state(false)
+	_show_side_toast("已下车")
+	return true
+
+func _find_safe_camper_exit_position() -> Vector3:
+	if _camper == null:
+		return Vector3(INF, INF, INF)
+	var forward := _camper_drive_forward()
+	var right := Vector3(forward.z, 0.0, -forward.x)
+	var candidates: Array[Vector3] = [right * CAMPER_EXIT_SIDE_OFFSET, -right * CAMPER_EXIT_SIDE_OFFSET, -forward * 3.4, forward * 3.4]
+	for offset in candidates:
+		var position: Vector3 = _camper.global_position + offset
+		position.y = _height_at(position.x, position.z) + 0.04
+		if _is_inside_pond(position.x, position.z, 0.65) or _is_blocked_by_solid(position):
+			continue
+		if _is_point_blocked_by_packed_attachment(Vector2(position.x, position.z), 0.55):
+			continue
+		return position
+	return Vector3(INF, INF, INF)
+
+func _pack_camper_travel_attachments() -> void:
+	_camper_drive_attachments.clear()
+	if _camper == null:
+		return
+	for raw_id in _kitchen_equipment_roots.keys():
+		var instance_id := str(raw_id)
+		var equipment_id := _kitchen_instance_type(instance_id)
+		var root := _kitchen_equipment_roots.get(instance_id) as Node3D
+		if root == null or not is_instance_valid(root):
+			continue
+		var attachment := _camper_attachment_data(root, "equipment", instance_id)
+		attachment["equipment_id"] = equipment_id
+		attachment["instance_id"] = instance_id
+		_camper_drive_attachments.append(attachment)
+		_remove_kitchen_equipment_instance_blocker(instance_id)
+		root.visible = false
+	for chest in _placed_food_chests:
+		if chest != null and is_instance_valid(chest):
+			_camper_drive_attachments.append(_camper_attachment_data(chest, "food_chest", ""))
+			chest.visible = false
+	if _opening_sign_placed and _opening_sign != null and is_instance_valid(_opening_sign):
+		_camper_drive_attachments.append(_camper_attachment_data(_opening_sign, "opening_sign", ""))
+		_remove_opening_sign_blocker()
+		_opening_sign.visible = false
+
+func _camper_attachment_data(node: Node3D, kind: String, id: String) -> Dictionary:
+	var offset := node.global_position - _camper.global_position
+	offset = offset.rotated(Vector3.UP, -_camper.rotation.y)
+	return {"node": node, "kind": kind, "id": id, "offset": offset, "yaw": wrapf(node.rotation.y - _camper.rotation.y, -PI, PI)}
+
+func _camper_attachment_transform(data: Dictionary) -> Dictionary:
+	var offset: Vector3 = data.get("offset", Vector3.ZERO)
+	var position := _camper.global_position + offset.rotated(Vector3.UP, _camper.rotation.y)
+	position.y = _height_at(position.x, position.z)
+	return {"position": position, "yaw": _camper.rotation.y + float(data.get("yaw", 0.0))}
+
+func _can_unpack_camper_travel_attachments() -> bool:
+	for data in _camper_drive_attachments:
+		var transform := _camper_attachment_transform(data)
+		var position: Vector3 = transform["position"]
+		var yaw := float(transform["yaw"])
+		var point := Vector2(position.x, position.z)
+		if absf(point.x) > 71.0 or absf(point.y) > 71.0:
+			return false
+		match str(data.get("kind", "")):
+			"equipment":
+				if _is_kitchen_equipment_footprint_over_pond(point, yaw) or _is_kitchen_equipment_footprint_blocked(point, yaw, str(data.get("instance_id", data.get("id", "")))):
+					return false
+			"opening_sign":
+				if _is_placeable_footprint_over_pond(point, yaw, OPENING_SIGN_FOOTPRINT_HALF_EXTENTS, 0.18) or _is_placeable_footprint_blocked(point, yaw, OPENING_SIGN_FOOTPRINT_HALF_EXTENTS):
+					return false
+			"food_chest":
+				if _is_placeable_footprint_over_pond(point, yaw, Vector2(0.75, 0.75), 0.15) or _is_placeable_footprint_blocked(point, yaw, Vector2(0.75, 0.75)):
+					return false
+	return true
+
+func _is_point_blocked_by_packed_attachment(point: Vector2, radius: float) -> bool:
+	for data in _camper_drive_attachments:
+		var transform := _camper_attachment_transform(data)
+		var position: Vector3 = transform["position"]
+		var half := Vector2(0.75, 0.75)
+		if str(data.get("kind", "")) == "equipment":
+			half = KITCHEN_EQUIPMENT_FOOTPRINT_HALF_EXTENTS
+		elif str(data.get("kind", "")) == "opening_sign":
+			half = OPENING_SIGN_FOOTPRINT_HALF_EXTENTS
+		var local := (point - Vector2(position.x, position.z)).rotated(-float(transform["yaw"]))
+		var closest := Vector2(clampf(local.x, -half.x, half.x), clampf(local.y, -half.y, half.y))
+		if local.distance_squared_to(closest) <= radius * radius:
+			return true
+	return false
+
+func _unpack_camper_travel_attachments() -> void:
+	for data in _camper_drive_attachments:
+		var node := data.get("node") as Node3D
+		if node == null or not is_instance_valid(node):
+			continue
+		var transform := _camper_attachment_transform(data)
+		_snap_placeable_root_to_ground(node, transform["position"])
+		node.rotation.y = float(transform["yaw"])
+		node.visible = true
+		match str(data.get("kind", "")):
+			"equipment":
+				var instance_id := str(data.get("instance_id", data.get("id", "")))
+				var equipment_id := str(data.get("equipment_id", _kitchen_instance_type(instance_id)))
+				_add_kitchen_equipment_blocker(node, equipment_id, instance_id)
+				_clear_grass_under_kitchen_equipment(node)
+			"opening_sign":
+				_add_opening_sign_blocker(node)
+	_camper_drive_attachments.clear()
+
+func _business_location_at_camper() -> Dictionary:
+	if _camper == null or not is_instance_valid(_camper):
+		return {}
+	var camper_point := Vector2(_camper.global_position.x, _camper.global_position.z)
+	for location in BUSINESS_LOCATION_BONUSES:
+		var center: Vector2 = location.get("position", Vector2.ZERO)
+		var radius := float(location.get("radius", 0.0))
+		if camper_point.distance_squared_to(center) <= radius * radius:
+			return location
+	return {}
+
+func _update_camper_business_location_discovery() -> void:
+	var location := _business_location_at_camper()
+	if location.is_empty():
+		return
+	var location_id := str(location.get("id", ""))
+	if location_id == "" or bool(_business_location_discovered.get(location_id, false)):
+		return
+	_business_location_discovered[location_id] = true
+	_show_notification("发现神秘营业地点：%s。这里营业会触发食材偏好加成" % str(location.get("name", "神秘地点")))
+
+func _lock_active_business_location_bonus() -> void:
+	_active_business_location_bonus = _business_location_at_camper().duplicate(true)
+	_business_location_bonus_coins = 0
+
+func _active_business_location_description() -> String:
+	if _active_business_location_bonus.is_empty():
+		return ""
+	return str(_active_business_location_bonus.get("description", ""))
+
+func _business_location_order_bonus(recipe: String, base_price: int) -> int:
+	if _active_business_location_bonus.is_empty():
+		return 0
+	var preferred_crop := str(_active_business_location_bonus.get("preferred_crop", ""))
+	var recipe_crop := str(_recipe_data(recipe).get("crop", ""))
+	var preferred_crops: Array = _active_business_location_bonus.get("preferred_crops", [])
+	var matches_preference := recipe_crop == preferred_crop
+	if not preferred_crops.is_empty():
+		matches_preference = recipe_crop in preferred_crops
+	if recipe_crop == "" or not matches_preference:
+		return 0
+	var multiplier := maxf(float(_active_business_location_bonus.get("price_multiplier", 1.0)), 1.0)
+	return maxi(roundi(float(base_price) * (multiplier - 1.0)), 0)
+
+func _sync_progression_world_state() -> void:
+	if WorldManager == null:
+		return
+	WorldManager.world_state["roaming_harvest_progression_v2"] = {
+		"seed_inventory": _seed_inventory.duplicate(true),
+		"unlocked_crops": _unlocked_crops.duplicate(true),
+		"codex_discovered_crops": _codex_discovered_crops.duplicate(true),
+		"codex_harvested_crops": _codex_harvested_crops.duplicate(true),
+		"codex_discovered_cooking": _codex_discovered_cooking.duplicate(true),
+		"codex_revealed_cooking": _codex_revealed_cooking.duplicate(true),
+		"codex_claimed_rewards": _codex_claimed_rewards.duplicate(true),
+		"research_table_unlocked": _research_table_unlocked,
+		"researched_special_recipes": _researched_special_recipes.duplicate(true),
+		"special_recipe_first_served": _special_recipe_first_served.duplicate(true),
+		"local_event_state": _local_event_state.duplicate(true),
+		"local_event_perks": _local_event_perks.duplicate(true),
+		"local_event_atlas": _local_event_atlas.duplicate(true),
+		"scheduled_day_event": _scheduled_day_event,
+		"scheduled_night_event": _scheduled_night_event,
+		"schedule_day": _last_event_schedule_day,
+		"business_level_stars": _business_level_stars.duplicate(true),
+		"business_discovery_states": _business_discovery_states.duplicate(true),
+		"business_discovery_rumors": _business_discovery_rumors.duplicate(true),
+		"kitchen_first_day_completed": _kitchen_first_day_completed,
+	}
+
+func _restore_progression_world_state() -> void:
+	if WorldManager == null:
+		return
+	var data := WorldManager.world_state.get("roaming_harvest_progression_v2", {}) as Dictionary
+	if data.is_empty():
+		return
+	_seed_inventory = (data.get("seed_inventory", {}) as Dictionary).duplicate(true)
+	_sync_total_seed_count()
+	for raw_key in _seed_inventory.keys():
+		if int(_seed_inventory.get(raw_key, 0)) <= 0:
+			continue
+		var parts := str(raw_key).split(":")
+		if parts.size() < 2:
+			continue
+		var item := _seed_item(str(parts[0]), int(parts[1]))
+		if _find_inventory_slot_for_item(item, -1) == -1:
+			var slot := _find_empty_inventory_slot()
+			if slot != -1:
+				_set_inventory_slot_item(slot, item)
+	_unlocked_crops = (data.get("unlocked_crops", {CROP_CARROT: true}) as Dictionary).duplicate(true)
+	_unlocked_crops[CROP_CARROT] = true
+	_codex_discovered_crops = (data.get("codex_discovered_crops", {}) as Dictionary).duplicate(true)
+	_codex_harvested_crops = (data.get("codex_harvested_crops", {}) as Dictionary).duplicate(true)
+	_codex_revealed_crops = _codex_harvested_crops.duplicate(true)
+	var had_saved_cooking_codex := data.has("codex_discovered_cooking") and not bool(data.get("needs_cooking_codex_inference", false))
+	_codex_discovered_cooking = (data.get("codex_discovered_cooking", {}) as Dictionary).duplicate(true)
+	_codex_revealed_cooking = (data.get("codex_revealed_cooking", _codex_discovered_cooking) as Dictionary).duplicate(true)
+	_codex_claimed_rewards = (data.get("codex_claimed_rewards", {}) as Dictionary).duplicate(true)
+	_research_table_unlocked = bool(data.get("research_table_unlocked", false))
+	_researched_special_recipes = (data.get("researched_special_recipes", {}) as Dictionary).duplicate(true)
+	_special_recipe_first_served = (data.get("special_recipe_first_served", {}) as Dictionary).duplicate(true)
+	_local_event_state = (data.get("local_event_state", {}) as Dictionary).duplicate(true)
+	_local_event_perks = (data.get("local_event_perks", {}) as Dictionary).duplicate(true)
+	_local_event_atlas = (data.get("local_event_atlas", {}) as Dictionary).duplicate(true)
+	_scheduled_day_event = str(data.get("scheduled_day_event", ""))
+	_scheduled_night_event = str(data.get("scheduled_night_event", ""))
+	_last_event_schedule_day = int(data.get("schedule_day", -1))
+	_business_level_stars = (data.get("business_level_stars", {}) as Dictionary).duplicate(true)
+	_business_discovery_states = (data.get("business_discovery_states", {}) as Dictionary).duplicate(true)
+	_business_discovery_rumors = (data.get("business_discovery_rumors", {}) as Dictionary).duplicate(true)
+	_kitchen_first_day_completed = bool(data.get("kitchen_first_day_completed", false))
+	_initialize_business_discovery_from_progress()
+	if not had_saved_cooking_codex:
+		_infer_discovered_cooking_from_cleared_levels()
+	if bool(_codex_claimed_rewards.get("cooking:3", false)):
+		_research_table_unlocked = true
+	if _research_table_unlocked:
+		_kitchen_upgrade_levels["research_table"] = 1
+	_sync_special_recipe_atlas_records()
+	if _seed_total(CROP_MARSHMALLOW) > 0:
+		_unlocked_crops[CROP_MARSHMALLOW] = true
+		_codex_discovered_crops[CROP_MARSHMALLOW] = true
+
+func _infer_discovered_cooking_from_cleared_levels() -> void:
+	for level in BUSINESS_PREP_LEVELS:
+		var level_id := int(level.get("id", 0))
+		if _business_level_star_count(level_id) < 1:
+			continue
+		for raw_recipe in level.get("recipes", []):
+			var recipe := str(raw_recipe)
+			if recipe in BusinessProgressionCatalog.ORDINARY_RECIPE_IDS:
+				_codex_discovered_cooking[recipe] = true
+				_codex_revealed_cooking[recipe] = true
+
+func _sync_special_recipe_atlas_records() -> void:
+	for recipe_id in ResearchRecipeCatalog.ALL_IDS:
+		var event_id := ResearchRecipeCatalog.event_for_recipe(recipe_id)
+		if event_id == "" or not _local_event_atlas.has(event_id):
+			continue
+		var record := (_local_event_atlas.get(event_id, {}) as Dictionary).duplicate(true)
+		record["special_recipe"] = recipe_id
+		record["special_recipe_researched"] = _is_special_recipe_researched(recipe_id)
+		record["special_recipe_served"] = bool(_special_recipe_first_served.get(recipe_id, false))
+		_local_event_atlas[event_id] = record
+
+func _highest_cleared_business_level() -> int:
+	var result := 0
+	for level_id in range(1, 6):
+		if _business_level_star_count(level_id) >= 1:
+			result = level_id
+	return result
+
+func _on_day_night_phase_changed(phase: String) -> void:
+	var day := TimeManager.day
+	if day != _last_event_schedule_day:
+		_last_event_schedule_day = day
+		_scheduled_day_event = _choose_local_event_for_window("day", day)
+		_scheduled_night_event = ""
+	if phase == "dawn" and _scheduled_day_event == "":
+		_scheduled_day_event = _choose_local_event_for_window("day", day)
+	if phase == "dusk" and _scheduled_night_event == "":
+		_scheduled_night_event = _choose_local_event_for_window("night", day)
+	var scheduled := _scheduled_day_event if phase in ["dawn", "day"] else _scheduled_night_event
+	if scheduled != "":
+		var config := LocalEventCatalog.get_event(scheduled)
+		_show_notification("地方事件线索：%s" % str(config.get("direction_hint", "远处好像有新的动静")))
+	_sync_local_event_world_visual()
+
+func _choose_local_event_for_window(window: String, day: int) -> String:
+	var ids := LocalEventCatalog.ids_for_phase(window)
+	var eligible: Array[String] = []
+	var uncleared: Array[String] = []
+	var highest_level := _highest_cleared_business_level()
+	for event_id in ids:
+		var config := LocalEventCatalog.get_event(event_id)
+		if highest_level < int(config.get("unlock_level", 99)):
+			continue
+		if event_id == LocalEventCatalog.RABBIT_PARTY and _business_discovery_state(2) < BusinessDiscoveryCatalog.STATE_REGULAR:
+			continue
+		eligible.append(event_id)
+		var state := _local_event_state.get(event_id, {}) as Dictionary
+		if int(state.get("best_stars", 0)) < 1:
+			uncleared.append(event_id)
+	if not uncleared.is_empty():
+		return uncleared[posmod(day - 1, uncleared.size())]
+	if eligible.is_empty() or posmod(day, 3) != 0:
+		return ""
+	return eligible[posmod(day, eligible.size())]
+
+func _business_discovery_state(level_id: int) -> int:
+	if level_id <= 1:
+		return BusinessDiscoveryCatalog.STATE_REGULAR if _business_level_star_count(1) >= 1 else BusinessDiscoveryCatalog.STATE_DISCOVERED
+	return clampi(int(_business_discovery_states.get(str(level_id), BusinessDiscoveryCatalog.STATE_HIDDEN)), BusinessDiscoveryCatalog.STATE_HIDDEN, BusinessDiscoveryCatalog.STATE_REGULAR)
+
+func _set_business_discovery_state(level_id: int, state: int, persist: bool = true) -> bool:
+	if level_id < BusinessDiscoveryCatalog.FIRST_DISCOVERY_LEVEL or level_id > BusinessDiscoveryCatalog.LAST_DISCOVERY_LEVEL:
+		return false
+	var key := str(level_id)
+	var previous := _business_discovery_state(level_id)
+	var next_state := clampi(state, BusinessDiscoveryCatalog.STATE_HIDDEN, BusinessDiscoveryCatalog.STATE_REGULAR)
+	if previous == next_state:
+		return false
+	_business_discovery_states[key] = next_state
+	_chapter_one_task_panel_signature = ""
+	_chapter_one_task_layout_signature = ""
+	_update_mainline_site_status(level_id)
+	if _business_prep_overlay != null and _business_prep_overlay.visible:
+		_rebuild_business_prep_ui()
+	if persist:
+		_sync_progression_world_state()
+	return true
+
+func _initialize_business_discovery_from_progress() -> void:
+	for level_id in BusinessDiscoveryCatalog.all_level_ids():
+		var inferred := _business_discovery_state(level_id)
+		if _business_level_star_count(level_id) >= 1:
+			inferred = BusinessDiscoveryCatalog.STATE_REGULAR
+		elif _business_level_star_count(level_id - 1) >= 1 and inferred < BusinessDiscoveryCatalog.STATE_CLUE:
+			inferred = BusinessDiscoveryCatalog.STATE_CLUE
+		_business_discovery_states[str(level_id)] = inferred
+
+func _activate_next_business_clue(completed_level_id: int) -> bool:
+	var next_level_id := completed_level_id + 1
+	if next_level_id > BusinessDiscoveryCatalog.LAST_DISCOVERY_LEVEL:
+		return false
+	if _business_discovery_state(next_level_id) >= BusinessDiscoveryCatalog.STATE_CLUE:
+		return false
+	_set_business_discovery_state(next_level_id, BusinessDiscoveryCatalog.STATE_CLUE, false)
+	return true
+
+func _active_mainline_clue_level() -> int:
+	for level_id in BusinessDiscoveryCatalog.all_level_ids():
+		var state := _business_discovery_state(level_id)
+		if state == BusinessDiscoveryCatalog.STATE_CLUE or state == BusinessDiscoveryCatalog.STATE_DISCOVERED:
+			return level_id
+	return 0
+
+func _mainline_site_world_position(level_id: int) -> Vector3:
+	var point: Vector2 = BusinessDiscoveryCatalog.get_site(level_id).get("position", Vector2.ZERO)
+	return Vector3(point.x, _height_at(point.x, point.y), point.y)
+
+func _is_camper_parked_at_mainline_site(level_id: int) -> bool:
+	if _camper == null or not is_instance_valid(_camper):
+		return false
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	if site.is_empty():
+		return false
+	var center: Vector2 = site.get("position", Vector2.ZERO)
+	var radius := float(site.get("parking_radius", 12.0))
+	return Vector2(_camper.global_position.x, _camper.global_position.z).distance_squared_to(center) <= radius * radius
+
+func _nearby_mainline_site_level(radius_override: float = -1.0) -> int:
+	if _player == null or not is_instance_valid(_player):
+		return 0
+	var point := Vector2(_player.global_position.x, _player.global_position.z)
+	var nearest_level := 0
+	var nearest_distance := INF
+	for level_id in BusinessDiscoveryCatalog.all_level_ids():
+		if _business_discovery_state(level_id) < BusinessDiscoveryCatalog.STATE_CLUE:
+			continue
+		var site := BusinessDiscoveryCatalog.get_site(level_id)
+		var center: Vector2 = site.get("position", Vector2.ZERO)
+		var radius := radius_override if radius_override > 0.0 else float(site.get("interact_radius", 4.2))
+		var distance := point.distance_to(center)
+		if distance <= radius and distance < nearest_distance:
+			nearest_level = level_id
+			nearest_distance = distance
+	return nearest_level
+
+func _update_mainline_discovery_sites(_delta: float) -> void:
+	if not _chapter_one_active:
+		return
+	_initialize_business_discovery_from_progress()
+	for level_id in BusinessDiscoveryCatalog.all_level_ids():
+		var state := _business_discovery_state(level_id)
+		var root := _mainline_site_visuals.get(str(level_id)) as Node3D
+		if state < BusinessDiscoveryCatalog.STATE_CLUE:
+			if root != null and is_instance_valid(root):
+				root.visible = false
+			continue
+		if root == null or not is_instance_valid(root):
+			root = _create_mainline_site_visual(level_id)
+		if root == null:
+			continue
+		var site := BusinessDiscoveryCatalog.get_site(level_id)
+		var center: Vector2 = site.get("position", Vector2.ZERO)
+		var nearest := INF
+		if _player != null and is_instance_valid(_player):
+			nearest = minf(nearest, Vector2(_player.global_position.x, _player.global_position.z).distance_to(center))
+		if _camper != null and is_instance_valid(_camper):
+			nearest = minf(nearest, Vector2(_camper.global_position.x, _camper.global_position.z).distance_to(center))
+		var reveal_radius := float(site.get("reveal_radius", 22.0))
+		root.visible = nearest <= reveal_radius
+		if root.visible:
+			var reveal := 1.0 - smoothstep(reveal_radius * 0.72, reveal_radius, nearest)
+			root.scale = Vector3.ONE * lerpf(0.86, 1.0, clampf(reveal, 0.0, 1.0))
+		var label := root.get_node_or_null("SiteStatus") as Label3D
+		if label != null:
+			label.visible = root.visible and nearest <= float(site.get("notice_radius", 10.0)) + 2.0
+		var notice_radius := float(site.get("notice_radius", 10.0))
+		var notice_key := "%d:%d" % [level_id, _business_discovery_state(level_id)]
+		if nearest <= notice_radius and not bool(_mainline_site_proximity_notified.get(notice_key, false)):
+			_mainline_site_proximity_notified[notice_key] = true
+			if state == BusinessDiscoveryCatalog.STATE_CLUE:
+				_show_notification(str(site.get("approach_hint", "新的经营委托就在附近。")))
+			elif state == BusinessDiscoveryCatalog.STATE_DISCOVERED:
+				_show_side_toast("委托地点已找到：把房车停进装饰围出的空地")
+			else:
+				_show_side_toast(str(site.get("regular_hint", "老主顾正在等候房车。")))
+			_sync_progression_world_state()
+
+func _create_mainline_site_visual(level_id: int) -> Node3D:
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	if site.is_empty():
+		return null
+	var root := Node3D.new()
+	root.name = "MainlineDiscoverySite_%d" % level_id
+	root.visible = false
+	_mark_generated(root)
+	add_child(root)
+	root.global_position = _mainline_site_world_position(level_id)
+	_mainline_site_visuals[str(level_id)] = root
+	var asset_path := str(site.get("asset_path", ""))
+	if asset_path != "" and ResourceLoader.exists(asset_path):
+		var packed := load(asset_path) as PackedScene
+		if packed != null:
+			var model := packed.instantiate() as Node3D
+			if model != null:
+				model.name = "SiteModel"
+				root.add_child(model)
+				_fit_model_to_max_dimension(model, 10.5)
+				_center_model_on_origin(model)
+				_ground_model(model)
+	var label := Label3D.new()
+	label.name = "SiteStatus"
+	label.position = Vector3(0.0, 3.7, 0.0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.font_size = 28
+	label.pixel_size = 0.010
+	label.outline_size = 6
+	label.modulate = Color(1.0, 0.88, 0.55)
+	label.outline_modulate = Color(0.18, 0.10, 0.04, 0.92)
+	root.add_child(label)
+	_update_mainline_site_status(level_id)
+	return root
+
+func _update_mainline_site_status(level_id: int) -> void:
+	var root := _mainline_site_visuals.get(str(level_id)) as Node3D
+	if root == null or not is_instance_valid(root):
+		return
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	var label := root.get_node_or_null("SiteStatus") as Label3D
+	var state := _business_discovery_state(level_id)
+	if label != null:
+		match state:
+			BusinessDiscoveryCatalog.STATE_CLUE:
+				label.text = "新的经营传闻"
+			BusinessDiscoveryCatalog.STATE_DISCOVERED:
+				label.text = str(site.get("event_name", "经营委托"))
+			BusinessDiscoveryCatalog.STATE_REGULAR:
+				label.text = "老主顾 · %s" % str(site.get("short_name", "经营委托"))
+			_:
+				label.text = ""
+	var regular_branch := root.find_child("RegularOnly", true, false) as Node3D
+	if regular_branch != null:
+		regular_branch.visible = state == BusinessDiscoveryCatalog.STATE_REGULAR
+
+func _focus_mainline_discovery_clue(level_id: int) -> void:
+	if _business_prep_overlay != null and _business_prep_overlay.visible:
+		_close_business_prep()
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	if site.is_empty():
+		return
+	_show_notification("地图发生了些许变化。%s，去找找看吧。" % str(site.get("clue", "去大世界寻找新的顾客")))
+	_post_tutorial_objective_expanded = true
+	_chapter_one_task_panel_signature = ""
+	_update_post_tutorial_objective()
+
+func _open_mainline_commission_card(level_id: int) -> bool:
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	if site.is_empty() or _hud_root == null:
+		return false
+	var state := _business_discovery_state(level_id)
+	if state == BusinessDiscoveryCatalog.STATE_HIDDEN:
+		return false
+	_close_mainline_commission_card()
+	_mainline_commission_level = level_id
+	_mainline_commission_overlay = Control.new()
+	_mainline_commission_overlay.name = "MainlineCommissionCard"
+	_mainline_commission_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_mainline_commission_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_mainline_commission_overlay.z_index = 128
+	_hud_root.add_child(_mainline_commission_overlay)
+	var dim := ColorRect.new()
+	dim.color = Color(0.05, 0.06, 0.05, 0.52)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_mainline_commission_overlay.add_child(dim)
+	var art := TextureRect.new()
+	art.texture = _load_ui_texture(BUSINESS_RESULT_PANEL_PATH)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.anchor_left = 0.5
+	art.anchor_top = 0.5
+	art.anchor_right = 0.5
+	art.anchor_bottom = 0.5
+	art.offset_left = -330.0
+	art.offset_top = -245.0
+	art.offset_right = 330.0
+	art.offset_bottom = 245.0
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mainline_commission_overlay.add_child(art)
+	var content := VBoxContainer.new()
+	content.anchor_left = 0.5
+	content.anchor_top = 0.5
+	content.anchor_right = 0.5
+	content.anchor_bottom = 0.5
+	content.offset_left = -235.0
+	content.offset_top = -155.0
+	content.offset_right = 235.0
+	content.offset_bottom = 165.0
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 12)
+	_mainline_commission_overlay.add_child(content)
+	var title := _create_business_label(str(site.get("event_name", "新的经营委托")), 24, Color(0.30, 0.18, 0.08))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(title)
+	var customer := _create_business_label("委托人：%s" % str(site.get("customer_name", "当地顾客")), 14, Color(0.47, 0.34, 0.18))
+	customer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(customer)
+	var body := _create_business_label(str(site.get("invitation", "顾客希望房车能在这里开业。")), 16, Color(0.28, 0.25, 0.18), 28.0, true)
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.custom_minimum_size = Vector2(440.0, 82.0)
+	content.add_child(body)
+	if state >= BusinessDiscoveryCatalog.STATE_DISCOVERED:
+		var location_status := "房车已停入首次经营范围" if _is_camper_parked_at_mainline_site(level_id) else "房车尚未停入彩旗围出的空地"
+		if state == BusinessDiscoveryCatalog.STATE_REGULAR:
+			location_status = "老主顾关卡：之后可从任意普通停靠点重玩"
+		var status := _create_business_label(location_status, 13, Color(0.24, 0.48, 0.20) if state == BusinessDiscoveryCatalog.STATE_REGULAR or _is_camper_parked_at_mainline_site(level_id) else Color(0.72, 0.28, 0.12), 24.0, true)
+		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content.add_child(status)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 14)
+	content.add_child(buttons)
+	var later := Button.new()
+	later.text = "稍后再来"
+	later.custom_minimum_size = Vector2(132.0, 40.0)
+	_apply_wood_command_button_style(later)
+	later.pressed.connect(_close_mainline_commission_card)
+	buttons.add_child(later)
+	var action := Button.new()
+	action.custom_minimum_size = Vector2(150.0, 40.0)
+	_apply_wood_command_button_style(action)
+	if state == BusinessDiscoveryCatalog.STATE_CLUE:
+		action.text = "接受委托"
+		action.pressed.connect(_accept_mainline_commission.bind(level_id))
+	else:
+		action.text = "查看开业准备"
+		action.pressed.connect(_open_mainline_commission_prep.bind(level_id))
+	buttons.add_child(action)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	return true
+
+func _close_mainline_commission_card() -> void:
+	if _mainline_commission_overlay != null and is_instance_valid(_mainline_commission_overlay):
+		_mainline_commission_overlay.queue_free()
+	_mainline_commission_overlay = null
+	_mainline_commission_level = 0
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _accept_mainline_commission(level_id: int) -> void:
+	if _business_discovery_state(level_id) != BusinessDiscoveryCatalog.STATE_CLUE:
+		return
+	_set_business_discovery_state(level_id, BusinessDiscoveryCatalog.STATE_DISCOVERED, false)
+	_close_mainline_commission_card()
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	_show_notification("委托已记录：把房车停进%s旁的空地，再查看开业准备。" % str(site.get("short_name", "委托地点")))
+	_sync_progression_world_state()
+
+func _open_mainline_commission_prep(_level_id: int) -> void:
+	_close_mainline_commission_card()
+	_open_business_prep()
+
+func _current_scheduled_local_event() -> String:
+	var hour := TimeManager.hour
+	return _scheduled_day_event if hour >= 5 and hour < 17 else _scheduled_night_event
+
+func _is_local_event_window_active(event_id: String) -> bool:
+	if event_id == "":
+		return false
+	var config := LocalEventCatalog.get_event(event_id)
+	var phase := str(config.get("phase", "day"))
+	var hour := TimeManager.hour
+	return (hour >= 5 and hour < 17) if phase == "day" else (hour >= 17 or hour < 5)
+
+func _local_event_world_position(event_id: String) -> Vector3:
+	var point: Vector2 = LocalEventCatalog.get_event(event_id).get("position", Vector2.ZERO)
+	return Vector3(point.x, _height_at(point.x, point.y), point.y)
+
+func _nearby_local_event_id(radius: float) -> String:
+	if _player == null or not is_instance_valid(_player):
+		return ""
+	var event_id := _current_scheduled_local_event()
+	if not _is_local_event_window_active(event_id):
+		return ""
+	var position := _local_event_world_position(event_id)
+	return event_id if Vector2(_player.global_position.x, _player.global_position.z).distance_to(Vector2(position.x, position.z)) <= radius else ""
+
+func _is_camper_parked_at_local_event(event_id: String) -> bool:
+	if _camper == null or not is_instance_valid(_camper) or event_id == "":
+		return false
+	var config := LocalEventCatalog.get_event(event_id)
+	var center: Vector2 = config.get("position", Vector2.ZERO)
+	var radius := float(config.get("parking_radius", 12.0))
+	return Vector2(_camper.global_position.x, _camper.global_position.z).distance_squared_to(center) <= radius * radius
+
+func _update_local_events(_delta: float) -> void:
+	if not _chapter_one_active:
+		return
+	if _last_day_night_phase == "":
+		_on_day_night_phase_changed(_day_night_phase())
+	var event_id := _local_event_business_id if _local_event_business_id != "" else _current_scheduled_local_event()
+	if event_id != _active_world_event_id:
+		_active_world_event_id = event_id
+		_sync_local_event_world_visual()
+	if event_id == "" or (not _is_local_event_window_active(event_id) and _local_event_business_id == ""):
+		return
+	var root := _local_event_visuals.get(event_id) as Node3D
+	if root == null or not is_instance_valid(root):
+		root = _create_local_event_visual(event_id)
+	var config := LocalEventCatalog.get_event(event_id)
+	var center: Vector2 = config.get("position", Vector2.ZERO)
+	var nearest := INF
+	if _player != null and is_instance_valid(_player):
+		nearest = minf(nearest, Vector2(_player.global_position.x, _player.global_position.z).distance_to(center))
+	if _camper != null and is_instance_valid(_camper):
+		nearest = minf(nearest, Vector2(_camper.global_position.x, _camper.global_position.z).distance_to(center))
+	var reveal_radius := float(config.get("reveal_radius", 22.0))
+	root.visible = nearest <= reveal_radius or _local_event_business_id == event_id
+	if root.visible:
+		var reveal_scale := 1.0 - smoothstep(reveal_radius * 0.55, reveal_radius, nearest)
+		root.scale = Vector3.ONE * clampf(reveal_scale, 0.08, 1.0)
+	if nearest <= reveal_radius and not bool(_local_event_proximity_notified.get(event_id, false)):
+		_local_event_proximity_notified[event_id] = true
+		var state := _local_event_state.get(event_id, {}) as Dictionary
+		state["discovered"] = true
+		_local_event_state[event_id] = state
+		_show_notification(str(config.get("approach_hint", "附近似乎有一场临时聚会。")))
+		_sync_progression_world_state()
+
+func _sync_local_event_world_visual() -> void:
+	for raw_event_id in _local_event_visuals.keys():
+		var root := _local_event_visuals.get(raw_event_id) as Node3D
+		if root != null and is_instance_valid(root):
+			root.visible = str(raw_event_id) == _local_event_business_id or (str(raw_event_id) == _active_world_event_id and _is_local_event_window_active(str(raw_event_id)))
+	var event_id := _current_scheduled_local_event()
+	if event_id != "" and _is_local_event_window_active(event_id) and not _local_event_visuals.has(event_id):
+		_create_local_event_visual(event_id)
+
+func _create_local_event_visual(event_id: String) -> Node3D:
+	var config := LocalEventCatalog.get_event(event_id)
+	var root := Node3D.new()
+	root.name = "LocalEvent_%s" % event_id
+	root.visible = false
+	_mark_generated(root)
+	add_child(root)
+	root.global_position = _local_event_world_position(event_id)
+	_local_event_visuals[event_id] = root
+	var asset_path := str(config.get("asset_path", ""))
+	if asset_path != "" and ResourceLoader.exists(asset_path):
+		var packed := load(asset_path) as PackedScene
+		if packed != null:
+			var model := packed.instantiate() as Node3D
+			if model != null:
+				root.add_child(model)
+				_fit_model_to_max_dimension(model, 9.5)
+				_center_model_on_origin(model)
+				_ground_model(model)
+	if root.get_child_count() == 0:
+		_create_procedural_local_event_props(root, event_id)
+	var label := Label3D.new()
+	label.text = str(config.get("name", "地方活动"))
+	label.position = Vector3(0.0, 3.4, 0.0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.font_size = 32
+	label.pixel_size = 0.012
+	label.modulate = Color(1.0, 0.88, 0.50)
+	label.outline_size = 7
+	label.outline_modulate = Color(0.18, 0.09, 0.03, 0.92)
+	root.add_child(label)
+	return root
+
+func _create_procedural_local_event_props(root: Node3D, event_id: String) -> void:
+	var palette := {
+		LocalEventCatalog.RABBIT_PARTY: Color(0.96, 0.54, 0.24),
+		LocalEventCatalog.BIRD_MARKET: Color(0.94, 0.76, 0.24),
+		LocalEventCatalog.FOREST_MARKET: Color(0.34, 0.76, 0.55),
+		LocalEventCatalog.CAMPFIRE_STORY: Color(0.94, 0.36, 0.16),
+	}
+	var accent: Color = palette.get(event_id, Color(0.92, 0.62, 0.24))
+	var blanket := MeshInstance3D.new()
+	blanket.name = "EventBlanket"
+	var blanket_mesh := BoxMesh.new()
+	blanket_mesh.size = Vector3(4.6, 0.08, 3.2)
+	blanket.mesh = blanket_mesh
+	blanket.position = Vector3(0.0, 0.05, 0.0)
+	blanket.material_override = _crop_part_material(accent.darkened(0.18))
+	root.add_child(blanket)
+	for index in range(6):
+		var angle := TAU * float(index) / 6.0
+		var post := _add_crop_stem(root, "EventPost", Vector3(cos(angle) * 3.0, 1.25, sin(angle) * 2.3), 2.5, 0.07, Color(0.36, 0.20, 0.08))
+		post.rotation_degrees.z = 0.0
+		_add_crop_sphere(root, "EventLantern", Vector3(cos(angle) * 3.0, 2.25, sin(angle) * 2.3), Vector3(0.58, 0.72, 0.58), accent, 2.4)
+	for index in range(3):
+		var guest := _add_crop_sphere(root, "EventGuest", Vector3(float(index - 1) * 1.15, 0.55, -0.35 + float(index % 2) * 0.55), Vector3(1.0, 1.25, 0.85), Color(0.82, 0.74, 0.62))
+		if event_id == LocalEventCatalog.RABBIT_PARTY:
+			for side in [-1.0, 1.0]:
+				_add_crop_sphere(root, "RabbitEar", guest.position + Vector3(0.12 * side, 0.32, 0.0), Vector3(0.22, 0.82, 0.18), Color(0.86, 0.78, 0.67))
+
+func _local_event_special_recipe(event_id: String) -> String:
+	return ResearchRecipeCatalog.recipe_for_event(event_id)
+
+func _is_special_recipe_researched(recipe_id: String) -> bool:
+	return recipe_id != "" and bool(_researched_special_recipes.get(recipe_id, false))
+
+func _local_event_effective_recipes(event_id: String) -> Array[String]:
+	var config := LocalEventCatalog.get_event(event_id)
+	var result: Array[String] = []
+	for raw_recipe in config.get("recipes", []):
+		result.append(str(raw_recipe))
+	var special_recipe := _local_event_special_recipe(event_id)
+	if _is_special_recipe_researched(special_recipe):
+		while result.size() < 4:
+			result.append(str(result[0]) if not result.is_empty() else KITCHEN_RECIPE_SOUP)
+		result[3] = special_recipe
+	return result
+
+func _local_event_effective_requirements(event_id: String) -> Dictionary:
+	var requirements := {}
+	for recipe in _local_event_effective_recipes(event_id):
+		var crop := str(_recipe_data(recipe).get("crop", ""))
+		if crop != "":
+			requirements[crop] = int(requirements.get(crop, 0)) + 1
+	return requirements
+
+func _local_event_requirement_lines(event_id: String, include_counts: bool = false) -> Array[String]:
+	var lines: Array[String] = []
+	for raw_crop in _local_event_effective_requirements(event_id).keys():
+		var crop := str(raw_crop)
+		var need := int(_local_event_effective_requirements(event_id).get(raw_crop, 0))
+		var current := _stored_crop_total(crop)
+		lines.append("%s %d/%d" % [_crop_display_name(crop), mini(current, need), need] if include_counts else "%s x%d" % [_crop_display_name(crop), need])
+	return lines
+
+func _local_event_requirements_ready(event_id: String) -> bool:
+	for raw_crop in _local_event_effective_requirements(event_id).keys():
+		var crop := str(raw_crop)
+		if _stored_crop_total(crop) < int(_local_event_effective_requirements(event_id).get(raw_crop, 0)):
+			return false
+	return true
+
+func _local_event_first_shortage(event_id: String) -> String:
+	for raw_crop in _local_event_effective_requirements(event_id).keys():
+		var crop := str(raw_crop)
+		var need := int(_local_event_effective_requirements(event_id).get(raw_crop, 0))
+		var current := _stored_crop_total(crop)
+		if current < need:
+			return "%s还差%d份" % [_crop_display_name(crop), need - current]
+	return ""
+
+func _local_event_required_equipment_ids(event_id: String) -> Array[String]:
+	return _business_level_required_equipment_ids({"recipes": _local_event_effective_recipes(event_id)})
+
+func _local_event_missing_equipment_ids(event_id: String) -> Array[String]:
+	var missing: Array[String] = []
+	for equipment_id in _local_event_required_equipment_ids(event_id):
+		if not _has_kitchen_equipment(equipment_id):
+			missing.append(equipment_id)
+	return missing
+
+func _open_local_event_card(event_id: String) -> bool:
+	if event_id == "" or not _is_local_event_window_active(event_id):
+		_show_notification("活动已经暂时离场，会在之后的对应时段再次出现")
+		return true
+	if _local_event_overlay != null and is_instance_valid(_local_event_overlay):
+		_local_event_overlay.queue_free()
+	var config := LocalEventCatalog.get_event(event_id)
+	_local_event_overlay = Control.new()
+	_local_event_overlay.name = "LocalEventCard"
+	_local_event_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_local_event_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_hud_root.add_child(_local_event_overlay)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.025, 0.04, 0.58)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_local_event_overlay.add_child(dim)
+	var panel := PanelContainer.new()
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -350.0
+	panel.offset_top = -220.0
+	panel.offset_right = 350.0
+	panel.offset_bottom = 220.0
+	panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.91, 0.77, 0.52, 0.98), Color(0.34, 0.18, 0.07, 1.0), 22.0, 5))
+	_local_event_overlay.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = str(config.get("name", "地方突发经营"))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", Color(0.28, 0.14, 0.05))
+	box.add_child(title)
+	var crop := str(config.get("preferred_crop", CROP_CARROT))
+	var special_recipe := _local_event_special_recipe(event_id)
+	var special_ready := _is_special_recipe_researched(special_recipe)
+	var body := Label.new()
+	var preference_text := "%s料理" % _crop_display_name(crop)
+	if special_ready:
+		preference_text += "、%s" % _recipe_name(special_recipe)
+	body.text = "当地偏爱：%s售价 +25%%\n经营目标：4 单 / 100 秒（完成 2 单即可通过）\n%s\n\n食材箱准备：%s" % [preference_text, "特色料理已加入最后一单" if special_ready else "首通奖励：神秘特殊奖励", "、".join(_local_event_requirement_lines(event_id))]
+	body.custom_minimum_size = Vector2(620.0, 210.0)
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", 20)
+	body.add_theme_color_override("font_color", Color(0.30, 0.20, 0.10))
+	box.add_child(body)
+	var status := Label.new()
+	status.text = "房车停靠：%s　准备：%s" % ["已就位" if _is_camper_parked_at_local_event(event_id) else "未进入范围", " · ".join(_local_event_requirement_lines(event_id, true))]
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status.add_theme_font_size_override("font_size", 17)
+	box.add_child(status)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 18)
+	box.add_child(buttons)
+	var later := Button.new()
+	later.text = "稍后再来"
+	later.custom_minimum_size = Vector2(170.0, 52.0)
+	later.pressed.connect(_close_local_event_card)
+	buttons.add_child(later)
+	var start := Button.new()
+	start.text = "开始经营"
+	start.custom_minimum_size = Vector2(190.0, 52.0)
+	start.disabled = not _is_camper_parked_at_local_event(event_id) or not _local_event_requirements_ready(event_id) or not _local_event_missing_equipment_ids(event_id).is_empty()
+	start.pressed.connect(_start_local_event_business.bind(event_id))
+	buttons.add_child(start)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	return true
+
+func _close_local_event_card() -> void:
+	if _local_event_overlay != null and is_instance_valid(_local_event_overlay):
+		_local_event_overlay.queue_free()
+	_local_event_overlay = null
+
+func _start_local_event_business(event_id: String) -> void:
+	if _kitchen_business_active or not _is_local_event_window_active(event_id):
+		return
+	var config := LocalEventCatalog.get_event(event_id)
+	var crop := str(config.get("preferred_crop", CROP_CARROT))
+	if not _is_camper_parked_at_local_event(event_id):
+		_show_notification("先把房车停进活动空地")
+		return
+	if not _local_event_requirements_ready(event_id):
+		_show_notification("地方经营准备不足：%s" % _local_event_first_shortage(event_id))
+		return
+	var missing_equipment := _local_event_missing_equipment_ids(event_id)
+	if not missing_equipment.is_empty():
+		_show_notification("先摆好：%s" % "、".join(_business_equipment_names(missing_equipment)))
+		return
+	if not _try_spend_business_stamina():
+		return
+	_close_local_event_card()
+	_local_event_business_id = event_id
+	_kitchen_business_active = true
+	AudioManager.set_business_mode(true)
+	AudioManager.stop_all_kitchen_loops()
+	_kitchen_business_time = 100.0
+	_kitchen_served_count = 0
+	_kitchen_failed_count = 0
+	_kitchen_service_combo_count = 0
+	_kitchen_orders.clear()
+	var recipes: Array[String] = _local_event_effective_recipes(event_id)
+	for index in range(4):
+		var recipe := str(recipes[index]) if index < recipes.size() else KITCHEN_RECIPE_SOUP
+		_kitchen_orders.append(_make_kitchen_order(recipe, 62.0, float(index) * 10.0))
+	_kitchen_cook_states.clear()
+	_kitchen_equipment_progress.clear()
+	_kitchen_ready_dishes.clear()
+	_kitchen_scrap_dishes.clear()
+	_kitchen_scrap_income = 0
+	_business_active_level_id = 0
+	_business_active_level_duration = 100.0
+	var preferred_crops: Array[String] = [crop]
+	var special_recipe := _local_event_special_recipe(event_id)
+	if _is_special_recipe_researched(special_recipe):
+		preferred_crops.append(str(_recipe_data(special_recipe).get("crop", "")))
+	_active_business_location_bonus = {
+		"id": event_id,
+		"name": str(config.get("name", "地方活动")),
+		"preferred_crop": crop,
+		"preferred_crops": preferred_crops,
+		"price_multiplier": float(config.get("bonus_multiplier", 1.25)),
+		"description": "%s料理售价 +25%%" % "、".join(preferred_crops.map(func(crop_id: String) -> String: return _crop_display_name(crop_id))),
+	}
+	_business_location_bonus_coins = 0
+	_collapse_task_bar_for_business()
+	_show_notification("%s开始：神秘特殊奖励将在结算时揭晓" % str(config.get("short_name", "地方经营")))
+
+func _finish_local_event_business() -> void:
+	var event_id := _local_event_business_id
+	var config := LocalEventCatalog.get_event(event_id)
+	var served := _kitchen_served_count
+	var stars := 3 if served >= 4 else (2 if served >= 3 else (1 if served >= 2 else 0))
+	_kitchen_failed_count = maxi(4 - served, 0)
+	var state := _local_event_state.get(event_id, {}) as Dictionary
+	var previous_stars := int(state.get("best_stars", 0))
+	state["best_stars"] = maxi(previous_stars, stars)
+	state["discovered"] = true
+	var first_reward := stars >= 1 and not bool(state.get("reward_claimed", false))
+	var reward_crop := str(config.get("reward_crop", ""))
+	var reward_count := int(config.get("reward_count", 0))
+	if first_reward:
+		state["reward_claimed"] = true
+		_local_event_perks[str(config.get("perk_id", ""))] = true
+		_unlock_crop_for_shop(reward_crop, 2)
+		if not _add_seed_to_inventory(reward_crop, 0, reward_count, true):
+			_create_spilled_seed_drop(_player.global_position if _player != null else Vector3.ZERO, reward_crop, 0, reward_count)
+		AudioManager.play_sfx("reward_stage")
+	_local_event_state[event_id] = state
+	var atlas_record := (_local_event_atlas.get(event_id, {}) as Dictionary).duplicate(true)
+	atlas_record["name"] = str(config.get("name", event_id))
+	atlas_record["preferred_crop"] = str(config.get("preferred_crop", ""))
+	atlas_record["best_stars"] = int(state.get("best_stars", 0))
+	atlas_record["reward_revealed"] = bool(state.get("reward_claimed", false))
+	var special_recipe := _local_event_special_recipe(event_id)
+	atlas_record["special_recipe"] = special_recipe
+	atlas_record["special_recipe_researched"] = _is_special_recipe_researched(special_recipe)
+	atlas_record["special_recipe_served"] = bool(_special_recipe_first_served.get(special_recipe, false))
+	_local_event_atlas[event_id] = atlas_record
+	if stars >= 1:
+		if str(config.get("phase", "day")) == "day":
+			_scheduled_day_event = ""
+		else:
+			_scheduled_night_event = ""
+		_active_world_event_id = ""
+	_kitchen_business_active = false
+	AudioManager.set_business_mode(false)
+	AudioManager.stop_all_kitchen_loops()
+	_business_active_level_id = 0
+	_business_active_level_duration = 0.0
+	_local_event_business_id = ""
+	_kitchen_cook_states.clear()
+	_kitchen_equipment_progress.clear()
+	_settle_kitchen_held_item_after_business()
+	_kitchen_ready_dishes.clear()
+	_kitchen_scrap_dishes.clear()
+	_restore_task_bar_after_business()
+	_sync_progression_world_state()
+	_update_map_codex_panel()
+	_sync_local_event_world_visual()
+	_show_local_event_result(event_id, stars, served, first_reward, _business_location_bonus_coins)
+	_active_business_location_bonus.clear()
+	_business_location_bonus_coins = 0
+
+func _show_local_event_result(event_id: String, stars: int, served: int, first_reward: bool, bonus_coins: int) -> void:
+	var config := LocalEventCatalog.get_event(event_id)
+	if _local_event_result_overlay != null and is_instance_valid(_local_event_result_overlay):
+		_local_event_result_overlay.queue_free()
+	_local_event_result_overlay = Control.new()
+	_local_event_result_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_local_event_result_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_hud_root.add_child(_local_event_result_overlay)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.02, 0.04, 0.62)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_local_event_result_overlay.add_child(dim)
+	var panel := PanelContainer.new()
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -340.0
+	panel.offset_top = -210.0
+	panel.offset_right = 340.0
+	panel.offset_bottom = 210.0
+	panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.92, 0.78, 0.53, 0.99), Color(0.32, 0.16, 0.06), 22.0, 5))
+	_local_event_result_overlay.add_child(panel)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 16)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "%s · 经营结算" % str(config.get("short_name", "地方活动"))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 30)
+	box.add_child(title)
+	var stars_label := Label.new()
+	stars_label.text = "★".repeat(stars) + "☆".repeat(3 - stars)
+	stars_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stars_label.add_theme_font_size_override("font_size", 46)
+	stars_label.add_theme_color_override("font_color", Color(0.96, 0.62, 0.12))
+	box.add_child(stars_label)
+	var result := Label.new()
+	result.text = "完成订单 %d/4　漏单 %d\n地点偏爱额外收益 +%d 金币" % [served, 4 - served, bonus_coins]
+	result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result.add_theme_font_size_override("font_size", 20)
+	box.add_child(result)
+	var reveal := Label.new()
+	if first_reward:
+		reveal.text = "神秘特殊奖励揭晓！\n%s种子 x%d\n永久特性「%s」：%s" % [_crop_display_name(str(config.get("reward_crop", ""))), int(config.get("reward_count", 0)), str(config.get("perk_name", "")), str(config.get("perk_description", ""))]
+	elif stars >= 1:
+		reveal.text = "特殊奖励已在首次通过时领取；地方风味图谱已更新。"
+	else:
+		reveal.text = "完成至少 2/4 单即可揭晓神秘特殊奖励。"
+	reveal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reveal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reveal.add_theme_font_size_override("font_size", 19)
+	reveal.add_theme_color_override("font_color", Color(0.44, 0.22, 0.07))
+	box.add_child(reveal)
+	var close := Button.new()
+	close.text = "返回大世界"
+	close.custom_minimum_size = Vector2(210.0, 52.0)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.pressed.connect(_close_local_event_result)
+	box.add_child(close)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+func _close_local_event_result() -> void:
+	if _local_event_result_overlay != null and is_instance_valid(_local_event_result_overlay):
+		_local_event_result_overlay.queue_free()
+	_local_event_result_overlay = null
+
 func _create_opening_sign() -> void:
 	if _opening_sign_placed and _opening_sign != null and is_instance_valid(_opening_sign):
 		return
@@ -2697,13 +5062,7 @@ func _place_opening_sign_at(position: Vector3, yaw: float) -> Node3D:
 	var root := _create_opening_sign_model("OpeningWoodSign", _placeable_ground_position(position), yaw, false)
 	_opening_sign = root
 	_opening_sign_placed = true
-	_solid_blockers.append({
-		"shape": "box",
-		"center": root.global_position,
-		"yaw": root.rotation.y,
-		"half_extents": OPENING_SIGN_FOOTPRINT_HALF_EXTENTS,
-		"opening_sign": true,
-	})
+	_add_opening_sign_blocker(root)
 	return root
 
 func _create_opening_sign_model(root_name: String, position: Vector3, yaw: float, preview: bool = false) -> Node3D:
@@ -2804,7 +5163,7 @@ func _create_rebas_exclamation() -> void:
 	_rebas_exclamation = marker
 	_rebas.add_child(marker)
 
-func _create_dialogue_ui() -> void:
+func _create_dialogue_ui_shell() -> void:
 	_dialogue_steps = _build_mom_dialogue()
 	_highlight_material = StandardMaterial3D.new()
 	_highlight_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2823,6 +5182,10 @@ func _create_dialogue_ui() -> void:
 	_dialogue_layer.add_child(root)
 	_hud_root = root
 
+	_kitchen_prompt_overlay = KitchenPromptOverlayScript.new()
+	_kitchen_prompt_overlay.name = "KitchenPromptOverlay"
+	root.add_child(_kitchen_prompt_overlay)
+
 	_interaction_prompt = PanelContainer.new()
 	_interaction_prompt.name = "InteractionPrompt"
 	_interaction_prompt.visible = false
@@ -2832,23 +5195,44 @@ func _create_dialogue_ui() -> void:
 	_interaction_prompt.anchor_right = 1.0
 	_interaction_prompt.anchor_bottom = 1.0
 	_interaction_prompt.offset_left = -500.0
-	_interaction_prompt.offset_top = -146.0
+	_interaction_prompt.offset_top = -160.0
 	_interaction_prompt.offset_right = -24.0
 	_interaction_prompt.offset_bottom = -92.0
-	_interaction_prompt.add_theme_stylebox_override("panel", _make_round_style(Color(0.92, 0.84, 0.62, 0.94), Color(1.0, 0.95, 0.78, 1.0), 20.0, 1))
+	_interaction_prompt.add_theme_stylebox_override("panel", _make_interaction_prompt_style())
 	root.add_child(_interaction_prompt)
+
+	var prompt_row := HBoxContainer.new()
+	prompt_row.add_theme_constant_override("separation", 6)
+	_interaction_prompt.add_child(prompt_row)
+
+	var prompt_icon := Label.new()
+	prompt_icon.name = "InteractionPromptIcon"
+	# 星徽已绘入提示框贴图，这里只保留一个空白间隔，避免文字压住图标。
+	prompt_icon.text = ""
+	prompt_icon.custom_minimum_size = Vector2(60.0, 0.0)
+	prompt_icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	prompt_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	prompt_icon.add_theme_font_size_override("font_size", 28)
+	prompt_icon.add_theme_color_override("font_color", Color(1.0, 0.87, 0.49, 1.0))
+	prompt_icon.add_theme_color_override("font_shadow_color", Color(0.35, 0.18, 0.05, 0.82))
+	prompt_icon.add_theme_constant_override("shadow_offset_y", 2)
+	prompt_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	prompt_row.add_child(prompt_icon)
 
 	_interaction_prompt_label = Label.new()
 	_interaction_prompt_label.text = "F / 点击  与安提莉尔对话"
+	_interaction_prompt_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_interaction_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_interaction_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_interaction_prompt_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_interaction_prompt_label.add_theme_color_override("font_color", Color(0.24, 0.18, 0.10))
-	_interaction_prompt_label.add_theme_font_size_override("font_size", 18)
-	_interaction_prompt.add_child(_interaction_prompt_label)
+	_interaction_prompt_label.add_theme_color_override("font_color", Color(0.30, 0.22, 0.13, 1.0))
+	_interaction_prompt_label.add_theme_font_size_override("font_size", 16)
+	prompt_row.add_child(_interaction_prompt_label)
 
 	_create_pickup_feed(root)
 	_create_coin_hud(root)
+	_create_day_clock_hud(root)
+	_create_camper_drive_compass_ui(root)
 	_create_held_crop_quality_panel(root)
 	_create_post_tutorial_objective(root)
 
@@ -2946,19 +5330,124 @@ func _create_dialogue_ui() -> void:
 	skip_button.pressed.connect(_skip_mom_dialogue)
 	_dialogue_panel.add_child(skip_button)
 
-	_create_map_popup(root)
-	_create_rebas_shop(root)
-	_create_food_chest_inventory_panel(root)
-	_create_kitchen_equipment_ui(root)
-	_create_business_prep_ui(root)
-	_create_kitchen_button(root)
-	_create_warehouse_ui(root)
-	_create_opening_package_reward_panel(root)
-	_create_opening_sign_status_panel(root)
-	_create_business_result_ui(root)
-	_create_kitchen_status_ui(root)
-	_create_inventory_bar(root)
-	_create_crop_throw_charge_bar(root)
+func _create_dialogue_ui() -> void:
+	_create_dialogue_ui_shell()
+	_create_dialogue_ui_feature_group_a()
+	_create_dialogue_ui_feature_group_b()
+	_create_dialogue_ui_feature_group_c()
+	_create_dialogue_ui_feature_group_d()
+	_create_dialogue_ui_feature_group_e()
+
+func _create_dialogue_ui_staged() -> void:
+	_create_dialogue_ui_shell()
+	_emit_startup_progress(0.925, "创建基础界面")
+	await get_tree().process_frame
+	_create_dialogue_ui_feature_group_a()
+	_emit_startup_progress(0.936, "准备地图与商店")
+	await get_tree().process_frame
+	_create_dialogue_ui_feature_group_b()
+	_emit_startup_progress(0.948, "准备料理与活动界面")
+	await get_tree().process_frame
+	_create_dialogue_ui_feature_group_c()
+	_emit_startup_progress(0.960, "准备经营界面")
+	await get_tree().process_frame
+	_create_dialogue_ui_feature_group_d()
+	_emit_startup_progress(0.970, "准备仓库与奖励界面")
+	await get_tree().process_frame
+	_create_dialogue_ui_feature_group_e()
+	_emit_startup_progress(0.980, "完成游戏界面")
+	await get_tree().process_frame
+
+func _create_dialogue_ui_feature_group_a() -> void:
+	_create_map_popup(_hud_root)
+	_create_rebas_shop(_hud_root)
+	_create_food_chest_inventory_panel(_hud_root)
+
+func _create_dialogue_ui_feature_group_b() -> void:
+	_create_kitchen_equipment_ui(_hud_root)
+	_create_wind_chase_ui(_hud_root)
+	_create_wind_chase_guide_ui(_hud_root)
+
+func _create_dialogue_ui_feature_group_c() -> void:
+	_create_stream_sifter_ui(_hud_root)
+	_create_camper_drive_note_ui(_hud_root)
+	_create_business_prep_ui(_hud_root)
+
+func _create_dialogue_ui_feature_group_d() -> void:
+	_create_kitchen_button(_hud_root)
+	_create_warehouse_ui(_hud_root)
+	_create_opening_package_reward_panel(_hud_root)
+	_create_opening_sign_status_panel(_hud_root)
+
+func _create_dialogue_ui_feature_group_e() -> void:
+	_create_business_result_ui(_hud_root)
+	_create_kitchen_status_ui(_hud_root)
+	_create_inventory_bar(_hud_root)
+	_create_crop_throw_charge_bar(_hud_root)
+
+func _create_day_clock_hud(root: Control) -> void:
+	_day_clock_panel = Control.new()
+	_day_clock_panel.name = "DayClock"
+	_day_clock_panel.anchor_left = 0.5
+	_day_clock_panel.anchor_right = 0.5
+	_day_clock_panel.offset_left = -470.0
+	_day_clock_panel.offset_right = -370.0
+	_day_clock_panel.offset_top = 16.0
+	_day_clock_panel.offset_bottom = 46.0
+	_day_clock_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_day_clock_panel.z_index = 2
+	root.add_child(_day_clock_panel)
+
+	var frame := TextureRect.new()
+	frame.name = "WhiteWoodClockFrame"
+	frame.texture = _load_ui_texture(DAY_CLOCK_BAR_PATH)
+	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.stretch_mode = TextureRect.STRETCH_SCALE
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_day_clock_panel.add_child(frame)
+
+	_day_clock_icon = TextureRect.new()
+	_day_clock_icon.name = "DayPhaseIcon"
+	_day_clock_icon.position = Vector2(2.0, 1.0)
+	_day_clock_icon.size = Vector2(27.0, 28.0)
+	_day_clock_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_day_clock_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_day_clock_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_day_clock_panel.add_child(_day_clock_icon)
+
+	_day_clock_label = Label.new()
+	_day_clock_label.position = Vector2(29.0, 2.0)
+	_day_clock_label.size = Vector2(67.0, 26.0)
+	_day_clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_day_clock_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_day_clock_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_day_clock_label.add_theme_font_size_override("font_size", 13)
+	_day_clock_label.add_theme_color_override("font_color", Color(0.27, 0.22, 0.16, 1.0))
+	_day_clock_label.add_theme_color_override("font_outline_color", Color(1.0, 0.97, 0.88, 0.82))
+	_day_clock_label.add_theme_constant_override("outline_size", 1)
+	_day_clock_label.text = "D1 06:00"
+	_day_clock_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_day_clock_panel.add_child(_day_clock_label)
+	_update_day_clock_content(_day_night_phase())
+
+func _update_day_clock_content(phase: String) -> void:
+	if _day_clock_label != null:
+		_day_clock_label.text = "D%d %02d:%02d" % [TimeManager.day, TimeManager.hour, TimeManager.minute]
+	if _day_clock_icon == null:
+		return
+	if str(_day_clock_icon.get_meta("phase", "")) == phase:
+		return
+	var icon_path := DAY_PHASE_NIGHT_ICON_PATH
+	match phase:
+		"dawn":
+			icon_path = DAY_PHASE_DAWN_ICON_PATH
+		"day":
+			icon_path = DAY_PHASE_DAY_ICON_PATH
+		"dusk":
+			icon_path = DAY_PHASE_DUSK_ICON_PATH
+	_day_clock_icon.texture = _load_ui_texture(icon_path)
+	_day_clock_icon.set_meta("phase", phase)
 
 func _create_coin_hud(root: Control) -> void:
 	_coin_hud = Control.new()
@@ -2970,26 +5459,287 @@ func _create_coin_hud(root: Control) -> void:
 	_coin_hud.anchor_top = 0.0
 	_coin_hud.anchor_right = 0.5
 	_coin_hud.anchor_bottom = 0.0
-	_coin_hud.offset_left = -440.0
+	_coin_hud.offset_left = -362.0
 	_coin_hud.offset_top = 4.0
-	_coin_hud.offset_right = 440.0
-	_coin_hud.offset_bottom = 100.0
+	_coin_hud.offset_right = 362.0
+	_coin_hud.offset_bottom = 66.0
 	root.add_child(_coin_hud)
-
-	var background := TextureRect.new()
-	background.name = "ResourceHudBackground"
-	background.texture = _load_ui_texture(TOP_RESOURCE_HUD_PATH)
-	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	background.stretch_mode = TextureRect.STRETCH_SCALE
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_coin_hud.add_child(background)
 
 	_create_stamina_hud_bar(_coin_hud)
 	_personal_coin_label = _create_coin_bar(_coin_hud, "PersonalCoinBar", PERSONAL_COIN_BAR_POS, "个人金币")
 	_coop_coin_label = _create_coin_bar(_coin_hud, "CoopCoinBar", COOP_COIN_BAR_POS, "合作金币")
 	_create_popularity_hud_bar(_coin_hud)
 	_update_coin_hud()
+
+func _create_camper_drive_compass_ui(root: Control) -> void:
+	_camper_compass_root = Control.new()
+	_camper_compass_root.name = "CamperDriveCompass"
+	_camper_compass_root.visible = false
+	_camper_compass_root.modulate.a = 0.0
+	_camper_compass_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_camper_compass_root.z_index = 6
+	_camper_compass_root.anchor_left = 0.0
+	_camper_compass_root.anchor_top = 0.0
+	_camper_compass_root.anchor_right = 0.0
+	_camper_compass_root.anchor_bottom = 0.0
+	_camper_compass_root.offset_left = 18.0
+	_camper_compass_root.offset_top = 18.0
+	_camper_compass_root.offset_right = 150.0
+	_camper_compass_root.offset_bottom = 150.0
+	root.add_child(_camper_compass_root)
+
+	var frame := Panel.new()
+	frame.name = "SoftWoodFrame"
+	frame.position = Vector2.ZERO
+	frame.size = Vector2(132.0, 132.0)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_theme_stylebox_override("panel", _make_camper_compass_style(Color(0.76, 0.65, 0.47, 0.97), Color(0.48, 0.39, 0.25, 0.72), 66.0, 3, true))
+	_camper_compass_root.add_child(frame)
+
+	_camper_compass_glow = Panel.new()
+	_camper_compass_glow.name = "LocationGlow"
+	_camper_compass_glow.position = Vector2(3.0, 3.0)
+	_camper_compass_glow.size = Vector2(126.0, 126.0)
+	_camper_compass_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_camper_compass_glow.visible = false
+	_camper_compass_glow.add_theme_stylebox_override("panel", _make_camper_compass_style(Color(0.0, 0.0, 0.0, 0.0), Color(0.48, 0.63, 0.39, 0.72), 63.0, 3, false))
+	_camper_compass_root.add_child(_camper_compass_glow)
+
+	var linen := Panel.new()
+	linen.name = "LinenDialBackground"
+	linen.position = Vector2(10.0, 10.0)
+	linen.size = Vector2(112.0, 112.0)
+	linen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	linen.add_theme_stylebox_override("panel", _make_camper_compass_style(Color(0.95, 0.92, 0.82, 0.98), Color(0.55, 0.61, 0.43, 0.64), 56.0, 2, false))
+	_camper_compass_root.add_child(linen)
+
+	_camper_compass_dial = Control.new()
+	_camper_compass_dial.name = "WorldDirectionDial"
+	_camper_compass_dial.position = Vector2(14.0, 14.0)
+	_camper_compass_dial.size = Vector2(104.0, 104.0)
+	_camper_compass_dial.pivot_offset = Vector2(52.0, 52.0)
+	_camper_compass_dial.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_camper_compass_root.add_child(_camper_compass_dial)
+
+	_add_camper_compass_label(_camper_compass_dial, "北", Vector2(42.0, 1.0), Vector2(20.0, 20.0), 14, Color(0.27, 0.25, 0.17, 0.90))
+	_add_camper_compass_label(_camper_compass_dial, "东", Vector2(82.0, 42.0), Vector2(20.0, 20.0), 13, Color(0.38, 0.46, 0.31, 0.86))
+	_add_camper_compass_label(_camper_compass_dial, "南", Vector2(42.0, 82.0), Vector2(20.0, 20.0), 13, Color(0.38, 0.46, 0.31, 0.86))
+	_add_camper_compass_label(_camper_compass_dial, "西", Vector2(2.0, 42.0), Vector2(20.0, 20.0), 13, Color(0.38, 0.46, 0.31, 0.86))
+	_camper_compass_southeast_label = _add_camper_compass_label(_camper_compass_dial, "东南", Vector2(68.0, 70.0), Vector2(32.0, 19.0), 10, Color(0.45, 0.50, 0.37, 0.72))
+
+	var north_pointer := Label.new()
+	north_pointer.name = "SoftNorthPointer"
+	north_pointer.text = "↑"
+	north_pointer.position = Vector2(41.0, 20.0)
+	north_pointer.size = Vector2(22.0, 38.0)
+	north_pointer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	north_pointer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	north_pointer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	north_pointer.add_theme_font_size_override("font_size", 28)
+	north_pointer.add_theme_color_override("font_color", Color(0.40, 0.29, 0.18, 0.82))
+	_camper_compass_dial.add_child(north_pointer)
+
+	_camper_compass_marker = Label.new()
+	_camper_compass_marker.name = "SoutheastCarrotHint"
+	_camper_compass_marker.text = "🥕"
+	_camper_compass_marker.position = Vector2(76.0, 54.0)
+	_camper_compass_marker.size = Vector2(26.0, 26.0)
+	_camper_compass_marker.pivot_offset = Vector2(13.0, 13.0)
+	_camper_compass_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_camper_compass_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_camper_compass_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_camper_compass_marker.visible = false
+	_camper_compass_marker.add_theme_font_size_override("font_size", 18)
+	_camper_compass_dial.add_child(_camper_compass_marker)
+
+	_camper_compass_heading = Control.new()
+	_camper_compass_heading.name = "CamperHeading"
+	_camper_compass_heading.position = Vector2(14.0, 14.0)
+	_camper_compass_heading.size = Vector2(104.0, 104.0)
+	_camper_compass_heading.pivot_offset = Vector2(52.0, 52.0)
+	_camper_compass_heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_camper_compass_root.add_child(_camper_compass_heading)
+	var heading_mark := Label.new()
+	heading_mark.text = "▲"
+	heading_mark.position = Vector2(43.0, 7.0)
+	heading_mark.size = Vector2(18.0, 20.0)
+	heading_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading_mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	heading_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heading_mark.add_theme_font_size_override("font_size", 14)
+	heading_mark.add_theme_color_override("font_color", Color(0.54, 0.38, 0.23, 0.90))
+	_camper_compass_heading.add_child(heading_mark)
+
+	var center_dot := Panel.new()
+	center_dot.position = Vector2(61.0, 61.0)
+	center_dot.size = Vector2(10.0, 10.0)
+	center_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center_dot.add_theme_stylebox_override("panel", _make_camper_compass_style(Color(0.50, 0.40, 0.26, 0.88), Color(0.95, 0.91, 0.79, 0.80), 5.0, 1, false))
+	_camper_compass_root.add_child(center_dot)
+
+	_camper_compass_leaf_left = _add_camper_compass_label(_camper_compass_root, "❧", Vector2(5.0, 20.0), Vector2(27.0, 28.0), 22, Color(0.49, 0.57, 0.39, 0.46))
+	_camper_compass_leaf_left.pivot_offset = Vector2(13.5, 14.0)
+	_camper_compass_leaf_left.rotation = -0.28
+	_camper_compass_leaf_right = _add_camper_compass_label(_camper_compass_root, "❧", Vector2(102.0, 88.0), Vector2(27.0, 28.0), 22, Color(0.49, 0.57, 0.39, 0.46))
+	_camper_compass_leaf_right.pivot_offset = Vector2(13.5, 14.0)
+	_camper_compass_leaf_right.scale.x = -1.0
+	_camper_compass_leaf_right.rotation = 0.24
+
+	_camper_compass_hint = Label.new()
+	_camper_compass_hint.name = "LocationWhisper"
+	_camper_compass_hint.text = "这里似乎有特别的气息"
+	_camper_compass_hint.position = Vector2(8.0, 101.0)
+	_camper_compass_hint.size = Vector2(116.0, 20.0)
+	_camper_compass_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_camper_compass_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_camper_compass_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_camper_compass_hint.visible = false
+	_camper_compass_hint.add_theme_font_size_override("font_size", 10)
+	_camper_compass_hint.add_theme_color_override("font_color", Color(0.31, 0.44, 0.26, 0.94))
+	_camper_compass_hint.add_theme_color_override("font_shadow_color", Color(0.97, 0.93, 0.82, 0.92))
+	_camper_compass_hint.add_theme_constant_override("shadow_offset_y", 1)
+	_camper_compass_root.add_child(_camper_compass_hint)
+
+func _make_camper_compass_style(fill: Color, border: Color, radius: float, border_width: int, shadow: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.set_border_width_all(border_width)
+	var rounded := roundi(radius)
+	style.corner_radius_top_left = rounded
+	style.corner_radius_top_right = rounded
+	style.corner_radius_bottom_left = rounded
+	style.corner_radius_bottom_right = rounded
+	style.anti_aliasing = true
+	if shadow:
+		style.shadow_color = Color(0.20, 0.15, 0.09, 0.20)
+		style.shadow_size = 5
+		style.shadow_offset = Vector2(0.0, 3.0)
+	return style
+
+func _add_camper_compass_label(parent: Control, text: String, position: Vector2, size: Vector2, font_size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.position = position
+	label.size = size
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	parent.add_child(label)
+	return label
+
+func _set_camper_drive_compass_visible(visible: bool) -> void:
+	if _camper_compass_root == null or _camper_compass_visible_requested == visible:
+		return
+	_camper_compass_visible_requested = visible
+	if _camper_compass_fade_tween != null and _camper_compass_fade_tween.is_valid():
+		_camper_compass_fade_tween.kill()
+	if visible:
+		_camper_compass_root.visible = true
+		_camper_compass_root.move_to_front()
+	_camper_compass_fade_tween = create_tween()
+	_camper_compass_fade_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_camper_compass_fade_tween.tween_property(_camper_compass_root, "modulate:a", 1.0 if visible else 0.0, CAMPER_COMPASS_FADE_SECONDS)
+	if not visible:
+		_camper_compass_fade_tween.finished.connect(func() -> void:
+			if _camper_compass_root != null and not _camper_compass_visible_requested:
+				_camper_compass_root.visible = false
+		)
+
+func _camper_compass_target_location() -> Dictionary:
+	var mainline_level := _active_mainline_clue_level()
+	if mainline_level > 0:
+		var mainline := BusinessDiscoveryCatalog.get_site(mainline_level)
+		mainline["id"] = "mainline:%d" % mainline_level
+		mainline["level_id"] = mainline_level
+		mainline["radius"] = float(mainline.get("parking_radius", 12.0))
+		return mainline
+	var event_id := _current_scheduled_local_event()
+	if event_id == "" or not _is_local_event_window_active(event_id):
+		return {}
+	var result := LocalEventCatalog.get_event(event_id)
+	result["id"] = event_id
+	result["radius"] = float(result.get("parking_radius", 12.0))
+	result["compass_icon"] = {LocalEventCatalog.RABBIT_PARTY: "🥕", LocalEventCatalog.BIRD_MARKET: "🌾", LocalEventCatalog.FOREST_MARKET: "✦", LocalEventCatalog.CAMPFIRE_STORY: "🔥"}.get(event_id, "❧")
+	return result
+
+func _update_camper_drive_compass(delta: float) -> void:
+	if _camper_compass_root == null:
+		return
+	_set_camper_drive_compass_visible(_camper_driving and _chapter_one_active and not _map_open)
+	if not _camper_driving or _camper == null or not is_instance_valid(_camper):
+		_camper_compass_sense_level = -1
+		_camper_compass_hint_time = 0.0
+		if _camper_compass_hint != null:
+			_camper_compass_hint.visible = false
+		return
+	_camper_compass_animation_time += maxf(delta, 0.0)
+	if _camper_compass_dial != null:
+		_camper_compass_dial.rotation = wrapf(_orbit.x, -PI, PI)
+	if _camper_compass_heading != null:
+		var camper_heading := _camper.rotation.y + CAMPER_DRIVE_FORWARD_YAW_OFFSET
+		_camper_compass_heading.rotation = wrapf(camper_heading - _orbit.x, -PI, PI)
+	var target := _camper_compass_target_location()
+	if target.is_empty():
+		return
+	var center: Vector2 = target.get("position", Vector2.ZERO)
+	var camper_point := Vector2(_camper.global_position.x, _camper.global_position.z)
+	var distance := camper_point.distance_to(center)
+	var trigger_radius := float(target.get("radius", 0.0))
+	var sense_level := 0
+	if distance <= trigger_radius:
+		sense_level = 3
+	elif distance <= CAMPER_COMPASS_NEAR_DISTANCE:
+		sense_level = 2
+	elif distance <= CAMPER_COMPASS_WARM_DISTANCE:
+		sense_level = 1
+	if sense_level != _camper_compass_sense_level:
+		if sense_level > 0:
+			_camper_compass_hint_time = 2.8
+		_camper_compass_sense_level = sense_level
+		if _camper_compass_hint != null:
+			if str(target.get("id", "")).begins_with("mainline:"):
+				var mainline_names := ["", "远处有顾客的传闻", "看见委托地点装饰", "已进入首次经营范围"]
+				_camper_compass_hint.text = mainline_names[sense_level]
+			elif str(target.get("id", "")) == LocalEventCatalog.RABBIT_PARTY:
+				_camper_compass_hint.text = ["", "听见聚会声", "看到胡萝卜灯笼", "已进入兔子聚会范围"][sense_level]
+			else:
+				_camper_compass_hint.text = ["", "远处有活动声", "看见临时灯光", "已进入活动范围"][sense_level]
+	var pulse := (sin(_camper_compass_animation_time * 2.1) + 1.0) * 0.5
+	var southeast_color := Color(0.45, 0.50, 0.37, 0.72)
+	if sense_level == 1:
+		southeast_color = Color(0.43, 0.55, 0.34, 0.82 + pulse * 0.08)
+	elif sense_level >= 2:
+		southeast_color = Color(0.36, 0.55, 0.29, 0.90)
+	if _camper_compass_southeast_label != null:
+		_camper_compass_southeast_label.text = "活动"
+		_camper_compass_southeast_label.add_theme_color_override("font_color", southeast_color)
+	if _camper_compass_marker != null:
+		_camper_compass_marker.text = str(target.get("compass_icon", "❧"))
+		var offset := center - camper_point
+		var target_angle := atan2(offset.x, -offset.y)
+		var marker_center := Vector2(52.0, 52.0) + Vector2(sin(target_angle), -cos(target_angle)) * 36.0
+		_camper_compass_marker.position = marker_center - Vector2(13.0, 13.0)
+		_camper_compass_southeast_label.position = marker_center + Vector2(-16.0, 13.0)
+		_camper_compass_marker.visible = sense_level >= 2
+		_camper_compass_marker.modulate = Color(0.79, 0.84, 0.63, 0.54 + pulse * (0.20 if sense_level == 2 else 0.30))
+		_camper_compass_marker.scale = Vector2.ONE * (0.98 + pulse * 0.04)
+	var leaf_alpha := 0.46 if sense_level == 0 else (0.58 + pulse * 0.08 if sense_level == 1 else 0.72 + pulse * 0.10)
+	if _camper_compass_leaf_left != null:
+		_camper_compass_leaf_left.modulate.a = leaf_alpha
+		_camper_compass_leaf_left.rotation = -0.28 + sin(_camper_compass_animation_time * 1.15) * 0.025
+	if _camper_compass_leaf_right != null:
+		_camper_compass_leaf_right.modulate.a = leaf_alpha
+		_camper_compass_leaf_right.rotation = 0.24 - sin(_camper_compass_animation_time * 1.15) * 0.025
+	if _camper_compass_glow != null:
+		_camper_compass_glow.visible = sense_level == 3
+		_camper_compass_glow.modulate.a = 0.34 + pulse * 0.16
+	_camper_compass_hint_time = maxf(_camper_compass_hint_time - delta, 0.0)
+	if _camper_compass_hint != null:
+		_camper_compass_hint.visible = _camper_compass_hint_time > 0.0
+		_camper_compass_hint.modulate.a = clampf(_camper_compass_hint_time / 0.25, 0.0, 1.0)
 
 func _create_stamina_hud_bar(parent: Control) -> void:
 	var holder := Control.new()
@@ -3003,11 +5753,11 @@ func _create_stamina_hud_bar(parent: Control) -> void:
 
 	_stamina_label = Label.new()
 	_stamina_label.name = "Value"
-	_stamina_label.position = Vector2(98.0, 32.0)
-	_stamina_label.size = Vector2(104.0, 28.0)
+	_stamina_label.position = Vector2(66.0, 18.0)
+	_stamina_label.size = Vector2(88.0, 24.0)
 	_stamina_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_stamina_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_stamina_label.add_theme_font_size_override("font_size", 20)
+	_stamina_label.add_theme_font_size_override("font_size", 17)
 	_stamina_label.add_theme_color_override("font_color", Color(0.27, 0.17, 0.06, 1.0))
 	_stamina_label.add_theme_color_override("font_shadow_color", Color(1.0, 0.94, 0.72, 0.82))
 	_stamina_label.add_theme_constant_override("shadow_offset_x", 0)
@@ -3016,11 +5766,11 @@ func _create_stamina_hud_bar(parent: Control) -> void:
 
 	_stamina_recovery_label = Label.new()
 	_stamina_recovery_label.name = "RecoveryCountdown"
-	_stamina_recovery_label.position = Vector2(102.0, 61.0)
-	_stamina_recovery_label.size = Vector2(96.0, 14.0)
+	_stamina_recovery_label.position = Vector2(120.0, 40.0)
+	_stamina_recovery_label.size = Vector2(34.0, 10.0)
 	_stamina_recovery_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_stamina_recovery_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_stamina_recovery_label.add_theme_font_size_override("font_size", 10)
+	_stamina_recovery_label.add_theme_font_size_override("font_size", 7)
 	_stamina_recovery_label.add_theme_color_override("font_color", Color(0.42, 0.27, 0.09, 0.92))
 	_stamina_recovery_label.add_theme_color_override("font_shadow_color", Color(1.0, 0.96, 0.82, 0.80))
 	_stamina_recovery_label.add_theme_constant_override("shadow_offset_y", 1)
@@ -3048,11 +5798,11 @@ func _create_popularity_hud_bar(parent: Control) -> void:
 
 	_popularity_label = Label.new()
 	_popularity_label.name = "Value"
-	_popularity_label.position = Vector2(98.0, 32.0)
-	_popularity_label.size = Vector2(104.0, 28.0)
+	_popularity_label.position = Vector2(66.0, 18.0)
+	_popularity_label.size = Vector2(88.0, 24.0)
 	_popularity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_popularity_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_popularity_label.add_theme_font_size_override("font_size", 20)
+	_popularity_label.add_theme_font_size_override("font_size", 17)
 	_popularity_label.add_theme_color_override("font_color", Color(0.27, 0.17, 0.06, 1.0))
 	_popularity_label.add_theme_color_override("font_shadow_color", Color(1.0, 0.94, 0.72, 0.82))
 	_popularity_label.add_theme_constant_override("shadow_offset_x", 0)
@@ -3064,7 +5814,7 @@ func _create_popularity_hud_bar(parent: Control) -> void:
 	_popularity_detail_panel = PanelContainer.new()
 	_popularity_detail_panel.name = "PopularityDetail"
 	_popularity_detail_panel.visible = false
-	_popularity_detail_panel.position = POPULARITY_BAR_POS + Vector2(8.0, 84.0)
+	_popularity_detail_panel.position = POPULARITY_BAR_POS + Vector2(-24.0, 62.0)
 	_popularity_detail_panel.size = Vector2(206.0, 84.0)
 	_popularity_detail_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_popularity_detail_panel.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.91, 0.66, 0.95), Color(0.78, 0.56, 0.27, 0.90), 14.0, 1))
@@ -3095,11 +5845,11 @@ func _create_coin_bar(parent: Control, node_name: String, position: Vector2, tit
 
 	var value := Label.new()
 	value.name = "Value"
-	value.position = Vector2(98.0, 32.0)
-	value.size = Vector2(104.0, 28.0)
+	value.position = Vector2(66.0, 18.0)
+	value.size = Vector2(88.0, 24.0)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	value.add_theme_font_size_override("font_size", 21)
+	value.add_theme_font_size_override("font_size", 17)
 	value.add_theme_color_override("font_color", Color(0.27, 0.17, 0.06, 1.0))
 	value.add_theme_color_override("font_shadow_color", Color(1.0, 0.94, 0.72, 0.82))
 	value.add_theme_constant_override("shadow_offset_x", 0)
@@ -3107,7 +5857,27 @@ func _create_coin_bar(parent: Control, node_name: String, position: Vector2, tit
 	holder.add_child(value)
 	return value
 
+func _add_resource_bar_background(parent: Control, texture_path: String) -> void:
+	var background := TextureRect.new()
+	background.name = "ResourceBarBackground"
+	background.texture = _load_ui_texture(texture_path)
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_SCALE
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(background)
+
 func _create_resource_badge(parent: Control, symbol: String, title_text: String, icon_color: Color) -> void:
+	var texture_path := HUD_STAMINA_BAR_PATH
+	if parent.name == "PersonalCoinBar":
+		texture_path = HUD_PERSONAL_COIN_BAR_PATH
+	elif parent.name == "CoopCoinBar":
+		texture_path = HUD_COOP_COIN_BAR_PATH
+	elif parent.name == "PopularityBar":
+		texture_path = HUD_POPULARITY_BAR_PATH
+	_add_resource_bar_background(parent, texture_path)
+	return
+
 	var icon := Label.new()
 	icon.name = "Icon"
 	icon.text = symbol
@@ -3137,6 +5907,13 @@ func _create_resource_badge(parent: Control, symbol: String, title_text: String,
 	parent.add_child(title)
 
 func _load_ui_texture(texture_path: String) -> Texture2D:
+	# Exported builds keep imported textures inside the PCK, where an OS-level
+	# Image.load_from_file() cannot see them. Prefer Godot's resource loader so
+	# the same UI paths work both in the editor and in a packaged game.
+	if ResourceLoader.exists(texture_path):
+		var imported_texture := ResourceLoader.load(texture_path) as Texture2D
+		if imported_texture != null:
+			return imported_texture
 	var image := Image.load_from_file(ProjectSettings.globalize_path(texture_path))
 	if image == null:
 		return null
@@ -3178,6 +5955,31 @@ func _update_coin_hud() -> void:
 		_popularity_detail_panel.visible = _chapter_one_active and _popularity_detail_panel.visible
 	if _popularity_detail_label != null and is_instance_valid(_popularity_detail_label):
 		_popularity_detail_label.text = _popularity_detail_text()
+
+func _try_purchase_wardrobe_outfit(outfit_id: String) -> bool:
+	if _wardrobe_purchase_in_progress:
+		return false
+	var wardrobe_manager := get_node_or_null("/root/WardrobeManager")
+	if wardrobe_manager == null or not bool(wardrobe_manager.call("is_wardrobe_unlocked")):
+		return false
+	if bool(wardrobe_manager.call("owns_outfit", outfit_id)):
+		return true
+	var outfit := WardrobeCatalog.get_outfit(outfit_id)
+	if outfit.is_empty() or not WardrobeCatalog.model_is_available(outfit_id):
+		_show_side_toast("这套服装的模型还没有导入")
+		return false
+	_wardrobe_purchase_in_progress = true
+	var purchase_result := wardrobe_manager.call("purchase_outfit", outfit_id, _coins) as Dictionary
+	_wardrobe_purchase_in_progress = false
+	if not bool(purchase_result.get("success", false)):
+		if str(purchase_result.get("reason", "")) == "insufficient_coins":
+			_show_side_toast("个人金币不足，还差 %d" % int(purchase_result.get("missing_coins", 0)))
+		return false
+	var price := int(purchase_result.get("price", 0))
+	_coins = int(purchase_result.get("remaining_coins", _coins))
+	_update_coin_hud()
+	_show_side_toast("购买%s，花费 %d 个人金币" % [str(outfit.get("display_name", "服装")), price])
+	return true
 
 func _update_kitchen_stamina_recovery(delta: float) -> void:
 	if not _chapter_one_active:
@@ -3253,13 +6055,1120 @@ func _is_coop_coin_available() -> bool:
 func _create_pickup_feed(root: Control) -> void:
 	_pickup_feed = VBoxContainer.new()
 	_pickup_feed.name = "PickupFeed"
-	_pickup_feed.anchor_left = 0.02
-	_pickup_feed.anchor_top = 0.18
-	_pickup_feed.anchor_right = 0.28
-	_pickup_feed.anchor_bottom = 0.48
+	_pickup_feed.anchor_left = 0.0
+	_pickup_feed.anchor_top = 0.0
+	_pickup_feed.anchor_right = 0.0
+	_pickup_feed.anchor_bottom = 0.0
+	_pickup_feed.offset_left = 16.0
+	_pickup_feed.offset_top = 92.0
+	_pickup_feed.offset_right = 340.0
+	_pickup_feed.offset_bottom = 360.0
 	_pickup_feed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pickup_feed.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_pickup_feed.add_theme_constant_override("separation", 6)
 	root.add_child(_pickup_feed)
+
+func _layout_left_status_stack(held_status_visible: bool) -> void:
+	if _pickup_feed == null or not is_instance_valid(_pickup_feed):
+		return
+	var top := 128.0 if held_status_visible else 92.0
+	_pickup_feed.offset_top = top
+	_pickup_feed.offset_bottom = top + 268.0
+
+func _create_wind_chase_ui(root: Control) -> void:
+	_wind_chase_overlay = Control.new()
+	_wind_chase_overlay.name = "WindChaseOverlay"
+	_wind_chase_overlay.visible = false
+	_wind_chase_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_wind_chase_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_wind_chase_overlay.z_index = 96
+	root.add_child(_wind_chase_overlay)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.08, 0.16, 0.18, 0.42)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_wind_chase_overlay.add_child(dim)
+
+	_wind_chase_panel = Control.new()
+	_wind_chase_panel.name = "WindChasePanel"
+	_wind_chase_panel.anchor_left = 0.5
+	_wind_chase_panel.anchor_top = 0.5
+	_wind_chase_panel.anchor_right = 0.5
+	_wind_chase_panel.anchor_bottom = 0.5
+	_wind_chase_panel.offset_left = -310.0
+	_wind_chase_panel.offset_top = -242.0
+	_wind_chase_panel.offset_right = 310.0
+	_wind_chase_panel.offset_bottom = 242.0
+	_wind_chase_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_wind_chase_overlay.add_child(_wind_chase_panel)
+
+	var panel_art := TextureRect.new()
+	panel_art.name = "TransparentWoodPanel"
+	panel_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel_art.texture = _load_ui_texture(BUSINESS_RESULT_PANEL_PATH)
+	panel_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	panel_art.stretch_mode = TextureRect.STRETCH_SCALE
+	panel_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wind_chase_panel.add_child(panel_art)
+
+	var box := VBoxContainer.new()
+	box.name = "Content"
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 70.0
+	box.offset_top = 54.0
+	box.offset_right = -70.0
+	box.offset_bottom = -54.0
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 8)
+	_wind_chase_panel.add_child(box)
+
+	var title := Label.new()
+	title.text = "◆ 风向山谷 · 逐风 ◆"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 25)
+	title.add_theme_color_override("font_color", Color(0.23, 0.15, 0.06, 1.0))
+	box.add_child(title)
+
+	var intro := Label.new()
+	intro.name = "Instruction"
+	intro.text = "追随风种的节奏，在顺风区按下逐风。成功 3 次即可带回茄子种子。"
+	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.custom_minimum_size = Vector2(0.0, 38.0)
+	intro.add_theme_font_size_override("font_size", 14)
+	intro.add_theme_color_override("font_color", Color(0.34, 0.25, 0.13, 1.0))
+	box.add_child(intro)
+
+	var icon := TextureRect.new()
+	icon.texture = _load_ui_texture(WIND_CHASE_ICON_PATH)
+	icon.custom_minimum_size = Vector2(0.0, 132.0)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+
+	_wind_chase_track = Panel.new()
+	_wind_chase_track.name = "WindTrack"
+	_wind_chase_track.custom_minimum_size = Vector2(360.0, 46.0)
+	_wind_chase_track.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_wind_chase_track.add_theme_stylebox_override("panel", _make_round_style(Color(0.29, 0.47, 0.45, 0.88), Color(0.17, 0.30, 0.27, 0.94), 16.0, 2))
+	box.add_child(_wind_chase_track)
+
+	var target := ColorRect.new()
+	target.name = "TailwindZone"
+	target.color = Color(0.96, 0.78, 0.30, 0.94)
+	target.anchor_left = 0.5
+	target.anchor_top = 0.0
+	target.anchor_right = 0.5
+	target.anchor_bottom = 1.0
+	target.offset_left = -34.0
+	target.offset_top = 6.0
+	target.offset_right = 34.0
+	target.offset_bottom = -6.0
+	target.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wind_chase_track.add_child(target)
+
+	_wind_chase_marker = ColorRect.new()
+	_wind_chase_marker.name = "WindSeedMarker"
+	_wind_chase_marker.color = Color(0.96, 0.98, 0.86, 1.0)
+	_wind_chase_marker.size = Vector2(12.0, 34.0)
+	_wind_chase_marker.position = Vector2(8.0, 6.0)
+	_wind_chase_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wind_chase_track.add_child(_wind_chase_marker)
+
+	_wind_chase_progress_label = Label.new()
+	_wind_chase_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_wind_chase_progress_label.custom_minimum_size = Vector2(0.0, 22.0)
+	_wind_chase_progress_label.add_theme_font_size_override("font_size", 16)
+	_wind_chase_progress_label.add_theme_color_override("font_color", Color(0.25, 0.17, 0.08, 1.0))
+	box.add_child(_wind_chase_progress_label)
+
+	_wind_chase_status_label = Label.new()
+	_wind_chase_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_wind_chase_status_label.custom_minimum_size = Vector2(0.0, 20.0)
+	_wind_chase_status_label.add_theme_font_size_override("font_size", 13)
+	_wind_chase_status_label.add_theme_color_override("font_color", Color(0.39, 0.27, 0.11, 1.0))
+	box.add_child(_wind_chase_status_label)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	box.add_child(buttons)
+	var leave_button := Button.new()
+	leave_button.text = "稍后再来"
+	leave_button.custom_minimum_size = Vector2(120.0, 40.0)
+	leave_button.add_theme_font_size_override("font_size", 14)
+	leave_button.add_theme_color_override("font_color", Color(0.25, 0.17, 0.09, 1.0))
+	leave_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color.WHITE))
+	leave_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.10, 1.08, 0.94, 1.0)))
+	leave_button.pressed.connect(_close_wind_chase)
+	buttons.add_child(leave_button)
+	var chase_button := Button.new()
+	chase_button.text = "逐风"
+	chase_button.custom_minimum_size = Vector2(120.0, 40.0)
+	chase_button.add_theme_font_size_override("font_size", 16)
+	chase_button.add_theme_color_override("font_color", Color(0.25, 0.17, 0.09, 1.0))
+	chase_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color(1.0, 1.0, 1.0, 1.0)))
+	chase_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.10, 1.08, 0.90, 1.0)))
+	chase_button.add_theme_stylebox_override("pressed", _make_wood_notice_button_style(Color(0.82, 0.77, 0.66, 1.0), true))
+	chase_button.pressed.connect(_attempt_wind_chase)
+	buttons.add_child(chase_button)
+
+func _open_wind_chase() -> void:
+	if not _wind_chase_unlocked or _wind_chase_completed or _wind_chase_overlay == null:
+		return
+	_wind_chase_hits = 0
+	_wind_chase_phase = 0.0
+	_wind_chase_active = true
+	_wind_chase_overlay.visible = true
+	_wind_chase_overlay.move_to_front()
+	var instruction: Label = null
+	if _wind_chase_panel != null:
+		instruction = _wind_chase_panel.get_node_or_null("Content/Instruction") as Label
+	if _wind_chase_first_entry:
+		if instruction != null:
+			instruction.text = "首次逐风：等白色风种进入金色顺风区后按“逐风”。成功 3 次即可带回茄子种子。"
+		_update_wind_chase_labels("先观察风种移动的节奏，再顺风出手。")
+		_wind_chase_first_entry = false
+	else:
+		if instruction != null:
+			instruction.text = "在金色顺风区按下“逐风”，完成 3 次即可获得奖励。"
+		_update_wind_chase_labels("等风种经过金色顺风区，再按逐风。")
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+func _close_wind_chase() -> void:
+	_wind_chase_active = false
+	if _wind_chase_overlay != null:
+		_wind_chase_overlay.visible = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _update_wind_chase(delta: float) -> void:
+	if not _wind_chase_active or _wind_chase_track == null or _wind_chase_marker == null:
+		return
+	_wind_chase_phase += delta * 3.2
+	var travel := (sin(_wind_chase_phase) + 1.0) * 0.5
+	var width := maxf(_wind_chase_track.size.x, 360.0)
+	_wind_chase_marker.position.x = lerpf(8.0, width - _wind_chase_marker.size.x - 8.0, travel)
+
+func _attempt_wind_chase() -> void:
+	if not _wind_chase_active or _wind_chase_track == null or _wind_chase_marker == null:
+		return
+	var marker_center := _wind_chase_marker.position.x + _wind_chase_marker.size.x * 0.5
+	var target_center := _wind_chase_track.size.x * 0.5
+	if absf(marker_center - target_center) <= 38.0:
+		_wind_chase_hits += 1
+		_wind_chase_phase += 0.72
+		if _wind_chase_hits >= 3:
+			_complete_wind_chase()
+			return
+		_update_wind_chase_labels("顺风！继续追上下一枚风种。")
+	else:
+		_update_wind_chase_labels("风势偏了，等它回到金色顺风区。")
+
+func _update_wind_chase_labels(status: String) -> void:
+	if _wind_chase_progress_label != null:
+		_wind_chase_progress_label.text = "逐风进度：%d/3" % _wind_chase_hits
+	if _wind_chase_status_label != null:
+		_wind_chase_status_label.text = status
+
+func _complete_wind_chase() -> void:
+	_wind_chase_completed = true
+	_wind_chase_active = false
+	_add_seed_to_inventory(CROP_EGGPLANT, 0, 2, true)
+	_unlock_crop_for_shop(CROP_EGGPLANT, 3)
+	if _wind_chase_beacon != null:
+		var label := _wind_chase_beacon.get_node_or_null("WindChaseLabel") as Label3D
+		if label != null:
+			label.text = "逐风已完成"
+			label.visible = true
+	_close_wind_chase()
+	_show_side_toast("逐风完成：获得茄子种子 x2")
+	_update_post_tutorial_objective()
+
+func _create_wind_chase_guide_ui(root: Control) -> void:
+	_wind_chase_guide_overlay = Control.new()
+	_wind_chase_guide_overlay.name = "WindChaseGuideOverlay"
+	_wind_chase_guide_overlay.visible = false
+	_wind_chase_guide_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_wind_chase_guide_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_wind_chase_guide_overlay.z_index = 98
+	root.add_child(_wind_chase_guide_overlay)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.07, 0.12, 0.14, 0.48)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_wind_chase_guide_overlay.add_child(dim)
+
+	var panel := Control.new()
+	panel.name = "WindChaseGuidePanel"
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -360.0
+	panel.offset_top = -270.0
+	panel.offset_right = 360.0
+	panel.offset_bottom = 270.0
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_wind_chase_guide_overlay.add_child(panel)
+
+	var panel_art := TextureRect.new()
+	panel_art.name = "TransparentWoodPanel"
+	panel_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel_art.texture = _load_ui_texture(BUSINESS_RESULT_PANEL_PATH)
+	panel_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	panel_art.stretch_mode = TextureRect.STRETCH_SCALE
+	panel_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(panel_art)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 86.0
+	box.offset_top = 62.0
+	box.offset_right = -86.0
+	box.offset_bottom = -88.0
+	box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+
+	var title := Label.new()
+	title.text = "◆ 新玩法开启：风向山谷 · 逐风 ◆"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(0.23, 0.15, 0.06, 1.0))
+	box.add_child(title)
+
+	var icon := TextureRect.new()
+	icon.texture = _load_ui_texture(WIND_CHASE_ICON_PATH)
+	icon.custom_minimum_size = Vector2(0.0, 120.0)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+
+	var description := Label.new()
+	description.text = "在大世界中寻找风种，靠近时会有提示。\n跟随风种，在金色顺风区按下“逐风”；成功 3 次可获得茄子种子 x2。"
+	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.custom_minimum_size = Vector2(0.0, 54.0)
+	description.add_theme_font_size_override("font_size", 14)
+	description.add_theme_color_override("font_color", Color(0.33, 0.24, 0.12, 1.0))
+	box.add_child(description)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 14)
+	box.add_child(buttons)
+	var later_button := Button.new()
+	later_button.text = "稍后再来"
+	later_button.custom_minimum_size = Vector2(132.0, 40.0)
+	later_button.add_theme_font_size_override("font_size", 14)
+	later_button.add_theme_color_override("font_color", Color(0.25, 0.17, 0.09, 1.0))
+	later_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color.WHITE))
+	later_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.10, 1.08, 0.94, 1.0)))
+	later_button.pressed.connect(_dismiss_wind_chase_guide)
+	buttons.add_child(later_button)
+	var search_button := Button.new()
+	search_button.text = "开始寻找"
+	search_button.custom_minimum_size = Vector2(132.0, 40.0)
+	search_button.add_theme_font_size_override("font_size", 15)
+	search_button.add_theme_color_override("font_color", Color(0.25, 0.17, 0.09, 1.0))
+	search_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color(1.0, 1.0, 1.0, 1.0)))
+	search_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.10, 1.08, 0.90, 1.0)))
+	search_button.pressed.connect(_begin_wind_chase_search)
+	buttons.add_child(search_button)
+
+func _show_wind_chase_guide() -> void:
+	if not _can_show_wind_chase_guide():
+		return
+	_wind_chase_guide_overlay.visible = true
+	_wind_chase_guide_overlay.move_to_front()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+func _try_show_pending_wind_chase_guide() -> bool:
+	if _should_show_wind_chase_unlock_guide():
+		_wind_chase_intro_pending = true
+	if not _can_show_wind_chase_guide():
+		return false
+	_show_wind_chase_guide()
+	return _wind_chase_guide_overlay != null and _wind_chase_guide_overlay.visible
+
+func _can_show_wind_chase_guide() -> bool:
+	if not _should_show_wind_chase_unlock_guide() or _wind_chase_guide_overlay == null:
+		return false
+	if not _wind_chase_intro_pending:
+		return false
+	if _opening_package_reward_feedback_running:
+		return false
+	if _kitchen_business_active or _wind_chase_active or _dialogue_open or _map_open:
+		return false
+	if _business_result_pending_open or _inventory_dragging_item or _warehouse_placing_item != "" or _kitchen_placing_equipment != "":
+		return false
+	if _warehouse_panel_open or _kitchen_equipment_panel_open or _kitchen_upgrade_panel_open:
+		return false
+	return not _is_guide_blocking_panel_visible(_reward_overlay) and not _is_guide_blocking_panel_visible(_shop_overlay) and not _is_guide_blocking_panel_visible(_food_chest_overlay) and not _is_guide_blocking_panel_visible(_business_result_overlay) and not _is_guide_blocking_panel_visible(_opening_package_reward_panel) and not _is_guide_blocking_panel_visible(_opening_sign_status_panel) and not _is_guide_blocking_panel_visible(_warehouse_panel) and not _is_guide_blocking_panel_visible(_kitchen_equipment_panel) and not _is_guide_blocking_panel_visible(_kitchen_upgrade_panel) and not _is_guide_blocking_panel_visible(_popularity_detail_panel) and not _is_guide_blocking_panel_visible(_post_tutorial_alt_guide) and not _is_guide_blocking_panel_visible(_sifter_guide_overlay) and not _is_guide_blocking_panel_visible(_sifter_game_overlay)
+
+func _is_guide_blocking_panel_visible(panel: Control) -> bool:
+	return panel != null and is_instance_valid(panel) and panel.visible
+
+func _should_show_wind_chase_unlock_guide() -> bool:
+	return _post_tutorial_grand_reward_claimed and _wind_chase_unlocked and not _wind_chase_completed and not _wind_chase_guide_seen
+
+func _show_wind_chase_guide_after_opening_package() -> void:
+	if not _should_show_wind_chase_unlock_guide() or _wind_chase_guide_overlay == null:
+		return
+	if _opening_package_reward_feedback_running or (_opening_package_reward_panel != null and _opening_package_reward_panel.visible):
+		return
+	_wind_chase_intro_pending = true
+	_wind_chase_guide_overlay.visible = true
+	_wind_chase_guide_overlay.move_to_front()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+func _dismiss_wind_chase_guide(resume_after_dismiss: bool = true) -> void:
+	var resume_action := _wind_chase_guide_resume_action
+	_wind_chase_guide_resume_action = ""
+	if _wind_chase_guide_overlay != null:
+		_wind_chase_guide_overlay.visible = false
+	_wind_chase_intro_pending = false
+	_wind_chase_guide_seen = true
+	_update_post_tutorial_objective()
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	if not resume_after_dismiss:
+		return
+	match resume_action:
+		"warehouse":
+			_open_warehouse_panel()
+
+func _create_camper_drive_note_ui(root: Control) -> void:
+	_camper_drive_note_overlay = Control.new()
+	_camper_drive_note_overlay.name = "CamperDriveNoteOverlay"
+	_camper_drive_note_overlay.visible = false
+	_camper_drive_note_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_camper_drive_note_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_camper_drive_note_overlay.z_index = 126
+	root.add_child(_camper_drive_note_overlay)
+
+	var panel := PanelContainer.new()
+	panel.name = "PaperNote"
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -245.0
+	panel.offset_top = -180.0
+	panel.offset_right = 245.0
+	panel.offset_bottom = 180.0
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.add_theme_stylebox_override("panel", _make_notice_board_style())
+	_camper_drive_note_overlay.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 52)
+	margin.add_theme_constant_override("margin_top", 44)
+	margin.add_theme_constant_override("margin_right", 52)
+	margin.add_theme_constant_override("margin_bottom", 38)
+	panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 10)
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "房车钥匙与新的传闻"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 21)
+	title.add_theme_color_override("font_color", Color(0.29, 0.18, 0.08, 1.0))
+	box.add_child(title)
+	var clue := Label.new()
+	clue.text = "↘ 东南草坡挂起了胡萝卜色的彩旗。\n沿着兔子脚印寻找正在筹备野餐的顾客，\n发现委托后，把房车停进现场空地即可首次开业。"
+	clue.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	clue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	clue.add_theme_font_size_override("font_size", 16)
+	clue.add_theme_color_override("font_color", Color(0.37, 0.25, 0.12, 0.98))
+	box.add_child(clue)
+	var guide := Label.new()
+	guide.text = "新交互：靠近房车选择“驾驶房车”\nW/S 行驶 · A/D 转向 · F 下车\n主线关卡需要先在大世界找到真正的顾客。"
+	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	guide.add_theme_font_size_override("font_size", 13)
+	guide.add_theme_color_override("font_color", Color(0.28, 0.39, 0.25, 0.96))
+	box.add_child(guide)
+	var accept := Button.new()
+	accept.text = "收好纸条"
+	accept.custom_minimum_size = Vector2(126.0, 36.0)
+	accept.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	accept.focus_mode = Control.FOCUS_NONE
+	_apply_wood_command_button_style(accept)
+	accept.pressed.connect(_dismiss_camper_drive_note)
+	box.add_child(accept)
+
+func _try_show_pending_camper_drive_note() -> bool:
+	_sync_camper_drive_unlock_state()
+	if not _camper_drive_note_pending or _camper_drive_note_seen or _camper_drive_note_overlay == null:
+		return false
+	if _camper_driving or _kitchen_business_active or _dialogue_open or _map_open or _business_result_pending_open:
+		return false
+	if _business_result_overlay != null and _business_result_overlay.visible:
+		return false
+	if _shop_overlay != null and _shop_overlay.visible:
+		return false
+	if _food_chest_overlay != null and _food_chest_overlay.visible:
+		return false
+	if _business_prep_overlay != null and _business_prep_overlay.visible:
+		return false
+	if _reward_overlay != null and _reward_overlay.visible:
+		return false
+	if _warehouse_panel_open or _kitchen_equipment_panel_open or _kitchen_upgrade_panel_open:
+		return false
+	_camper_drive_note_overlay.visible = true
+	_camper_drive_note_overlay.move_to_front()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	return true
+
+func _dismiss_camper_drive_note() -> void:
+	if _camper_drive_note_overlay != null:
+		_camper_drive_note_overlay.visible = false
+	_camper_drive_note_seen = true
+	_camper_drive_note_pending = false
+	_show_notification("房车驾驶已开启：根据任务栏线索去大世界寻找新的顾客")
+	var action := _camper_drive_note_resume_action
+	var level_id := _camper_drive_note_resume_level
+	_camper_drive_note_resume_action = ""
+	_camper_drive_note_resume_level = 0
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	match action:
+		"retry":
+			_start_business_level(level_id)
+		"clue":
+			_focus_mainline_discovery_clue(level_id)
+		"return":
+			_open_business_prep()
+
+func _begin_wind_chase_search() -> void:
+	if _business_prep_overlay != null and _business_prep_overlay.visible:
+		_close_business_prep()
+	_dismiss_wind_chase_guide(false)
+
+func _create_stream_sifter_ui(root: Control) -> void:
+	_sifter_item_sheet = _load_ui_texture(STREAM_SIFTER_ITEMS_PATH)
+	_create_stream_sifter_guide_ui(root)
+
+	_sifter_game_overlay = Control.new()
+	_sifter_game_overlay.name = "StreamSifterOverlay"
+	_sifter_game_overlay.visible = false
+	_sifter_game_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sifter_game_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sifter_game_overlay.z_index = 99
+	root.add_child(_sifter_game_overlay)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.05, 0.12, 0.13, 0.52)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sifter_game_overlay.add_child(dim)
+
+	_sifter_game_panel = Control.new()
+	_sifter_game_panel.name = "StreamSifterPanel"
+	_sifter_game_panel.anchor_left = 0.5
+	_sifter_game_panel.anchor_top = 0.5
+	_sifter_game_panel.anchor_right = 0.5
+	_sifter_game_panel.anchor_bottom = 0.5
+	_sifter_game_panel.offset_left = -480.0
+	_sifter_game_panel.offset_top = -320.0
+	_sifter_game_panel.offset_right = 480.0
+	_sifter_game_panel.offset_bottom = 320.0
+	_sifter_game_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sifter_game_overlay.add_child(_sifter_game_panel)
+
+	var art := TextureRect.new()
+	art.name = "PanelArt"
+	art.texture = _load_ui_texture(STREAM_SIFTER_PANEL_PATH)
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sifter_game_panel.add_child(art)
+
+	_sifter_header_label = Label.new()
+	_sifter_header_label.name = "Header"
+	_sifter_header_label.anchor_left = 0.29
+	_sifter_header_label.anchor_top = 0.14
+	_sifter_header_label.anchor_right = 0.71
+	_sifter_header_label.anchor_bottom = 0.22
+	_sifter_header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sifter_header_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sifter_header_label.add_theme_font_size_override("font_size", 19)
+	_sifter_header_label.add_theme_color_override("font_color", Color(0.94, 0.86, 0.65, 1.0))
+	_sifter_header_label.add_theme_color_override("font_shadow_color", Color(0.18, 0.10, 0.04, 0.90))
+	_sifter_header_label.add_theme_constant_override("shadow_offset_y", 2)
+	_sifter_game_panel.add_child(_sifter_header_label)
+
+	_sifter_item_texture = TextureRect.new()
+	_sifter_item_texture.name = "CurrentItem"
+	_sifter_item_texture.anchor_left = 0.40
+	_sifter_item_texture.anchor_top = 0.33
+	_sifter_item_texture.anchor_right = 0.60
+	_sifter_item_texture.anchor_bottom = 0.65
+	_sifter_item_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_sifter_item_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_sifter_item_texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sifter_game_panel.add_child(_sifter_item_texture)
+
+	_sifter_item_name_label = Label.new()
+	_sifter_item_name_label.name = "CurrentItemName"
+	_sifter_item_name_label.anchor_left = 0.35
+	_sifter_item_name_label.anchor_top = 0.65
+	_sifter_item_name_label.anchor_right = 0.65
+	_sifter_item_name_label.anchor_bottom = 0.71
+	_sifter_item_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sifter_item_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sifter_item_name_label.add_theme_font_size_override("font_size", 18)
+	_sifter_item_name_label.add_theme_color_override("font_color", Color(0.29, 0.19, 0.09, 1.0))
+	_sifter_game_panel.add_child(_sifter_item_name_label)
+
+	_sifter_feedback_label = Label.new()
+	_sifter_feedback_label.name = "Feedback"
+	_sifter_feedback_label.anchor_left = 0.33
+	_sifter_feedback_label.anchor_top = 0.25
+	_sifter_feedback_label.anchor_right = 0.67
+	_sifter_feedback_label.anchor_bottom = 0.32
+	_sifter_feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sifter_feedback_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sifter_feedback_label.add_theme_font_size_override("font_size", 20)
+	_sifter_feedback_label.add_theme_color_override("font_color", Color(0.27, 0.48, 0.20, 1.0))
+	_sifter_game_panel.add_child(_sifter_feedback_label)
+
+	_sifter_left_button = _create_stream_sifter_category_button("留种\n完整种子与种荚", Color(0.46, 0.64, 0.32, 0.30))
+	_sifter_left_button.name = "KeepSeedButton"
+	_sifter_left_button.anchor_left = 0.05
+	_sifter_left_button.anchor_top = 0.36
+	_sifter_left_button.anchor_right = 0.34
+	_sifter_left_button.anchor_bottom = 0.76
+	_sifter_left_button.pressed.connect(_classify_stream_sifter.bind("seed"))
+	_sifter_game_panel.add_child(_sifter_left_button)
+
+	_sifter_right_button = _create_stream_sifter_category_button("杂物\n溪石、枯叶、断枝", Color(0.62, 0.42, 0.24, 0.30))
+	_sifter_right_button.name = "DebrisButton"
+	_sifter_right_button.anchor_left = 0.66
+	_sifter_right_button.anchor_top = 0.36
+	_sifter_right_button.anchor_right = 0.95
+	_sifter_right_button.anchor_bottom = 0.76
+	_sifter_right_button.pressed.connect(_classify_stream_sifter.bind("debris"))
+	_sifter_game_panel.add_child(_sifter_right_button)
+
+	_sifter_footer_label = Label.new()
+	_sifter_footer_label.name = "Footer"
+	_sifter_footer_label.anchor_left = 0.30
+	_sifter_footer_label.anchor_top = 0.79
+	_sifter_footer_label.anchor_right = 0.70
+	_sifter_footer_label.anchor_bottom = 0.88
+	_sifter_footer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sifter_footer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sifter_footer_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sifter_footer_label.add_theme_font_size_override("font_size", 16)
+	_sifter_footer_label.add_theme_color_override("font_color", Color(0.31, 0.21, 0.11, 1.0))
+	_sifter_game_panel.add_child(_sifter_footer_label)
+
+	_sifter_exit_button = Button.new()
+	_sifter_exit_button.name = "ExitButton"
+	_sifter_exit_button.text = "结束"
+	_sifter_exit_button.anchor_left = 0.82
+	_sifter_exit_button.anchor_top = 0.13
+	_sifter_exit_button.anchor_right = 0.91
+	_sifter_exit_button.anchor_bottom = 0.20
+	_sifter_exit_button.focus_mode = Control.FOCUS_NONE
+	_sifter_exit_button.add_theme_font_size_override("font_size", 14)
+	_sifter_exit_button.add_theme_color_override("font_color", Color(0.30, 0.19, 0.09, 1.0))
+	_sifter_exit_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color.WHITE))
+	_sifter_exit_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.08, 1.05, 0.92, 1.0)))
+	_sifter_exit_button.pressed.connect(_exit_stream_sifter)
+	_sifter_game_panel.add_child(_sifter_exit_button)
+
+	_create_stream_sifter_result_ui()
+
+func _create_stream_sifter_category_button(text_value: String, tint: Color) -> Button:
+	var button := Button.new()
+	button.text = text_value
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", 22)
+	button.add_theme_color_override("font_color", Color(0.96, 0.91, 0.72, 1.0))
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_color_override("font_shadow_color", Color(0.20, 0.10, 0.03, 0.94))
+	button.add_theme_constant_override("shadow_offset_y", 2)
+	button.add_theme_stylebox_override("normal", _make_round_style(Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, 0.0), 26.0, 0))
+	button.add_theme_stylebox_override("hover", _make_round_style(tint, Color(1.0, 0.89, 0.58, 0.72), 26.0, 2))
+	button.add_theme_stylebox_override("pressed", _make_round_style(tint.lightened(0.10), Color(1.0, 0.92, 0.64, 0.90), 26.0, 3))
+	return button
+
+func _create_stream_sifter_result_ui() -> void:
+	_sifter_result_panel = PanelContainer.new()
+	_sifter_result_panel.name = "ResultPanel"
+	_sifter_result_panel.visible = false
+	_sifter_result_panel.anchor_left = 0.31
+	_sifter_result_panel.anchor_top = 0.28
+	_sifter_result_panel.anchor_right = 0.69
+	_sifter_result_panel.anchor_bottom = 0.77
+	var style := _make_round_style(Color(0.96, 0.89, 0.72, 0.97), Color(0.46, 0.30, 0.14, 0.90), 18.0, 2)
+	style.content_margin_left = 26.0
+	style.content_margin_top = 18.0
+	style.content_margin_right = 26.0
+	style.content_margin_bottom = 18.0
+	_sifter_result_panel.add_theme_stylebox_override("panel", style)
+	_sifter_game_panel.add_child(_sifter_result_panel)
+
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 12)
+	_sifter_result_panel.add_child(box)
+
+	var title := Label.new()
+	title.text = "今天的溪流收获"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(0.30, 0.20, 0.09, 1.0))
+	box.add_child(title)
+
+	_sifter_result_label = Label.new()
+	_sifter_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sifter_result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sifter_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sifter_result_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sifter_result_label.add_theme_font_size_override("font_size", 16)
+	_sifter_result_label.add_theme_color_override("font_color", Color(0.32, 0.24, 0.14, 1.0))
+	box.add_child(_sifter_result_label)
+
+	_sifter_result_button = Button.new()
+	_sifter_result_button.text = "收好种子"
+	_sifter_result_button.custom_minimum_size = Vector2(154.0, 42.0)
+	_sifter_result_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_sifter_result_button.focus_mode = Control.FOCUS_NONE
+	_sifter_result_button.add_theme_font_size_override("font_size", 16)
+	_sifter_result_button.add_theme_color_override("font_color", Color(0.27, 0.17, 0.08, 1.0))
+	_sifter_result_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color.WHITE))
+	_sifter_result_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.08, 1.05, 0.92, 1.0)))
+	_sifter_result_button.pressed.connect(_close_stream_sifter)
+	box.add_child(_sifter_result_button)
+
+func _create_stream_sifter_guide_ui(root: Control) -> void:
+	_sifter_guide_overlay = Control.new()
+	_sifter_guide_overlay.name = "StreamSifterGuideOverlay"
+	_sifter_guide_overlay.visible = false
+	_sifter_guide_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sifter_guide_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sifter_guide_overlay.z_index = 98
+	root.add_child(_sifter_guide_overlay)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.07, 0.12, 0.14, 0.48)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sifter_guide_overlay.add_child(dim)
+
+	var panel := Control.new()
+	panel.name = "StreamSifterGuidePanel"
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -360.0
+	panel.offset_top = -270.0
+	panel.offset_right = 360.0
+	panel.offset_bottom = 270.0
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sifter_guide_overlay.add_child(panel)
+
+	var art := TextureRect.new()
+	art.name = "TransparentWoodPanel"
+	art.texture = _load_ui_texture(BUSINESS_RESULT_PANEL_PATH)
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(art)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 86.0
+	box.offset_top = 62.0
+	box.offset_right = -86.0
+	box.offset_bottom = -88.0
+	box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+
+	var title := Label.new()
+	title.text = "◆ 新玩法开启：溪流筛种 ◆"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(0.23, 0.15, 0.06, 1.0))
+	box.add_child(title)
+
+	var icon := TextureRect.new()
+	var pea_item: Dictionary = STREAM_SIFTER_ITEMS[0]
+	icon.texture = _stream_sifter_atlas_texture(pea_item)
+	icon.custom_minimum_size = Vector2(0.0, 120.0)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+
+	var description := Label.new()
+	description.text = "奥提在西北池塘发现了顺流而下的种荚。\n把完整种子放进『留种』筐，把溪石、枯叶和坏种荚放进『杂物』筐。\n首次会先完成 4 件练习，之后在 20 秒内尽量多地筛出种子。"
+	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.custom_minimum_size = Vector2(0.0, 72.0)
+	description.add_theme_font_size_override("font_size", 14)
+	description.add_theme_color_override("font_color", Color(0.33, 0.24, 0.12, 1.0))
+	box.add_child(description)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 14)
+	box.add_child(buttons)
+
+	var later := Button.new()
+	later.text = "稍后再来"
+	later.custom_minimum_size = Vector2(132.0, 40.0)
+	later.focus_mode = Control.FOCUS_NONE
+	later.add_theme_font_size_override("font_size", 14)
+	later.add_theme_color_override("font_color", Color(0.27, 0.17, 0.08, 1.0))
+	later.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color.WHITE))
+	later.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.08, 1.05, 0.92, 1.0)))
+	later.pressed.connect(_dismiss_sifter_guide)
+	buttons.add_child(later)
+
+	var find_button := Button.new()
+	find_button.text = "去找奥提"
+	find_button.custom_minimum_size = Vector2(132.0, 40.0)
+	find_button.focus_mode = Control.FOCUS_NONE
+	find_button.add_theme_font_size_override("font_size", 15)
+	find_button.add_theme_color_override("font_color", Color(0.27, 0.17, 0.08, 1.0))
+	find_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color.WHITE))
+	find_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.08, 1.05, 0.92, 1.0)))
+	find_button.pressed.connect(_begin_sifter_search)
+	buttons.add_child(find_button)
+
+func _try_show_pending_sifter_guide() -> bool:
+	if _should_show_sifter_unlock_guide():
+		_sifter_intro_pending = true
+	if not _can_show_sifter_guide():
+		return false
+	_sifter_guide_overlay.visible = true
+	_sifter_guide_overlay.move_to_front()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	return true
+
+func _can_show_sifter_guide() -> bool:
+	if not _should_show_sifter_unlock_guide() or not _sifter_intro_pending or _sifter_guide_overlay == null:
+		return false
+	if _kitchen_business_active or _wind_chase_active or _dialogue_open or _map_open or _sifter_game_active:
+		return false
+	if _business_result_pending_open or _inventory_dragging_item or _warehouse_placing_item != "" or _kitchen_placing_equipment != "":
+		return false
+	return not _is_guide_blocking_panel_visible(_reward_overlay) and not _is_guide_blocking_panel_visible(_shop_overlay) and not _is_guide_blocking_panel_visible(_food_chest_overlay) and not _is_guide_blocking_panel_visible(_business_result_overlay) and not _is_guide_blocking_panel_visible(_opening_package_reward_panel) and not _is_guide_blocking_panel_visible(_opening_sign_status_panel) and not _is_guide_blocking_panel_visible(_warehouse_panel) and not _is_guide_blocking_panel_visible(_kitchen_equipment_panel) and not _is_guide_blocking_panel_visible(_kitchen_upgrade_panel) and not _is_guide_blocking_panel_visible(_wind_chase_guide_overlay) and not _is_guide_blocking_panel_visible(_sifter_game_overlay)
+
+func _should_show_sifter_unlock_guide() -> bool:
+	return _sifter_unlocked and not _sifter_guide_seen and not _sifter_intro_completed
+
+func _show_sifter_guide_after_result() -> void:
+	if not _should_show_sifter_unlock_guide() or _sifter_guide_overlay == null:
+		return
+	_sifter_intro_pending = true
+	_sifter_guide_overlay.visible = true
+	_sifter_guide_overlay.move_to_front()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+func _dismiss_sifter_guide(resume_after_dismiss: bool = true) -> void:
+	var resume_action := _sifter_guide_resume_action
+	var resume_level := _sifter_guide_resume_level
+	_sifter_guide_resume_action = ""
+	_sifter_guide_resume_level = 0
+	if _sifter_guide_overlay != null:
+		_sifter_guide_overlay.visible = false
+	_sifter_intro_pending = false
+	_sifter_guide_seen = true
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	if not resume_after_dismiss:
+		return
+	match resume_action:
+		"retry":
+			_start_business_level(resume_level)
+		"clue":
+			_focus_mainline_discovery_clue(resume_level)
+		"return":
+			_open_business_prep()
+
+func _begin_sifter_search() -> void:
+	if _business_prep_overlay != null and _business_prep_overlay.visible:
+		_close_business_prep()
+	_dismiss_sifter_guide(false)
+	_show_side_toast("溪流筛种已开启：去西北池塘找奥提开始")
+
+func _open_stream_sifter() -> void:
+	if _sifter_game_overlay == null:
+		return
+	if _sifter_intro_completed and _sifter_last_reward_day == _shop_day_key():
+		_show_notification("奥提正在准备下一批种荚，明天 05:00 后再来。")
+		return
+	_sifter_game_overlay.visible = true
+	_sifter_game_overlay.move_to_front()
+	_sifter_result_panel.visible = false
+	_sifter_exit_button.visible = true
+	_sifter_left_button.visible = true
+	_sifter_right_button.visible = true
+	_sifter_item_texture.visible = true
+	_sifter_item_name_label.visible = true
+	_sifter_footer_label.visible = true
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if not _sifter_intro_completed:
+		_start_stream_sifter_practice()
+	else:
+		_start_stream_sifter_round()
+
+func _start_stream_sifter_practice() -> void:
+	_sifter_practice_active = true
+	_sifter_game_active = true
+	_sifter_transitioning = false
+	_sifter_time_left = STREAM_SIFTER_DURATION
+	_sifter_queue.clear()
+	for item_index in [0, 4, 1, 5]:
+		_sifter_queue.append((STREAM_SIFTER_ITEMS[item_index] as Dictionary).duplicate(true))
+	_sifter_item_index = 0
+	_sifter_correct_count = 0
+	_sifter_wrong_count = 0
+	_sifter_current_streak = 0
+	_sifter_best_streak = 0
+	_sifter_feedback_label.text = "先练习 4 件，不计时"
+	_show_current_sifter_item()
+
+func _start_stream_sifter_round() -> void:
+	_sifter_practice_active = false
+	_sifter_game_active = true
+	_sifter_transitioning = false
+	_sifter_time_left = STREAM_SIFTER_DURATION
+	_sifter_queue = _build_stream_sifter_queue()
+	_sifter_item_index = 0
+	_sifter_correct_count = 0
+	_sifter_wrong_count = 0
+	_sifter_current_streak = 0
+	_sifter_best_streak = 0
+	_sifter_last_reward_day = _shop_day_key()
+	_sifter_feedback_label.text = "开始！按直觉快速分类"
+	_show_current_sifter_item()
+
+func _build_stream_sifter_queue() -> Array[Dictionary]:
+	_sifter_rng.randomize()
+	var result: Array[Dictionary] = []
+	var seed_remaining := STREAM_SIFTER_ITEM_COUNT / 2
+	var debris_remaining := STREAM_SIFTER_ITEM_COUNT - seed_remaining
+	var last_category := ""
+	var run_length := 0
+	while seed_remaining > 0 or debris_remaining > 0:
+		var category := "seed"
+		if seed_remaining <= 0:
+			category = "debris"
+		elif debris_remaining <= 0:
+			category = "seed"
+		elif run_length >= 3:
+			category = "debris" if last_category == "seed" else "seed"
+		else:
+			var total_remaining := seed_remaining + debris_remaining
+			category = "seed" if _sifter_rng.randi_range(1, total_remaining) <= seed_remaining else "debris"
+		var candidates: Array[Dictionary] = []
+		for raw_item in STREAM_SIFTER_ITEMS:
+			var item := raw_item as Dictionary
+			if str(item.get("category", "")) == category:
+				candidates.append(item)
+		result.append(candidates[_sifter_rng.randi_range(0, candidates.size() - 1)].duplicate(true))
+		if category == "seed":
+			seed_remaining -= 1
+		else:
+			debris_remaining -= 1
+		if category == last_category:
+			run_length += 1
+		else:
+			last_category = category
+			run_length = 1
+	return result
+
+func _stream_sifter_atlas_texture(item: Dictionary) -> Texture2D:
+	if _sifter_item_sheet == null:
+		return null
+	var atlas := AtlasTexture.new()
+	atlas.atlas = _sifter_item_sheet
+	var cell_width := float(_sifter_item_sheet.get_width()) / 4.0
+	var cell_height := float(_sifter_item_sheet.get_height()) / 2.0
+	atlas.region = Rect2(float(int(item.get("column", 0))) * cell_width, float(int(item.get("row", 0))) * cell_height, cell_width, cell_height)
+	return atlas
+
+func _show_current_sifter_item() -> void:
+	if not _sifter_game_active:
+		return
+	if _sifter_item_index >= _sifter_queue.size():
+		if _sifter_practice_active:
+			_sifter_intro_completed = true
+			_start_stream_sifter_round()
+		else:
+			_finish_stream_sifter_round()
+		return
+	var item: Dictionary = _sifter_queue[_sifter_item_index]
+	_sifter_item_texture.texture = _stream_sifter_atlas_texture(item)
+	_sifter_item_texture.visible = true
+	_sifter_item_texture.modulate = Color.WHITE
+	_sifter_item_texture.scale = Vector2.ONE
+	_sifter_item_texture.rotation = 0.0
+	_sifter_item_name_label.text = str(item.get("name", "溪流物品"))
+	_update_stream_sifter_labels()
+
+func _update_stream_sifter(delta: float) -> void:
+	if not _sifter_game_active or _sifter_practice_active:
+		return
+	_sifter_time_left = maxf(_sifter_time_left - delta, 0.0)
+	_update_stream_sifter_labels()
+	if _sifter_time_left <= 0.0:
+		_finish_stream_sifter_round()
+
+func _update_stream_sifter_labels() -> void:
+	if _sifter_header_label == null:
+		return
+	var classified := _sifter_correct_count + _sifter_wrong_count
+	if _sifter_practice_active:
+		_sifter_header_label.text = "溪流筛种练习  %d/%d" % [mini(_sifter_item_index + 1, STREAM_SIFTER_PRACTICE_COUNT), STREAM_SIFTER_PRACTICE_COUNT]
+		var expected := str((_sifter_queue[_sifter_item_index] as Dictionary).get("category", "seed")) if _sifter_item_index < _sifter_queue.size() else "seed"
+		_sifter_footer_label.text = "这一件应放进%s边的『%s』筐" % ["左" if expected == "seed" else "右", "留种" if expected == "seed" else "杂物"]
+	else:
+		_sifter_header_label.text = "溪流筛种  %04.1f 秒   已筛 %d/%d   对 %d  错 %d" % [_sifter_time_left, classified, STREAM_SIFTER_ITEM_COUNT, _sifter_correct_count, _sifter_wrong_count]
+		_sifter_footer_label.text = "连对 x%d · 当前预计收获：普通种子 x%d" % [_sifter_current_streak, _stream_sifter_normal_reward(_sifter_correct_count)]
+
+func _classify_stream_sifter(category: String) -> void:
+	if not _sifter_game_active or _sifter_transitioning or _sifter_item_index >= _sifter_queue.size():
+		return
+	var item: Dictionary = _sifter_queue[_sifter_item_index]
+	var correct := category == str(item.get("category", ""))
+	if _sifter_practice_active:
+		if correct:
+			_sifter_feedback_label.text = "对了！"
+			_sifter_feedback_label.add_theme_color_override("font_color", Color(0.26, 0.56, 0.20, 1.0))
+			_animate_sifter_item_to_category(category, true)
+		else:
+			_sifter_feedback_label.text = "再看一眼：它应该放进『%s』" % ("留种" if str(item.get("category", "")) == "seed" else "杂物")
+			_sifter_feedback_label.add_theme_color_override("font_color", Color(0.78, 0.23, 0.14, 1.0))
+			_shake_sifter_item(false)
+		return
+	if correct:
+		_sifter_correct_count += 1
+		_sifter_current_streak += 1
+		_sifter_best_streak = maxi(_sifter_best_streak, _sifter_current_streak)
+		_sifter_feedback_label.text = "连对 x%d" % _sifter_current_streak
+		_sifter_feedback_label.add_theme_color_override("font_color", Color(0.26, 0.56, 0.20, 1.0))
+		_animate_sifter_item_to_category(category, true)
+	else:
+		_sifter_wrong_count += 1
+		_sifter_current_streak = 0
+		_sifter_feedback_label.text = "分错了，下一件！"
+		_sifter_feedback_label.add_theme_color_override("font_color", Color(0.78, 0.23, 0.14, 1.0))
+		_shake_sifter_item(true)
+	_update_stream_sifter_labels()
+
+func _animate_sifter_item_to_category(category: String, advance_after: bool) -> void:
+	_sifter_transitioning = true
+	var ghost := TextureRect.new()
+	ghost.texture = _sifter_item_texture.texture
+	ghost.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ghost.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ghost.position = _sifter_item_texture.position
+	ghost.size = _sifter_item_texture.size
+	ghost.pivot_offset = ghost.size * 0.5
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sifter_game_panel.add_child(ghost)
+	_sifter_item_texture.visible = false
+	var target_button := _sifter_left_button if category == "seed" else _sifter_right_button
+	var target := target_button.position + target_button.size * 0.5 - ghost.size * 0.5
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(ghost, "position", target, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(ghost, "scale", Vector2(0.28, 0.28), 0.08)
+	tween.tween_property(ghost, "modulate:a", 0.0, 0.08)
+	tween.finished.connect(_finish_sifter_item_transition.bind(ghost, advance_after))
+
+func _shake_sifter_item(advance_after: bool) -> void:
+	_sifter_transitioning = true
+	var origin := _sifter_item_texture.position
+	var tween := create_tween()
+	tween.tween_property(_sifter_item_texture, "position", origin + Vector2(8.0, 0.0), 0.025)
+	tween.tween_property(_sifter_item_texture, "position", origin + Vector2(-8.0, 0.0), 0.025)
+	tween.tween_property(_sifter_item_texture, "position", origin, 0.03)
+	tween.finished.connect(_finish_sifter_item_transition.bind(null, advance_after))
+
+func _finish_sifter_item_transition(ghost: Control, advance_after: bool) -> void:
+	if ghost != null and is_instance_valid(ghost):
+		ghost.queue_free()
+	_sifter_transitioning = false
+	if not _sifter_game_active:
+		return
+	_sifter_item_texture.visible = true
+	if advance_after:
+		_sifter_item_index += 1
+		_show_current_sifter_item()
+
+func _stream_sifter_normal_reward(correct_count: int) -> int:
+	return clampi(1 + correct_count / 10 + int(round(KitchenUpgradeCatalog.get_village_effect_addition(_village_upgrades, "daily_seed_sifting_reward"))), 1, 7)
+
+func _finish_stream_sifter_round() -> void:
+	if not _sifter_game_active or _sifter_practice_active:
+		return
+	_sifter_game_active = false
+	_sifter_transitioning = false
+	var classified := _sifter_correct_count + _sifter_wrong_count
+	var accuracy := float(_sifter_correct_count) / float(classified) if classified > 0 else 0.0
+	var normal_reward := _stream_sifter_normal_reward(_sifter_correct_count)
+	var quality_reward := 0
+	if _sifter_correct_count >= 30 and accuracy >= 0.85:
+		quality_reward += 1
+	if classified >= STREAM_SIFTER_ITEM_COUNT and _sifter_correct_count >= 47:
+		quality_reward += 1
+	var carrot_reward := normal_reward / 2
+	var pea_reward := normal_reward / 2
+	if normal_reward % 2 == 1:
+		if _sifter_rng.randi() % 2 == 0:
+			carrot_reward += 1
+		else:
+			pea_reward += 1
+	if carrot_reward > 0:
+		_chapter_one_grant_seed(CROP_CARROT, carrot_reward)
+	if pea_reward > 0:
+		_chapter_one_grant_seed(CROP_PEA, pea_reward)
+	if quality_reward > 0:
+		_chapter_one_grant_seed(CROP_PEA, quality_reward, 1)
+	AudioManager.play_sfx("reward_stage")
+	_sifter_left_button.visible = false
+	_sifter_right_button.visible = false
+	_sifter_item_texture.visible = false
+	_sifter_item_name_label.visible = false
+	_sifter_footer_label.visible = false
+	_sifter_exit_button.visible = false
+	_sifter_feedback_label.text = ""
+	_sifter_header_label.text = "溪流筛种完成"
+	_sifter_result_panel.visible = true
+	_sifter_result_label.text = "本次筛选：%d/%d 件\n正确：%d    错误：%d    正确率：%.0f%%\n最高连对：%d\n\n本次筛出普通种子 x%d\n胡萝卜 x%d  ·  豌豆 x%d\n额外发现优质豌豆种子 x%d" % [classified, STREAM_SIFTER_ITEM_COUNT, _sifter_correct_count, _sifter_wrong_count, accuracy * 100.0, _sifter_best_streak, normal_reward, carrot_reward, pea_reward, quality_reward]
+
+func _exit_stream_sifter() -> void:
+	if _sifter_practice_active:
+		_close_stream_sifter()
+	elif _sifter_game_active:
+		_finish_stream_sifter_round()
+	else:
+		_close_stream_sifter()
+
+func _close_stream_sifter() -> void:
+	_sifter_game_active = false
+	_sifter_practice_active = false
+	_sifter_transitioning = false
+	if _sifter_game_overlay != null:
+		_sifter_game_overlay.visible = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _create_kitchen_equipment_ui(root: Control) -> void:
 	_kitchen_equipment_panel = PanelContainer.new()
@@ -3271,67 +7180,129 @@ func _create_kitchen_equipment_ui(root: Control) -> void:
 	_kitchen_equipment_panel.anchor_bottom = 0.0
 	_kitchen_equipment_panel.offset_left = 18.0
 	_kitchen_equipment_panel.offset_top = 86.0
-	_kitchen_equipment_panel.offset_right = 302.0
-	_kitchen_equipment_panel.offset_bottom = 342.0
+	_kitchen_equipment_panel.offset_right = 398.0
+	_kitchen_equipment_panel.offset_bottom = 416.0
+	_kitchen_equipment_panel.rotation = 0.0
+	_kitchen_equipment_panel.scale = Vector2.ONE
 	_kitchen_equipment_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_kitchen_equipment_panel.add_theme_stylebox_override("panel", _make_notice_board_style())
+	_kitchen_equipment_panel.add_theme_stylebox_override("panel", _make_kitchen_equipment_panel_style())
 	root.add_child(_kitchen_equipment_panel)
+
+	var content := Control.new()
+	content.name = "EquipmentPanelContent"
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_equipment_panel.add_child(content)
 
 	var box := VBoxContainer.new()
 	box.name = "EquipmentPanelBox"
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = 12.0
-	box.offset_top = 10.0
-	box.offset_right = -12.0
-	box.offset_bottom = -12.0
-	box.add_theme_constant_override("separation", 8)
-	_kitchen_equipment_panel.add_child(box)
-
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 8)
-	box.add_child(header)
+	box.offset_left = 26.0
+	box.offset_top = 58.0
+	box.offset_right = -26.0
+	box.offset_bottom = -26.0
+	box.rotation = 0.0
+	box.scale = Vector2.ONE
+	box.add_theme_constant_override("separation", 10)
+	content.add_child(box)
 
 	var title := Label.new()
 	title.text = "房车设备"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.anchor_left = 0.5
+	title.anchor_right = 0.5
+	title.offset_left = -88.0
+	title.offset_top = 3.0
+	title.offset_right = 88.0
+	title.offset_bottom = 39.0
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
+	title.rotation = 0.0
+	title.scale = Vector2.ONE
+	title.add_theme_font_size_override("font_size", 17)
 	title.add_theme_color_override("font_color", Color(0.24, 0.16, 0.07))
-	header.add_child(title)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(title)
 
-	var upgrade_button := Button.new()
-	upgrade_button.name = "KitchenUpgradeHeaderButton"
-	upgrade_button.text = "升级"
-	upgrade_button.custom_minimum_size = Vector2(56.0, 28.0)
-	upgrade_button.focus_mode = Control.FOCUS_NONE
-	upgrade_button.add_theme_font_size_override("font_size", 14)
-	upgrade_button.add_theme_color_override("font_color", Color(0.32, 0.20, 0.08))
-	upgrade_button.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.68, 0.78), Color(0.72, 0.52, 0.25, 0.45), 8.0, 1))
-	upgrade_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.94, 0.76, 0.95), Color(0.72, 0.52, 0.25, 0.68), 8.0, 1))
-	upgrade_button.pressed.connect(_open_kitchen_upgrade_panel)
-	header.add_child(upgrade_button)
+	_kitchen_upgrade_header_button = Button.new()
+	_kitchen_upgrade_header_button.name = "KitchenUpgradeHeaderButton"
+	_kitchen_upgrade_header_button.text = "改造"
+	_kitchen_upgrade_header_button.anchor_left = 1.0
+	_kitchen_upgrade_header_button.anchor_right = 1.0
+	_kitchen_upgrade_header_button.offset_left = -102.0
+	_kitchen_upgrade_header_button.offset_top = 7.0
+	_kitchen_upgrade_header_button.offset_right = -42.0
+	_kitchen_upgrade_header_button.offset_bottom = 35.0
+	_kitchen_upgrade_header_button.custom_minimum_size = Vector2(58.0, 28.0)
+	_kitchen_upgrade_header_button.focus_mode = Control.FOCUS_NONE
+	_kitchen_upgrade_header_button.rotation = 0.0
+	_kitchen_upgrade_header_button.scale = Vector2.ONE
+	_apply_kitchen_equipment_header_button_style(_kitchen_upgrade_header_button)
+	_kitchen_upgrade_header_button.pressed.connect(_on_kitchen_upgrade_header_button_pressed)
+	content.add_child(_kitchen_upgrade_header_button)
+
+	_kitchen_upgrade_new_badge = PanelContainer.new()
+	_kitchen_upgrade_new_badge.name = "KitchenUpgradeNewBadge"
+	_kitchen_upgrade_new_badge.visible = false
+	_kitchen_upgrade_new_badge.anchor_left = 1.0
+	_kitchen_upgrade_new_badge.anchor_right = 1.0
+	_kitchen_upgrade_new_badge.offset_left = -112.0
+	_kitchen_upgrade_new_badge.offset_top = -4.0
+	_kitchen_upgrade_new_badge.offset_right = -88.0
+	_kitchen_upgrade_new_badge.offset_bottom = 18.0
+	_kitchen_upgrade_new_badge.custom_minimum_size = Vector2(24.0, 22.0)
+	_kitchen_upgrade_new_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_upgrade_new_badge.z_index = 5
+	_kitchen_upgrade_new_badge.add_theme_stylebox_override("panel", _make_round_style(Color(0.98, 0.72, 0.20, 1.0), Color(0.47, 0.27, 0.08, 0.95), 10.0, 1))
+	content.add_child(_kitchen_upgrade_new_badge)
+
+	var new_badge_label := Label.new()
+	new_badge_label.text = "新"
+	new_badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	new_badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	new_badge_label.rotation = 0.0
+	new_badge_label.scale = Vector2.ONE
+	new_badge_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	new_badge_label.add_theme_font_size_override("font_size", 11)
+	new_badge_label.add_theme_color_override("font_color", Color(0.25, 0.14, 0.04))
+	_kitchen_upgrade_new_badge.add_child(new_badge_label)
 
 	var close_button := Button.new()
 	close_button.text = "×"
+	close_button.anchor_left = 1.0
+	close_button.anchor_right = 1.0
+	close_button.offset_left = -38.0
+	close_button.offset_top = 5.0
+	close_button.offset_right = -8.0
+	close_button.offset_bottom = 33.0
 	close_button.custom_minimum_size = Vector2(30.0, 28.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_font_size_override("font_size", 18)
-	close_button.add_theme_color_override("font_color", Color(0.32, 0.20, 0.08))
-	close_button.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.68, 0.78), Color(0.72, 0.52, 0.25, 0.45), 10.0, 1))
-	close_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.94, 0.76, 0.95), Color(0.72, 0.52, 0.25, 0.68), 10.0, 1))
+	close_button.rotation = 0.0
+	close_button.scale = Vector2.ONE
+	close_button.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1.0))
+	close_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.48, 0.31, 0.18, 0.92), Color(0.24, 0.15, 0.08, 1.0), 10.0, 1))
+	close_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.62, 0.42, 0.24, 1.0), Color(0.24, 0.15, 0.08, 1.0), 10.0, 1))
 	close_button.pressed.connect(_close_kitchen_equipment_panel)
-	header.add_child(close_button)
+	content.add_child(close_button)
 
 	_kitchen_equipment_grid = GridContainer.new()
 	_kitchen_equipment_grid.name = "EquipmentGrid"
 	_kitchen_equipment_grid.columns = 3
-	_kitchen_equipment_grid.add_theme_constant_override("h_separation", 8)
-	_kitchen_equipment_grid.add_theme_constant_override("v_separation", 8)
+	_kitchen_equipment_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_kitchen_equipment_grid.add_theme_constant_override("h_separation", 10)
+	_kitchen_equipment_grid.add_theme_constant_override("v_separation", 10)
 	box.add_child(_kitchen_equipment_grid)
+
+	var action_spacer := Control.new()
+	action_spacer.custom_minimum_size = Vector2(0.0, 6.0)
+	action_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(action_spacer)
 
 	var layout_actions := HBoxContainer.new()
 	layout_actions.name = "LayoutActions"
-	layout_actions.add_theme_constant_override("separation", 8)
+	layout_actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout_actions.custom_minimum_size = Vector2(0.0, 40.0)
+	layout_actions.add_theme_constant_override("separation", 12)
 	box.add_child(layout_actions)
 
 	var save_layout_button := _create_kitchen_layout_action_button("保存布局")
@@ -3342,71 +7313,265 @@ func _create_kitchen_equipment_ui(root: Control) -> void:
 	apply_layout_button.pressed.connect(_apply_kitchen_layout_preset)
 	layout_actions.add_child(apply_layout_button)
 
+	_create_kitchen_instance_selector(content)
 	_rebuild_kitchen_equipment_grid()
 	_create_kitchen_upgrade_panel(root)
 
 func _create_kitchen_layout_action_button(label_text: String) -> Button:
 	var button := Button.new()
 	button.text = label_text
-	button.custom_minimum_size = Vector2(106.0, 32.0)
-	_apply_wood_command_button_style(button)
+	button.custom_minimum_size = Vector2(112.0, 38.0)
+	_apply_kitchen_parchment_button_style(button)
 	return button
+
+func _create_kitchen_instance_selector(host: Control) -> void:
+	_kitchen_instance_selector = PanelContainer.new()
+	_kitchen_instance_selector.name = "KitchenInstanceSelector"
+	_kitchen_instance_selector.visible = false
+	_kitchen_instance_selector.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_kitchen_instance_selector.offset_top = 42.0
+	_kitchen_instance_selector.mouse_filter = Control.MOUSE_FILTER_STOP
+	_kitchen_instance_selector.z_index = 40
+	_kitchen_instance_selector.add_theme_stylebox_override("panel", _make_round_style(Color(0.10, 0.07, 0.04, 0.58), Color(0.20, 0.12, 0.05, 0.22), 10.0, 1))
+	host.add_child(_kitchen_instance_selector)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_instance_selector.add_child(center)
+
+	var card := PanelContainer.new()
+	card.name = "InstanceSelectorCard"
+	card.custom_minimum_size = Vector2(292.0, 210.0)
+	var card_style := _make_round_style(Color(0.93, 0.83, 0.63, 1.0), Color(0.30, 0.18, 0.07, 1.0), 14.0, 3)
+	card_style.shadow_color = Color(0.08, 0.04, 0.01, 0.52)
+	card_style.shadow_size = 8
+	card_style.shadow_offset = Vector2(0.0, 4.0)
+	card.add_theme_stylebox_override("panel", card_style)
+	center.add_child(card)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	card.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 7)
+	margin.add_child(box)
+
+	_kitchen_instance_selector_title = Label.new()
+	_kitchen_instance_selector_title.text = "选择要调整的设备"
+	_kitchen_instance_selector_title.custom_minimum_size = Vector2(0.0, 30.0)
+	_kitchen_instance_selector_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_kitchen_instance_selector_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_kitchen_instance_selector_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_instance_selector_title.add_theme_font_size_override("font_size", 17)
+	_kitchen_instance_selector_title.add_theme_color_override("font_color", Color(0.25, 0.15, 0.06, 1.0))
+	box.add_child(_kitchen_instance_selector_title)
+
+	var hint := Label.new()
+	hint.text = "请选择编号，只会移动这一台"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", Color(0.38, 0.27, 0.13, 0.90))
+	box.add_child(hint)
+
+	_kitchen_instance_selector_buttons = GridContainer.new()
+	_kitchen_instance_selector_buttons.columns = 3
+	_kitchen_instance_selector_buttons.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_kitchen_instance_selector_buttons.add_theme_constant_override("h_separation", 8)
+	_kitchen_instance_selector_buttons.add_theme_constant_override("v_separation", 7)
+	box.add_child(_kitchen_instance_selector_buttons)
+
+	var cancel_button := Button.new()
+	cancel_button.text = "取消"
+	cancel_button.custom_minimum_size = Vector2(96.0, 30.0)
+	cancel_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cancel_button.focus_mode = Control.FOCUS_NONE
+	cancel_button.add_theme_font_size_override("font_size", 13)
+	_apply_kitchen_parchment_button_style(cancel_button)
+	cancel_button.pressed.connect(_hide_kitchen_instance_selector)
+	box.add_child(cancel_button)
 
 func _create_kitchen_upgrade_panel(root: Control) -> void:
 	_kitchen_upgrade_panel = PanelContainer.new()
 	_kitchen_upgrade_panel.name = "KitchenUpgradePanel"
 	_kitchen_upgrade_panel.visible = false
-	_kitchen_upgrade_panel.anchor_left = 1.0
-	_kitchen_upgrade_panel.anchor_top = 1.0
-	_kitchen_upgrade_panel.anchor_right = 1.0
-	_kitchen_upgrade_panel.anchor_bottom = 1.0
-	_kitchen_upgrade_panel.offset_left = -522.0
-	_kitchen_upgrade_panel.offset_top = -378.0
-	_kitchen_upgrade_panel.offset_right = -238.0
-	_kitchen_upgrade_panel.offset_bottom = -104.0
+	_kitchen_upgrade_panel.anchor_left = 0.5
+	_kitchen_upgrade_panel.anchor_top = 0.5
+	_kitchen_upgrade_panel.anchor_right = 0.5
+	_kitchen_upgrade_panel.anchor_bottom = 0.5
+	_kitchen_upgrade_panel.offset_left = -500.0
+	_kitchen_upgrade_panel.offset_top = -290.0
+	_kitchen_upgrade_panel.offset_right = 500.0
+	_kitchen_upgrade_panel.offset_bottom = 290.0
 	_kitchen_upgrade_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_kitchen_upgrade_panel.add_theme_stylebox_override("panel", _make_notice_board_style())
+	_kitchen_upgrade_panel.z_index = 24
+	_kitchen_upgrade_panel.add_theme_stylebox_override("panel", _make_kitchen_upgrade_panel_style())
 	root.add_child(_kitchen_upgrade_panel)
-
-	var panel_box := VBoxContainer.new()
-	panel_box.name = "UpgradePanelBox"
-	panel_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel_box.offset_left = 14.0
-	panel_box.offset_top = 12.0
-	panel_box.offset_right = -14.0
-	panel_box.offset_bottom = -12.0
-	panel_box.add_theme_constant_override("separation", 8)
-	_kitchen_upgrade_panel.add_child(panel_box)
-
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 8)
-	panel_box.add_child(header)
+	var panel_canvas := Control.new()
+	panel_canvas.name = "UpgradePanelCanvas"
+	panel_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_kitchen_upgrade_panel.add_child(panel_canvas)
 
 	var title := Label.new()
-	title.text = "设备升级"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.text = "房车与村落改造"
+	title.anchor_left = 0.5
+	title.anchor_right = 0.5
+	title.offset_left = -185.0
+	title.offset_top = 25.0
+	title.offset_right = 185.0
+	title.offset_bottom = 66.0
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.24, 0.16, 0.07))
-	header.add_child(title)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_canvas.add_child(title)
+
+	var equipment_tab := Button.new()
+	equipment_tab.name = "EquipmentTab"
+	equipment_tab.text = "房车设备"
+	equipment_tab.position = Vector2(310.0, 72.0)
+	equipment_tab.size = Vector2(150.0, 36.0)
+	equipment_tab.focus_mode = Control.FOCUS_NONE
+	_apply_kitchen_parchment_button_style(equipment_tab)
+	equipment_tab.pressed.connect(_switch_kitchen_upgrade_tab.bind("equipment"))
+	panel_canvas.add_child(equipment_tab)
+
+	var village_tab := Button.new()
+	village_tab.name = "VillageTab"
+	village_tab.text = "村落改造"
+	village_tab.position = Vector2(540.0, 72.0)
+	village_tab.size = Vector2(150.0, 36.0)
+	village_tab.focus_mode = Control.FOCUS_NONE
+	_apply_kitchen_parchment_button_style(village_tab)
+	village_tab.pressed.connect(_switch_kitchen_upgrade_tab.bind("village"))
+	panel_canvas.add_child(village_tab)
 
 	var close_button := Button.new()
 	close_button.text = "×"
-	close_button.custom_minimum_size = Vector2(30.0, 28.0)
+	close_button.position = Vector2(925.0, 36.0)
+	close_button.size = Vector2(38.0, 36.0)
 	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.add_theme_font_size_override("font_size", 18)
+	close_button.add_theme_font_size_override("font_size", 22)
 	close_button.add_theme_color_override("font_color", Color(0.32, 0.20, 0.08))
 	close_button.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.68, 0.78), Color(0.72, 0.52, 0.25, 0.45), 10.0, 1))
 	close_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.94, 0.76, 0.95), Color(0.72, 0.52, 0.25, 0.68), 10.0, 1))
 	close_button.pressed.connect(_close_kitchen_upgrade_panel)
-	header.add_child(close_button)
+	panel_canvas.add_child(close_button)
 
-	_kitchen_upgrade_grid = GridContainer.new()
-	_kitchen_upgrade_grid.name = "UpgradeGrid"
-	_kitchen_upgrade_grid.columns = 2
-	_kitchen_upgrade_grid.add_theme_constant_override("h_separation", 8)
-	_kitchen_upgrade_grid.add_theme_constant_override("v_separation", 8)
-	panel_box.add_child(_kitchen_upgrade_grid)
+	var body := HBoxContainer.new()
+	body.name = "UpgradeBody"
+	body.position = Vector2(78.0, 140.0)
+	body.size = Vector2(844.0, 390.0)
+	body.add_theme_constant_override("separation", 12)
+	panel_canvas.add_child(body)
+
+	var left_panel := PanelContainer.new()
+	left_panel.custom_minimum_size = Vector2(170.0, 390.0)
+	left_panel.add_theme_stylebox_override("panel", _make_paper_info_card_style("normal"))
+	body.add_child(left_panel)
+	var left_scroll := ScrollContainer.new()
+	left_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left_panel.add_child(left_scroll)
+	_kitchen_upgrade_equipment_list = VBoxContainer.new()
+	_kitchen_upgrade_equipment_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_kitchen_upgrade_equipment_list.add_theme_constant_override("separation", 7)
+	left_scroll.add_child(_kitchen_upgrade_equipment_list)
+
+	var preview_box := VBoxContainer.new()
+	preview_box.custom_minimum_size = Vector2(286.0, 390.0)
+	preview_box.add_theme_constant_override("separation", 6)
+	body.add_child(preview_box)
+	_kitchen_upgrade_preview_container = SubViewportContainer.new()
+	_kitchen_upgrade_preview_container.name = "UpgradePreview"
+	_kitchen_upgrade_preview_container.custom_minimum_size = Vector2(286.0, 300.0)
+	_kitchen_upgrade_preview_container.stretch = true
+	_kitchen_upgrade_preview_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	_kitchen_upgrade_preview_container.add_theme_stylebox_override("panel", _make_round_style(Color(0.35, 0.27, 0.16, 0.18), Color(0.48, 0.31, 0.14, 0.64), 8.0, 2))
+	_kitchen_upgrade_preview_container.gui_input.connect(_handle_kitchen_upgrade_preview_input)
+	preview_box.add_child(_kitchen_upgrade_preview_container)
+	_kitchen_upgrade_preview_viewport = SubViewport.new()
+	_kitchen_upgrade_preview_viewport.name = "UpgradePreviewViewport"
+	_kitchen_upgrade_preview_viewport.size = Vector2i(572, 600)
+	_kitchen_upgrade_preview_viewport.transparent_bg = true
+	_kitchen_upgrade_preview_viewport.own_world_3d = true
+	_kitchen_upgrade_preview_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	_kitchen_upgrade_preview_container.add_child(_kitchen_upgrade_preview_viewport)
+	_kitchen_upgrade_preview_camera = Camera3D.new()
+	_kitchen_upgrade_preview_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_kitchen_upgrade_preview_camera.size = 4.2
+	_kitchen_upgrade_preview_camera.position = Vector3(4.0, 3.0, 5.2)
+	_kitchen_upgrade_preview_viewport.add_child(_kitchen_upgrade_preview_camera)
+	_kitchen_upgrade_preview_camera.look_at(Vector3(0.0, 0.8, 0.0))
+	var key_light := DirectionalLight3D.new()
+	key_light.rotation_degrees = Vector3(-48.0, -32.0, 0.0)
+	key_light.light_energy = 1.25
+	key_light.shadow_enabled = true
+	_kitchen_upgrade_preview_viewport.add_child(key_light)
+	var fill_light := DirectionalLight3D.new()
+	fill_light.rotation_degrees = Vector3(-28.0, 145.0, 0.0)
+	fill_light.light_color = Color(1.0, 0.82, 0.58)
+	fill_light.light_energy = 0.65
+	_kitchen_upgrade_preview_viewport.add_child(fill_light)
+	var preview_hint := Label.new()
+	preview_hint.text = "拖动旋转 · 滚轮切换"
+	preview_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	preview_hint.add_theme_font_size_override("font_size", 12)
+	preview_hint.add_theme_color_override("font_color", Color(0.34, 0.24, 0.12, 0.85))
+	preview_box.add_child(preview_hint)
+	_kitchen_upgrade_slider = HSlider.new()
+	_kitchen_upgrade_slider.min_value = 0.0
+	_kitchen_upgrade_slider.max_value = 7.0
+	_kitchen_upgrade_slider.step = 1.0
+	_kitchen_upgrade_slider.value = 0.0
+	_kitchen_upgrade_slider.custom_minimum_size = Vector2(286.0, 30.0)
+	_kitchen_upgrade_slider.value_changed.connect(_on_kitchen_upgrade_slider_changed)
+	preview_box.add_child(_kitchen_upgrade_slider)
+
+	var right_box := VBoxContainer.new()
+	right_box.custom_minimum_size = Vector2(352.0, 390.0)
+	right_box.add_theme_constant_override("separation", 5)
+	body.add_child(right_box)
+	var right_top_spacer := Control.new()
+	right_top_spacer.custom_minimum_size = Vector2(0.0, 15.0)
+	right_top_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_box.add_child(right_top_spacer)
+	_kitchen_upgrade_level_box = VBoxContainer.new()
+	_kitchen_upgrade_level_box.custom_minimum_size = Vector2(352.0, 82.0)
+	_kitchen_upgrade_level_box.add_theme_constant_override("separation", 4)
+	right_box.add_child(_kitchen_upgrade_level_box)
+	var upgrade_scroll := ScrollContainer.new()
+	upgrade_scroll.custom_minimum_size = Vector2(352.0, 150.0)
+	upgrade_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	upgrade_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right_box.add_child(upgrade_scroll)
+	_kitchen_upgrade_cards = VBoxContainer.new()
+	_kitchen_upgrade_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_kitchen_upgrade_cards.add_theme_constant_override("separation", 5)
+	upgrade_scroll.add_child(_kitchen_upgrade_cards)
+	_kitchen_upgrade_detail_label = Label.new()
+	_kitchen_upgrade_detail_label.custom_minimum_size = Vector2(352.0, 50.0)
+	_kitchen_upgrade_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_kitchen_upgrade_detail_label.add_theme_font_size_override("font_size", 13)
+	_kitchen_upgrade_detail_label.add_theme_color_override("font_color", Color(0.30, 0.20, 0.09))
+	right_box.add_child(_kitchen_upgrade_detail_label)
+	_kitchen_upgrade_purchase_button = Button.new()
+	_kitchen_upgrade_purchase_button.custom_minimum_size = Vector2(352.0, 36.0)
+	_kitchen_upgrade_purchase_button.focus_mode = Control.FOCUS_NONE
+	_apply_kitchen_parchment_button_style(_kitchen_upgrade_purchase_button)
+	_kitchen_upgrade_purchase_button.pressed.connect(_purchase_selected_kitchen_upgrade)
+	right_box.add_child(_kitchen_upgrade_purchase_button)
+
+	# Kept as an alias for older call sites; the central panel now owns the cards.
+	_kitchen_upgrade_grid = null
 	_update_kitchen_upgrade_buttons()
 
 func _create_business_prep_ui(root: Control) -> void:
@@ -3418,12 +7583,7 @@ func _create_business_prep_ui(root: Control) -> void:
 	_business_prep_overlay.z_index = 18
 	root.add_child(_business_prep_overlay)
 
-	var dim := ColorRect.new()
-	dim.name = "BusinessBackdrop"
-	dim.color = Color(0.18, 0.25, 0.24, 0.54)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_business_prep_overlay.add_child(dim)
+	# 经营页只保留中央木板，外侧继续显示原场景，不再加一层灰蓝遮罩。
 
 	# Reuse the painted low-poly notice board from the result screen so both
 	# business screens feel like part of the same roadside-travel kit.
@@ -3463,75 +7623,88 @@ func _create_business_prep_ui(root: Control) -> void:
 	back_button.pressed.connect(_close_business_prep)
 	_business_prep_overlay.add_child(back_button)
 
-	var breadcrumb := PanelContainer.new()
-	breadcrumb.name = "Breadcrumb"
-	breadcrumb.anchor_left = 0.0
-	breadcrumb.anchor_top = 0.0
-	breadcrumb.anchor_right = 0.0
-	breadcrumb.anchor_bottom = 0.0
-	breadcrumb.offset_left = 62.0
-	breadcrumb.offset_top = 14.0
-	breadcrumb.offset_right = 250.0
-	breadcrumb.offset_bottom = 50.0
-	breadcrumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	breadcrumb.add_theme_stylebox_override("panel", _make_round_style(Color(0.96, 0.93, 0.84, 0.90), Color(0.36, 0.31, 0.22, 0.60), 18.0, 1))
-	_business_prep_overlay.add_child(breadcrumb)
-
-	var title := Label.new()
-	title.text = "经营准备 / 关卡选择"
-	title.set_anchors_preset(Control.PRESET_FULL_RECT)
-	title.offset_left = 12.0
-	title.offset_right = -12.0
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", _business_ui_font_size(17))
-	title.add_theme_color_override("font_color", Color(0.20, 0.26, 0.23))
-	breadcrumb.add_child(title)
-
-	_create_business_top_stat_pill("TopStars", "★", "0/15", -252.0, 10.0, 96.0)
-	_create_business_top_stat_pill("TopCoins", "◎", "0", -144.0, 10.0, 96.0)
-
-	var settings_button := Button.new()
-	settings_button.name = "SettingsButton"
-	settings_button.text = "⚙"
-	settings_button.anchor_left = 1.0
-	settings_button.anchor_top = 0.0
-	settings_button.anchor_right = 1.0
-	settings_button.anchor_bottom = 0.0
-	settings_button.offset_left = -40.0
-	settings_button.offset_top = 10.0
-	settings_button.offset_right = -8.0
-	settings_button.offset_bottom = 50.0
-	settings_button.focus_mode = Control.FOCUS_NONE
-	settings_button.disabled = true
-	settings_button.add_theme_font_size_override("font_size", _business_ui_font_size(19))
-	settings_button.add_theme_color_override("font_disabled_color", Color(0.30, 0.34, 0.30, 0.74))
-	settings_button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.92, 0.89, 0.78, 0.90), Color(0.34, 0.30, 0.22, 0.72), 18.0, 2))
-	_business_prep_overlay.add_child(settings_button)
-
-	var reward_panel := PanelContainer.new()
+	var reward_panel := Control.new()
 	reward_panel.name = "RewardPanel"
 	reward_panel.anchor_left = 0.5
 	reward_panel.anchor_top = 0.0
 	reward_panel.anchor_right = 0.5
 	reward_panel.anchor_bottom = 0.0
-	reward_panel.offset_left = -302.0
-	reward_panel.offset_top = 82.0
-	reward_panel.offset_right = 302.0
-	reward_panel.offset_bottom = 208.0
+	reward_panel.offset_left = -270.0
+	reward_panel.offset_top = 92.0
+	reward_panel.offset_right = 270.0
+	reward_panel.offset_bottom = 166.0
 	reward_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	reward_panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.95, 0.92, 0.82, 0.94), Color(0.42, 0.34, 0.24, 0.66), 18.0, 2))
 	_business_prep_overlay.add_child(reward_panel)
+
+	var reward_art := TextureRect.new()
+	reward_art.name = "RewardPanelArt"
+	reward_art.texture = _load_ui_texture(BUSINESS_STAR_REWARD_PATH)
+	reward_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	reward_art.stretch_mode = TextureRect.STRETCH_SCALE
+	reward_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	reward_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	reward_panel.add_child(reward_art)
 
 	_business_prep_reward_box = VBoxContainer.new()
 	_business_prep_reward_box.name = "BusinessStarRewards"
 	_business_prep_reward_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_business_prep_reward_box.offset_left = 24.0
-	_business_prep_reward_box.offset_top = 16.0
-	_business_prep_reward_box.offset_right = -24.0
-	_business_prep_reward_box.offset_bottom = -14.0
-	_business_prep_reward_box.add_theme_constant_override("separation", 8)
+	_business_prep_reward_box.offset_left = 28.0
+	_business_prep_reward_box.offset_top = 8.0
+	_business_prep_reward_box.offset_right = -28.0
+	_business_prep_reward_box.offset_bottom = -6.0
+	_business_prep_reward_box.add_theme_constant_override("separation", 4)
 	reward_panel.add_child(_business_prep_reward_box)
+
+	_business_duel_button = Button.new()
+	_business_duel_button.name = "DuelEntry"
+	_business_duel_button.text = "⚔ 双人料理竞速\n邀请好友开始对决"
+	_business_duel_button.anchor_left = 0.0
+	_business_duel_button.anchor_top = 0.0
+	_business_duel_button.anchor_right = 0.0
+	_business_duel_button.anchor_bottom = 0.0
+	_business_duel_button.offset_left = 20.0
+	_business_duel_button.offset_top = 100.0
+	_business_duel_button.offset_right = 272.0
+	_business_duel_button.offset_bottom = 164.0
+	_business_duel_button.focus_mode = Control.FOCUS_NONE
+	_business_duel_button.add_theme_font_size_override("font_size", 14)
+	_apply_kitchen_parchment_button_style(_business_duel_button)
+	_business_duel_button.pressed.connect(_open_duel_overlay)
+	_business_duel_button.visible = false
+	_business_prep_overlay.add_child(_business_duel_button)
+
+	_business_flower_gift_button = Button.new()
+	_business_flower_gift_button.name = "FlowerGiftSelector"
+	_business_flower_gift_button.anchor_left = 1.0
+	_business_flower_gift_button.anchor_top = 0.0
+	_business_flower_gift_button.anchor_right = 1.0
+	_business_flower_gift_button.anchor_bottom = 0.0
+	_business_flower_gift_button.offset_left = -272.0
+	_business_flower_gift_button.offset_top = 100.0
+	_business_flower_gift_button.offset_right = -20.0
+	_business_flower_gift_button.offset_bottom = 164.0
+	_business_flower_gift_button.focus_mode = Control.FOCUS_NONE
+	_business_flower_gift_button.add_theme_font_size_override("font_size", 14)
+	_apply_kitchen_parchment_button_style(_business_flower_gift_button)
+	_business_flower_gift_button.pressed.connect(_open_business_flower_gift_selector)
+	_business_prep_overlay.add_child(_business_flower_gift_button)
+
+	var location_label := Label.new()
+	location_label.name = "BusinessLocationBonus"
+	location_label.anchor_left = 0.5
+	location_label.anchor_top = 0.0
+	location_label.anchor_right = 0.5
+	location_label.anchor_bottom = 0.0
+	location_label.offset_left = -390.0
+	location_label.offset_top = 174.0
+	location_label.offset_right = 390.0
+	location_label.offset_bottom = 205.0
+	location_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	location_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	location_label.add_theme_font_size_override("font_size", 14)
+	location_label.add_theme_color_override("font_color", Color(0.31, 0.24, 0.14, 0.96))
+	location_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_business_prep_overlay.add_child(location_label)
 
 	_business_prep_level_list = HBoxContainer.new()
 	_business_prep_level_list.name = "BusinessLevelList"
@@ -3542,23 +7715,10 @@ func _create_business_prep_ui(root: Control) -> void:
 	_business_prep_level_list.offset_left = -560.0
 	_business_prep_level_list.offset_top = 216.0
 	_business_prep_level_list.offset_right = 560.0
-	_business_prep_level_list.offset_bottom = 536.0
+	_business_prep_level_list.offset_bottom = 556.0
 	_business_prep_level_list.alignment = BoxContainer.ALIGNMENT_CENTER
 	_business_prep_level_list.add_theme_constant_override("separation", 14)
 	_business_prep_overlay.add_child(_business_prep_level_list)
-
-	_business_prep_detail_box = VBoxContainer.new()
-	_business_prep_detail_box.name = "BusinessDetailStrip"
-	_business_prep_detail_box.anchor_left = 0.5
-	_business_prep_detail_box.anchor_top = 0.0
-	_business_prep_detail_box.anchor_right = 0.5
-	_business_prep_detail_box.anchor_bottom = 0.0
-	_business_prep_detail_box.offset_left = -520.0
-	_business_prep_detail_box.offset_top = 548.0
-	_business_prep_detail_box.offset_right = 520.0
-	_business_prep_detail_box.offset_bottom = 676.0
-	_business_prep_detail_box.add_theme_constant_override("separation", 6)
-	_business_prep_overlay.add_child(_business_prep_detail_box)
 
 	var hint_panel := PanelContainer.new()
 	hint_panel.name = "BusinessHint"
@@ -3710,17 +7870,24 @@ func _create_business_result_ui(root: Control) -> void:
 	_business_result_buttons = HBoxContainer.new()
 	_business_result_buttons.name = "Buttons"
 	_business_result_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	_business_result_buttons.add_theme_constant_override("separation", 8)
+	_business_result_buttons.add_theme_constant_override("separation", 6)
 	box.add_child(_business_result_buttons)
 	_business_result_buttons.add_child(_create_business_result_button("再来一次", Callable(self, "_on_business_result_retry"), false))
 	_business_result_next_button = _create_business_result_button("下一关", Callable(self, "_on_business_result_next"), true)
 	_business_result_buttons.add_child(_business_result_next_button)
+	_business_result_garden_button = _create_business_result_button("立即前往花圃", Callable(self, "_on_business_result_garden"), true)
+	_business_result_garden_button.visible = false
+	_business_result_buttons.add_child(_business_result_garden_button)
+	_business_result_duel_button = _create_business_result_button("双人料理竞速", Callable(self, "_on_business_result_duel"), true)
+	_business_result_duel_button.visible = false
+	_business_result_buttons.add_child(_business_result_duel_button)
 	_business_result_buttons.add_child(_create_business_result_button("返回关卡选择", Callable(self, "_on_business_result_return"), false))
 
 func _create_business_result_button(text: String, callback: Callable, primary: bool) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(136.0, 46.0)
+	button.custom_minimum_size = Vector2(132.0, 52.0)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_size_override("font_size", _business_ui_font_size(13))
 	button.add_theme_color_override("font_color", Color(0.18, 0.23, 0.20))
@@ -3746,7 +7913,7 @@ func _create_business_top_stat_pill(node_name: String, icon_text: String, value_
 	pill.offset_right = left_offset + width
 	pill.offset_bottom = top_offset + 40.0
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pill.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.94, 0.78, 0.84), Color(0.90, 0.76, 0.48, 0.70), 12.0, 1))
+	pill.add_theme_stylebox_override("panel", _make_round_style(Color(0.94, 0.91, 0.81, 0.94), Color(0.34, 0.31, 0.23, 0.64), 16.0, 1))
 	_business_prep_overlay.add_child(pill)
 
 	var row := HBoxContainer.new()
@@ -3762,7 +7929,7 @@ func _create_business_top_stat_pill(node_name: String, icon_text: String, value_
 	icon.text = icon_text
 	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	icon.add_theme_font_size_override("font_size", _business_ui_font_size(18))
-	icon.add_theme_color_override("font_color", Color(0.98, 0.68, 0.18))
+	icon.add_theme_color_override("font_color", Color(0.82, 0.44, 0.16))
 	row.add_child(icon)
 
 	var value := Label.new()
@@ -3770,7 +7937,7 @@ func _create_business_top_stat_pill(node_name: String, icon_text: String, value_
 	value.text = value_text
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	value.add_theme_font_size_override("font_size", _business_ui_font_size(16))
-	value.add_theme_color_override("font_color", Color(0.32, 0.22, 0.08))
+	value.add_theme_color_override("font_color", Color(0.22, 0.29, 0.24))
 	row.add_child(value)
 
 func _open_business_prep() -> bool:
@@ -3793,6 +7960,7 @@ func _open_business_prep() -> bool:
 	return true
 
 func _close_business_prep() -> void:
+	_close_opened_business_detail()
 	if _business_prep_overlay != null:
 		_business_prep_overlay.visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -3800,22 +7968,56 @@ func _close_business_prep() -> void:
 func _rebuild_business_prep_ui() -> void:
 	if _business_prep_level_list == null:
 		return
+	_close_opened_business_detail()
 	_update_business_prep_top_stats()
+	_update_business_prep_location_bonus()
+	_update_business_flower_gift_button()
+	_update_business_duel_button()
 	for child in _business_prep_level_list.get_children():
 		_business_prep_level_list.remove_child(child)
 		child.queue_free()
-	if _business_prep_detail_box != null:
-		for child in _business_prep_detail_box.get_children():
-			_business_prep_detail_box.remove_child(child)
-			child.queue_free()
 	for level in BUSINESS_PREP_LEVELS:
 		_business_prep_level_list.add_child(_create_business_level_card(level))
-	if _business_prep_detail_box != null:
-		for level in BUSINESS_PREP_LEVELS:
-			var level_id := int(level.get("id", 1))
-			if bool(_business_level_detail_open.get(str(level_id), false)):
-				_business_prep_detail_box.add_child(_create_business_level_detail(level))
 	_rebuild_business_star_rewards()
+
+func _open_business_flower_gift_selector() -> void:
+	if _flower_garden_controller == null or not is_instance_valid(_flower_garden_controller):
+		return
+	_flower_garden_controller.call("open_gift_selection")
+
+func _update_business_flower_gift_button() -> void:
+	if _business_flower_gift_button == null:
+		return
+	_business_flower_gift_button.visible = FlowerGardenManager.unlocked
+	if not FlowerGardenManager.unlocked:
+		return
+	var gift_id := FlowerGardenManager.selected_gift
+	if gift_id == "":
+		_business_flower_gift_button.text = "✿ 本次花礼\n未装备（点击选择）"
+		return
+	var definition := FlowerGardenManager.gift_definition(gift_id)
+	_business_flower_gift_button.text = "✿ 本次花礼：%s\n库存 x%d" % [str(definition.get("gift_name", "花礼")), FlowerGardenManager.gift_count(gift_id)]
+
+func _update_business_duel_button() -> void:
+	if _business_duel_button == null:
+		return
+	_business_duel_button.visible = _is_duel_unlocked()
+
+func _update_business_prep_location_bonus() -> void:
+	if _business_prep_overlay == null:
+		return
+	var label := _business_prep_overlay.get_node_or_null("BusinessLocationBonus") as Label
+	if label == null:
+		return
+	var location := _business_location_at_camper()
+	if location.is_empty():
+		label.text = "当前停靠点：普通客流 · 无食材偏好加成"
+		label.add_theme_color_override("font_color", Color(0.38, 0.36, 0.29, 0.84))
+		return
+	var location_id := str(location.get("id", ""))
+	var discovered := bool(_business_location_discovered.get(location_id, false))
+	label.text = "当前停靠点：%s · %s" % [str(location.get("name", "神秘地点")), str(location.get("description", "神秘加成")) if discovered else "神秘加成"]
+	label.add_theme_color_override("font_color", Color(0.72, 0.30, 0.10, 1.0))
 
 func _update_business_prep_top_stats() -> void:
 	if _business_prep_overlay == null:
@@ -3827,80 +8029,200 @@ func _update_business_prep_top_stats() -> void:
 	if coin_label != null:
 		coin_label.text = "%d" % _coins
 
-func _create_business_level_card(level: Dictionary) -> PanelContainer:
+func _create_business_level_card(level: Dictionary) -> Control:
 	var level_id := int(level.get("id", 1))
-	var conditions_ready := _business_level_conditions_ready(level)
-	var ready := conditions_ready and _has_business_stamina()
-	var locked := level_id > 1 and (not _kitchen_first_day_completed or not _opening_sign_placed)
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(204.0, 300.0)
+	var discovery_state := _business_discovery_state(level_id)
+	if level_id > 1 and discovery_state < BusinessDiscoveryCatalog.STATE_DISCOVERED:
+		return _create_business_discovery_clue_card(level_id, discovery_state)
+	var gate := _business_level_gate_state(level)
+	var locked := not bool(gate.get("unlocked", false))
+	var ready := bool(gate.get("ready", false))
+	var card := Control.new()
+	card.name = "BusinessLevelCard%d" % level_id
+	card.custom_minimum_size = Vector2(190.0, 340.0)
 	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var card_fill := Color(0.96, 0.94, 0.85, 0.97) if not locked else Color(0.77, 0.76, 0.68, 0.94)
-	var card_border := Color(0.73, 0.39, 0.16, 0.98) if ready else Color(0.39, 0.34, 0.24, 0.70)
-	card.add_theme_stylebox_override("panel", _make_round_style(card_fill, card_border, 16.0, 3 if ready else 2))
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
+	card.modulate = Color.WHITE
+	card.gui_input.connect(_on_business_level_card_gui_input.bind(card))
+
+	var card_art := TextureRect.new()
+	card_art.name = "LevelCardArt"
+	card_art.texture = _load_ui_texture(BUSINESS_LEVEL_CARD_PATH)
+	card_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	card_art.stretch_mode = TextureRect.STRETCH_SCALE
+	card_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	card_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(card_art)
+
+	if locked:
+		var lock_overlay := ColorRect.new()
+		lock_overlay.name = "CoverLockOverlay"
+		lock_overlay.color = Color(0.24, 0.28, 0.27, 0.38)
+		lock_overlay.position = Vector2(16.0, 42.0)
+		lock_overlay.size = Vector2(158.0, 84.0)
+		lock_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(lock_overlay)
+		var lock_label := Label.new()
+		lock_label.text = "🔒\n前一关获得 1 星后开启"
+		lock_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		lock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lock_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lock_label.add_theme_font_size_override("font_size", _business_ui_font_size(12))
+		lock_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.82, 0.96))
+		lock_label.add_theme_color_override("font_shadow_color", Color(0.08, 0.11, 0.10, 0.72))
+		lock_label.add_theme_constant_override("shadow_offset_y", 1)
+		lock_overlay.add_child(lock_label)
 
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = 12.0
-	box.offset_top = 12.0
-	box.offset_right = -12.0
-	box.offset_bottom = -12.0
-	box.add_theme_constant_override("separation", 6)
+	box.offset_left = 16.0
+	box.offset_top = 20.0
+	box.offset_right = -16.0
+	box.offset_bottom = -18.0
+	box.add_theme_constant_override("separation", 5)
 	card.add_child(box)
 
 	var title_row := HBoxContainer.new()
 	title_row.add_theme_constant_override("separation", 4)
 	box.add_child(title_row)
 
-	var title := _create_business_label("第 %d 站" % level_id, 15, Color(0.18, 0.25, 0.22))
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	var title_text := "第 %d 站" % level_id if level_id == 1 else str(site.get("short_name", "第 %d 站" % level_id))
+	var title := _create_business_label(title_text, 15, Color(0.18, 0.25, 0.22))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title)
 
 	var info_button := Button.new()
-	info_button.text = "i"
-	info_button.tooltip_text = "查看开启条件和星级规则"
+	info_button.name = "InfoButton"
+	info_button.text = "!"
+	info_button.tooltip_text = "查看开业条件和星级规则"
 	info_button.custom_minimum_size = Vector2(22.0, 22.0)
 	info_button.focus_mode = Control.FOCUS_NONE
 	info_button.add_theme_font_size_override("font_size", _business_ui_font_size(14))
 	info_button.add_theme_color_override("font_color", Color(0.96, 0.93, 0.83))
 	info_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.40, 0.48, 0.37, 0.96), Color(0.26, 0.31, 0.24, 0.88), 11.0, 1))
 	info_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.55, 0.62, 0.42, 1.0), Color(0.34, 0.40, 0.28, 1.0), 11.0, 1))
-	info_button.pressed.connect(_toggle_business_level_detail.bind(level_id))
+	info_button.pressed.connect(_on_business_level_info_pressed.bind(card, level))
 	title_row.add_child(info_button)
 
-	box.add_child(_create_business_level_thumbnail(level_id, ready, locked))
+	var normal_content := VBoxContainer.new()
+	normal_content.name = "NormalContent"
+	normal_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	normal_content.add_theme_constant_override("separation", 5)
+	box.add_child(normal_content)
+	if discovery_state == BusinessDiscoveryCatalog.STATE_REGULAR and level_id > 1:
+		var regular_badge := _create_business_label("◆ 老主顾 · 可随时重玩 ◆", 10, Color(0.66, 0.34, 0.12), 18.0, true)
+		regular_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		normal_content.add_child(regular_badge)
 
-	_add_business_star_row(box, _business_level_star_count(level_id))
+	# 完整卡片底图已内置场景预览，不再额外叠加简化场景层。
+	var thumbnail_space := Control.new()
+	thumbnail_space.custom_minimum_size = Vector2(160.0, 82.0)
+	thumbnail_space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	normal_content.add_child(thumbnail_space)
+
+	_add_business_star_row(normal_content, _business_level_star_count(level_id))
 
 	var orders := _create_business_label("预计 %d 单" % int(level.get("orders", 0)), 12, Color(0.27, 0.34, 0.28))
 	orders.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(orders)
+	normal_content.add_child(orders)
+	var star_orders := _business_level_star_orders(level)
+	var star_targets := _create_business_label("★%d单  ★★%d单  ★★★%d单" % [star_orders[0], star_orders[1], star_orders[2]], 10, Color(0.53, 0.34, 0.10), 18.0, true)
+	star_targets.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	normal_content.add_child(star_targets)
 
 	var popularity_reward := _business_level_popularity_reward(level)
 	var popularity_claimed := bool(_business_popularity_claimed.get(str(level_id), false))
 	var popularity_text := "人气已获得" if popularity_claimed else "首通 +%d人气" % popularity_reward
 	var popularity := _create_business_label(popularity_text, 11, Color(0.72, 0.35, 0.14) if not popularity_claimed else Color(0.38, 0.43, 0.36, 0.78))
 	popularity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(popularity)
+	normal_content.add_child(popularity)
 
 	var start_button := Button.new()
-	start_button.text = "开始 -%d体力" % BUSINESS_STAMINA_COST if ready else ("体力不足" if conditions_ready and not _has_business_stamina() else ("锁 未解锁" if locked else "未达成"))
-	start_button.disabled = not ready
+	start_button.text = str(gate.get("button_text", "未达成"))
+	start_button.tooltip_text = str(gate.get("primary_message", ""))
+	# 未满足时仍允许点击，让开始逻辑能够明确告知缺少的条件。
+	start_button.disabled = false
 	start_button.custom_minimum_size = Vector2(154.0, 56.0)
 	start_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	start_button.focus_mode = Control.FOCUS_NONE
 	start_button.add_theme_font_size_override("font_size", _business_ui_font_size(15))
-	start_button.add_theme_color_override("font_color", Color(0.95, 0.94, 0.85))
+	start_button.add_theme_color_override("font_color", Color(0.95, 0.94, 0.85) if ready else Color(0.36, 0.34, 0.27, 0.92))
 	start_button.add_theme_color_override("font_disabled_color", Color(0.38, 0.38, 0.32, 0.78))
-	start_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.39, 0.50, 0.31, 1.0), Color(0.22, 0.30, 0.18, 0.96), 16.0, 2))
-	start_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.52, 0.63, 0.35, 1.0), Color(0.31, 0.39, 0.20, 1.0), 16.0, 2))
+	start_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.39, 0.50, 0.31, 1.0) if ready else Color(0.72, 0.70, 0.60, 0.94), Color(0.22, 0.30, 0.18, 0.96) if ready else Color(0.46, 0.42, 0.32, 0.72), 16.0, 2))
+	start_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.52, 0.63, 0.35, 1.0) if ready else Color(0.80, 0.76, 0.63, 1.0), Color(0.31, 0.39, 0.20, 1.0) if ready else Color(0.52, 0.44, 0.28, 0.88), 16.0, 2))
 	start_button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.69, 0.68, 0.59, 0.88), Color(0.44, 0.42, 0.34, 0.64), 16.0, 2))
 	start_button.pressed.connect(_start_business_level.bind(level_id))
-	box.add_child(start_button)
+	normal_content.add_child(start_button)
+
+	var detail_content := _create_business_level_detail_content(level)
+	detail_content.name = "DetailContent"
+	detail_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_content.visible = false
+	box.add_child(detail_content)
+	card.set_meta("normal_content", normal_content)
+	card.set_meta("detail_content", detail_content)
+	card.set_meta("detail_transitioning", false)
+	return card
+
+func _create_business_discovery_clue_card(level_id: int, discovery_state: int) -> Control:
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	var card := Control.new()
+	card.name = "BusinessClueCard%d" % level_id
+	card.custom_minimum_size = Vector2(190.0, 340.0)
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var art := TextureRect.new()
+	art.texture = _load_ui_texture(BUSINESS_LEVEL_CARD_PATH)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.modulate = Color(0.64, 0.66, 0.61, 0.82) if discovery_state == BusinessDiscoveryCatalog.STATE_HIDDEN else Color(0.90, 0.86, 0.72, 0.96)
+	card.add_child(art)
+	var content := VBoxContainer.new()
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 22.0
+	content.offset_top = 22.0
+	content.offset_right = -22.0
+	content.offset_bottom = -24.0
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 10)
+	card.add_child(content)
+	var title_text := "新的经营传闻" if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE else "尚无线索"
+	var title := _create_business_label(title_text, 16, Color(0.22, 0.27, 0.23))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(title)
+	var silhouette := Label.new()
+	silhouette.text = "?"
+	silhouette.custom_minimum_size = Vector2(0.0, 94.0)
+	silhouette.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	silhouette.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	silhouette.add_theme_font_size_override("font_size", _business_ui_font_size(58))
+	silhouette.add_theme_color_override("font_color", Color(0.30, 0.34, 0.29, 0.36) if discovery_state == BusinessDiscoveryCatalog.STATE_HIDDEN else Color(0.65, 0.39, 0.14, 0.72))
+	content.add_child(silhouette)
+	var clue_text := "先完成当前已经发现的经营委托，新的地方传闻才会出现。"
+	if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE:
+		clue_text = str(site.get("clue", "去大世界寻找新的顾客。"))
+	var clue := _create_business_label(clue_text, 12, Color(0.31, 0.31, 0.24), 24.0, true)
+	clue.custom_minimum_size = Vector2(142.0, 94.0)
+	clue.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	clue.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	content.add_child(clue)
+	var button := Button.new()
+	button.text = "追踪线索" if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE else "等待新传闻"
+	button.custom_minimum_size = Vector2(142.0, 48.0)
+	button.focus_mode = Control.FOCUS_NONE
+	button.disabled = discovery_state != BusinessDiscoveryCatalog.STATE_CLUE
+	_apply_wood_command_button_style(button)
+	if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE:
+		button.pressed.connect(_focus_mainline_discovery_clue.bind(level_id))
+	content.add_child(button)
 	return card
 
 func _create_business_level_thumbnail(level_id: int, ready: bool, locked: bool) -> PanelContainer:
+	# 关卡尚未解锁时仍展示彩色场景预览；只保留开始按钮的锁定状态。
+	locked = false
 	var thumb := PanelContainer.new()
 	thumb.custom_minimum_size = Vector2(160.0, 82.0)
 	thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -4006,11 +8328,173 @@ func _create_business_level_thumbnail(level_id: int, ready: bool, locked: bool) 
 	scene.add_child(marker)
 	return thumb
 
+func _create_business_level_detail_content(level: Dictionary) -> PanelContainer:
+	var detail := PanelContainer.new()
+	detail.clip_contents = true
+	var detail_style := _make_round_style(Color(0.94, 0.90, 0.79, 0.98), Color(0.45, 0.38, 0.25, 0.72), 8.0, 1)
+	detail_style.content_margin_left = 8.0
+	detail_style.content_margin_top = 7.0
+	detail_style.content_margin_right = 8.0
+	detail_style.content_margin_bottom = 7.0
+	detail.add_theme_stylebox_override("panel", detail_style)
+
+	var scroll := ScrollContainer.new()
+	scroll.name = "BusinessRequirementsScroll"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	detail.add_child(scroll)
+
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 3)
+	scroll.add_child(content)
+
+	var level_id := int(level.get("id", 1))
+	var gate := _business_level_gate_state(level)
+	var requirements_title := _create_business_label("开业条件", 13, Color(0.24, 0.34, 0.24), 18.0)
+	requirements_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(requirements_title)
+
+	if level_id > 1:
+		var discovery_state := _business_discovery_state(level_id)
+		var first_site_ready := discovery_state == BusinessDiscoveryCatalog.STATE_REGULAR or _is_camper_parked_at_mainline_site(level_id)
+		var discovery_text := "老主顾：可从任意停靠点重玩" if discovery_state == BusinessDiscoveryCatalog.STATE_REGULAR else ("首次委托现场：房车已就位" if first_site_ready else "首次委托现场：需将房车停入范围")
+		content.add_child(_create_business_label(discovery_text, 10, Color(0.20, 0.48, 0.18) if first_site_ready else Color(0.76, 0.14, 0.10), 20.0, true))
+	else:
+		content.add_child(_create_business_label("接单流程：%s" % ("已确认" if _kitchen_intro_completed else "未确认"), 10, Color(0.20, 0.48, 0.18) if _kitchen_intro_completed else Color(0.76, 0.14, 0.10), 20.0, true))
+
+	var equipment_title := _create_business_label("料理设备（必须已摆放）", 11, Color(0.30, 0.28, 0.20), 20.0)
+	equipment_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(equipment_title)
+	var required_equipment: Array = gate.get("required_equipment_ids", [])
+	for raw_equipment_id in required_equipment:
+		var equipment_id := str(raw_equipment_id)
+		var placed := _has_kitchen_equipment(equipment_id)
+		content.add_child(_create_business_label("%s：%s" % [_equipment_name(equipment_id), "已摆放" if placed else "未摆放"], 10, Color(0.20, 0.48, 0.18) if placed else Color(0.76, 0.14, 0.10), 18.0, true))
+
+	var food_title := _create_business_label("开局食材", 11, Color(0.30, 0.28, 0.20), 20.0, true)
+	food_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(food_title)
+	var food_rule_text := "第一天教学：只计食材箱库存" if _is_first_kitchen_tutorial_level(level) else "种子 / 田间 / 食材箱均计入"
+	content.add_child(_create_business_label(food_rule_text, 9, Color(0.42, 0.37, 0.27), 16.0, true))
+	for crop_type in _business_level_requirements(level).keys():
+		var crop := str(crop_type)
+		var need := int(_business_level_requirements(level).get(crop_type, 0))
+		var prepared := _business_level_requirement_total(level, crop)
+		var prepared_ready := prepared >= need
+		content.add_child(_create_business_label("%s：%d/%d" % [_crop_display_name(crop), mini(prepared, need), need], 10, Color(0.20, 0.48, 0.18) if prepared_ready else Color(0.76, 0.14, 0.10), 18.0, true))
+
+	var stamina_ready := _has_business_stamina()
+	content.add_child(_create_business_label("体力：%d/%d" % [_kitchen_stamina, BUSINESS_STAMINA_COST], 10, Color(0.20, 0.48, 0.18) if stamina_ready else Color(0.76, 0.14, 0.10), 20.0, true))
+	var gate_ready := bool(gate.get("ready", false))
+	var gate_summary := "开业条件已满足" if gate_ready else "尚未满足：%s" % str(gate.get("primary_message", "请检查开业条件"))
+	content.add_child(_create_business_label(gate_summary, 10, Color(0.20, 0.48, 0.18) if gate_ready else Color(0.76, 0.14, 0.10), 24.0, true))
+
+	var order_total := int(level.get("orders", 0))
+	var star_orders := _business_level_star_orders(level)
+	var orders_line := _create_business_label("1星通关：至少完成 %d/%d 单" % [star_orders[0], order_total], 10, Color(0.30, 0.28, 0.20), 20.0, true)
+	orders_line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_child(orders_line)
+
+	var stars_title := _create_business_label("星级条件", 13, Color(0.24, 0.34, 0.24), 18.0)
+	stars_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	content.add_child(stars_title)
+	for index in range(star_orders.size()):
+		var star_prefix := "%d星" % (index + 1)
+		var line := _create_business_label("%s  完成 %d/%d 单" % [star_prefix, star_orders[index], order_total], 10, Color(0.53, 0.34, 0.10), 24.0, true)
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		content.add_child(line)
+	return detail
+
+func _on_business_level_info_pressed(card: Control, level: Dictionary) -> void:
+	get_viewport().set_input_as_handled()
+	if bool(card.get_meta("detail_transitioning", false)):
+		return
+	if _business_opened_detail_card == card:
+		_close_opened_business_detail()
+		return
+	_close_opened_business_detail()
+	_show_business_card_detail(card)
+	_business_opened_detail_card = card
+	if int(level.get("id", 1)) >= 2:
+		_chapter_one_checked_level_requirements[str(level.get("id", 1))] = true
+
+func _on_business_level_card_gui_input(event: InputEvent, card: Control) -> void:
+	if not (event is InputEventMouseButton) or event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+		return
+	if _business_opened_detail_card != card:
+		return
+	var info_button := card.get_node_or_null("InfoButton") as Control
+	if info_button != null and info_button.get_global_rect().has_point(event.position):
+		return
+	_close_opened_business_detail()
+
+func _show_business_card_detail(card: Control) -> void:
+	var normal_content := card.get_meta("normal_content") as Control
+	var detail_content := card.get_meta("detail_content") as Control
+	if normal_content == null or detail_content == null:
+		return
+	_stop_business_card_transition(card)
+	card.set_meta("detail_transitioning", true)
+	normal_content.visible = false
+	detail_content.visible = true
+	detail_content.modulate.a = 0.0
+	var tween := card.create_tween()
+	card.set_meta("detail_tween", tween)
+	tween.tween_property(detail_content, "modulate:a", 1.0, 0.16)
+	tween.finished.connect(_finish_business_card_transition.bind(card))
+
+func _show_business_card_normal(card: Control) -> void:
+	if not is_instance_valid(card):
+		return
+	var normal_content := card.get_meta("normal_content") as Control
+	var detail_content := card.get_meta("detail_content") as Control
+	if normal_content == null or detail_content == null:
+		return
+	_stop_business_card_transition(card)
+	card.set_meta("detail_transitioning", true)
+	detail_content.visible = false
+	normal_content.visible = true
+	normal_content.modulate.a = 0.0
+	var tween := card.create_tween()
+	card.set_meta("detail_tween", tween)
+	tween.tween_property(normal_content, "modulate:a", 1.0, 0.16)
+	tween.finished.connect(_finish_business_card_transition.bind(card))
+
+func _finish_business_card_transition(card: Control) -> void:
+	if is_instance_valid(card):
+		card.set_meta("detail_tween", null)
+		card.set_meta("detail_transitioning", false)
+
+func _stop_business_card_transition(card: Control) -> void:
+	var tween := card.get_meta("detail_tween", null) as Tween
+	if tween != null and tween.is_valid():
+		tween.kill()
+
+func _close_opened_business_detail() -> void:
+	if _business_opened_detail_card == null:
+		return
+	var opened_card := _business_opened_detail_card
+	_business_opened_detail_card = null
+	_show_business_card_normal(opened_card)
+
+func _close_business_detail_for_click(click_position: Vector2) -> void:
+	if _business_prep_overlay == null or not _business_prep_overlay.visible or _business_opened_detail_card == null:
+		return
+	var info_button := _business_opened_detail_card.get_node_or_null("InfoButton") as Control
+	if info_button != null and info_button.get_global_rect().has_point(click_position):
+		return
+	_close_opened_business_detail()
+
 func _create_business_level_detail(level: Dictionary) -> PanelContainer:
 	var level_id := int(level.get("id", 1))
-	var current_tab := str(_business_level_detail_tab.get(str(level_id), "requirements"))
+	var current_tab := "requirements"
 	var detail := PanelContainer.new()
-	detail.add_theme_stylebox_override("panel", _make_round_style(Color(0.92, 0.78, 0.52, 0.74), Color(0.76, 0.56, 0.28, 0.42), 8.0, 1))
+	detail.add_theme_stylebox_override("panel", _make_round_style(Color(0.93, 0.90, 0.82, 0.97), Color(0.46, 0.40, 0.29, 0.72), 12.0, 1))
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
@@ -4023,20 +8507,24 @@ func _create_business_level_detail(level: Dictionary) -> PanelContainer:
 	tabs.add_child(_create_business_detail_tab_button("通关星级条件", level_id, "stars", current_tab))
 
 	if current_tab == "stars":
-		var star_times: Array = level.get("star_times", [])
-		var one := float(star_times[0]) if star_times.size() > 0 else float(level.get("duration", 120.0))
-		var two := float(star_times[1]) if star_times.size() > 1 else one * 0.78
-		var three := float(star_times[2]) if star_times.size() > 2 else one * 0.58
-		box.add_child(_create_business_label("★ %d 秒内完成  ·  ★★ %d 秒内完成  ·  ★★★ %d 秒内完成" % [int(one), int(two), int(three)], 14, Color(0.30, 0.19, 0.07), 0.0, true))
+		var order_total := int(level.get("orders", 0))
+		var star_orders := _business_level_star_orders(level)
+		box.add_child(_create_business_label("★ 完成 %d/%d 单  ·  ★★ 完成 %d/%d 单  ·  ★★★ 完成 %d/%d 单" % [star_orders[0], order_total, star_orders[1], order_total, star_orders[2], order_total], 14, Color(0.30, 0.19, 0.07), 0.0, true))
+		box.add_child(_create_business_label("经营用时不影响星级；完成更多订单即可提升星级。", 13, Color(0.42, 0.28, 0.10), 0.0, true))
 		box.add_child(_create_business_label("通关星级会累积到底部奖励进度，每到一个阶段获得一个 🎁。", 13, Color(0.42, 0.28, 0.10), 0.0, true))
 	else:
 		for crop_type in _business_level_requirements(level).keys():
 			var need := int(_business_level_requirements(level).get(crop_type, 0))
 			var stored := _stored_crop_total(str(crop_type))
-			var seeds := _seed_total(str(crop_type))
-			var prepared := stored + seeds
+			var prepared := _business_level_requirement_total(level, str(crop_type))
 			var color := Color(0.20, 0.48, 0.18) if prepared >= need else Color(0.76, 0.14, 0.10)
-			box.add_child(_create_business_label("%s：食材箱 %d + 种子 %d = %d/%d" % [_crop_display_name(str(crop_type)), stored, seeds, prepared, need], 14, color))
+			box.add_child(_create_business_label("%s：%d/%d" % [_crop_display_name(str(crop_type)), prepared, need], 14, color))
+			if _is_first_kitchen_tutorial_level(level):
+				box.add_child(_create_business_label("第一天只计食材箱库存：%d" % stored, 12, color, 0.0, true))
+			else:
+				var seeds := _seed_total(str(crop_type))
+				var field_planted := _field_planted_crop_total(str(crop_type))
+				box.add_child(_create_business_label("种子 %d · 田间 %d · 食材箱 %d" % [seeds, field_planted, stored], 12, color, 0.0, true))
 		var blockers := _business_level_blockers(level)
 		for blocker in blockers:
 			box.add_child(_create_business_label("! " + blocker, 13, Color(0.72, 0.18, 0.08), 0.0, true))
@@ -4055,11 +8543,11 @@ func _create_business_detail_tab_button(label_text: String, level_id: int, tab_i
 	button.custom_minimum_size = Vector2(220.0, 54.0)
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_size_override("font_size", _business_ui_font_size(14))
-	button.add_theme_color_override("font_color", Color(0.25, 0.16, 0.07, 0.96))
-	button.add_theme_color_override("font_disabled_color", Color(0.25, 0.16, 0.07, 0.96))
-	button.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.66, 0.80), Color(0.70, 0.50, 0.24, 0.42), 8.0, 1))
-	button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.95, 0.74, 0.98), Color(0.70, 0.50, 0.24, 0.68), 8.0, 1))
-	button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.96, 0.74, 0.36, 0.92), Color(0.78, 0.50, 0.18, 0.74), 8.0, 1))
+	button.add_theme_color_override("font_color", Color(0.22, 0.29, 0.24, 0.96))
+	button.add_theme_color_override("font_disabled_color", Color(0.95, 0.94, 0.85, 0.96))
+	button.add_theme_stylebox_override("normal", _make_round_style(Color(0.83, 0.81, 0.71, 0.96), Color(0.46, 0.40, 0.29, 0.62), 11.0, 1))
+	button.add_theme_stylebox_override("hover", _make_round_style(Color(0.91, 0.88, 0.76, 1.0), Color(0.48, 0.38, 0.24, 0.88), 11.0, 1))
+	button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.56, 0.47, 0.32, 0.98), Color(0.34, 0.27, 0.17, 0.94), 11.0, 1))
 	button.pressed.connect(_set_business_level_detail_tab.bind(level_id, tab_id))
 	return button
 
@@ -4088,27 +8576,14 @@ func _add_business_star_row(parent: Control, achieved: int) -> void:
 		var star := Label.new()
 		star.text = "★"
 		star.add_theme_font_size_override("font_size", _business_ui_font_size(18))
-		star.add_theme_color_override("font_color", Color(1.0, 0.72, 0.18) if index < achieved else Color(0.56, 0.50, 0.40, 0.52))
+		star.add_theme_color_override("font_color", Color(0.92, 0.58, 0.18) if index < achieved else Color(0.38, 0.43, 0.36, 0.46))
 		row.add_child(star)
 
 func _toggle_business_level_detail(level_id: int) -> void:
-	var key := str(level_id)
-	var next_open := not bool(_business_level_detail_open.get(key, false))
-	_business_level_detail_open.clear()
-	_business_level_detail_open[key] = next_open
-	if not _business_level_detail_tab.has(key):
-		_business_level_detail_tab[key] = "requirements"
-	if next_open and level_id >= 2:
-		_chapter_one_checked_level_requirements[key] = true
-	_rebuild_business_prep_ui()
+	pass
 
 func _set_business_level_detail_tab(level_id: int, tab_id: String) -> void:
-	var key := str(level_id)
-	_business_level_detail_open[key] = true
-	_business_level_detail_tab[key] = tab_id
-	if level_id >= 2:
-		_chapter_one_checked_level_requirements[key] = true
-	_rebuild_business_prep_ui()
+	pass
 
 func _rebuild_business_star_rewards() -> void:
 	if _business_prep_reward_box == null:
@@ -4120,76 +8595,62 @@ func _rebuild_business_star_rewards() -> void:
 	var max_stars := 0
 	for reward in BUSINESS_STAR_REWARDS:
 		max_stars = maxi(max_stars, int(reward.get("stars", 0)))
-	var main := HBoxContainer.new()
+	var main := VBoxContainer.new()
 	main.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main.add_theme_constant_override("separation", 24)
+	main.add_theme_constant_override("separation", 2)
 	_business_prep_reward_box.add_child(main)
 
-	var left := VBoxContainer.new()
-	left.custom_minimum_size = Vector2(180.0, 0.0)
-	left.add_theme_constant_override("separation", 4)
-	main.add_child(left)
+	var summary := HBoxContainer.new()
+	summary.alignment = BoxContainer.ALIGNMENT_CENTER
+	summary.add_theme_constant_override("separation", 5)
+	main.add_child(summary)
 
-	var title := _create_business_label("◆ 累计星星奖励 ◆", 14, Color(0.34, 0.24, 0.10))
+	var title := _create_business_label("✦ 旅途星图 ✦", 12, Color(0.22, 0.30, 0.25))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	left.add_child(title)
-
-	var star_row := HBoxContainer.new()
-	star_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	star_row.add_theme_constant_override("separation", 8)
-	left.add_child(star_row)
+	summary.add_child(title)
 
 	var big_star := Label.new()
 	big_star.text = "★"
-	big_star.add_theme_font_size_override("font_size", _business_ui_font_size(44))
-	big_star.add_theme_color_override("font_color", Color(1.0, 0.72, 0.18))
-	star_row.add_child(big_star)
+	big_star.add_theme_font_size_override("font_size", _business_ui_font_size(22))
+	big_star.add_theme_color_override("font_color", Color(0.91, 0.56, 0.18))
+	summary.add_child(big_star)
 
 	var progress_text := Label.new()
 	progress_text.text = "%d/%d" % [total_stars, max_stars]
-	progress_text.add_theme_font_size_override("font_size", _business_ui_font_size(28))
-	progress_text.add_theme_color_override("font_color", Color(0.32, 0.20, 0.08))
-	star_row.add_child(progress_text)
+	progress_text.add_theme_font_size_override("font_size", _business_ui_font_size(18))
+	progress_text.add_theme_color_override("font_color", Color(0.20, 0.29, 0.24))
+	summary.add_child(progress_text)
 
-	var next_reward := _next_business_star_reward_text(total_stars)
-	var hint := _create_business_label(next_reward, 11, Color(0.40, 0.28, 0.12))
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	left.add_child(hint)
-
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 6)
-	main.add_child(right)
-
-	var gift_row := HBoxContainer.new()
-	gift_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	gift_row.add_theme_constant_override("separation", 64)
-	right.add_child(gift_row)
+	var summary_spacer := Control.new()
+	summary_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	summary.add_child(summary_spacer)
 	for reward in BUSINESS_STAR_REWARDS:
 		var stars := int(reward.get("stars", 0))
 		if stars <= 0:
 			continue
 		var gift := Label.new()
 		gift.text = "🎁"
-		gift.add_theme_font_size_override("font_size", _business_ui_font_size(27))
+		gift.add_theme_font_size_override("font_size", _business_ui_font_size(18))
 		gift.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0) if total_stars >= stars else Color(0.70, 0.64, 0.52, 0.64))
-		gift_row.add_child(gift)
+		summary.add_child(gift)
 
 	var progress := ProgressBar.new()
 	progress.max_value = maxf(float(max_stars), 1.0)
 	progress.value = clampf(float(total_stars), 0.0, progress.max_value)
 	progress.show_percentage = false
 	progress.custom_minimum_size = Vector2(0.0, 12.0)
-	right.add_child(progress)
+	progress.add_theme_stylebox_override("background", _make_round_style(Color(0.48, 0.47, 0.40, 0.34), Color(0.29, 0.32, 0.26, 0.34), 6.0, 1))
+	progress.add_theme_stylebox_override("fill", _make_round_style(Color(0.50, 0.64, 0.35, 1.0), Color(0.29, 0.40, 0.21, 0.88), 6.0, 1))
+	main.add_child(progress)
 
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 52)
-	right.add_child(row)
+	row.add_theme_constant_override("separation", 68)
+	main.add_child(row)
 	for reward in BUSINESS_STAR_REWARDS:
 		var stars := int(reward.get("stars", 0))
 		var reached := total_stars >= stars
-		var reward_label := _create_business_label("★ %d" % stars, 12, Color(0.72, 0.48, 0.08) if reached else Color(0.50, 0.43, 0.32, 0.68))
+		var reward_label := _create_business_label("★ %d" % stars, 10, Color(0.75, 0.38, 0.14) if reached else Color(0.36, 0.40, 0.33, 0.68))
 		row.add_child(reward_label)
 
 func _next_business_star_reward_text(total_stars: int) -> String:
@@ -4222,22 +8683,96 @@ func _business_level_by_id(level_id: int) -> Dictionary:
 func _business_level_requirements(level: Dictionary) -> Dictionary:
 	return level.get("requirements", {})
 
+func _business_level_required_equipment_ids(level: Dictionary) -> Array[String]:
+	var required: Dictionary = {"prep_shelf": true}
+	var recipes: Array = level.get("recipes", [])
+	for raw_recipe in recipes:
+		var recipe := str(raw_recipe)
+		if _recipe_needs_wash(recipe):
+			required["sink"] = true
+		if _recipe_needs_cut(recipe):
+			required["cutting_table"] = true
+		if _recipe_uses_station(recipe, "pot"):
+			required["pot"] = true
+		if _recipe_uses_station(recipe, "grill"):
+			required["grill"] = true
+	var result: Array[String] = []
+	for equipment in KITCHEN_EQUIPMENT_TYPES:
+		var equipment_id := str(equipment.get("id", ""))
+		if bool(required.get(equipment_id, false)):
+			result.append(equipment_id)
+	return result
+
+func _business_level_missing_equipment_ids(level: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	for equipment_id in _business_level_required_equipment_ids(level):
+		if not _has_kitchen_equipment(equipment_id):
+			result.append(equipment_id)
+	return result
+
+func _business_equipment_names(equipment_ids: Array[String]) -> Array[String]:
+	var result: Array[String] = []
+	for equipment_id in equipment_ids:
+		result.append(_equipment_name(equipment_id))
+	return result
+
 func _seed_total(crop_type: String) -> int:
 	var total := 0
 	for quality in range(4):
 		total += _get_seed_count(crop_type, quality)
 	return total
 
+func _business_requirement_total(crop_type: String) -> int:
+	# 经营关卡的开局门槛统计种子、田间未腐烂作物与食材箱；手持和掉落物不计入。
+	return _seed_total(crop_type) + _field_planted_crop_total(crop_type) + _stored_crop_total(crop_type)
+
+func _is_first_kitchen_tutorial_level(level: Dictionary) -> bool:
+	return int(level.get("id", 1)) == 1 and not _kitchen_first_day_completed
+
+func _business_level_requirement_total(level: Dictionary, crop_type: String) -> int:
+	# 第一天教学要求食材已经整理进食材箱；首通后所有关卡统一使用正式准备规则。
+	if _is_first_kitchen_tutorial_level(level):
+		return _stored_crop_total(crop_type)
+	return _business_requirement_total(crop_type)
+
+func _field_planted_crop_total(crop_type: String) -> int:
+	var total := 0
+	for raw_key in _crop_nodes.keys():
+		var key := str(raw_key)
+		if str(_crop_types.get(key, "")) != crop_type:
+			continue
+		var crop := _crop_nodes.get(key) as Node3D
+		if crop == null or not is_instance_valid(crop) or _is_crop_rotten(key):
+			continue
+		total += 1
+	return total
+
 func _prepared_crop_total(crop_type: String) -> int:
-	# 食材箱空间有限：已收获食材用于立刻出餐，种子作为营业中的补种储备。
-	# 订单会逐步消耗箱内食材并腾出空位，玩家需要种植、收获、再补进箱子。
-	return _stored_crop_total(crop_type) + _seed_total(crop_type)
+	# 供种植与教学流程使用：田地成熟、手持与掉落作物都算可直接取得的作物。
+	return _stored_crop_total(crop_type) + _direct_crop_total(crop_type)
+
+func _direct_crop_total(crop_type: String) -> int:
+	var total := 1 if _held_crop_item == crop_type else 0
+	for raw_key in _crop_nodes.keys():
+		var key := str(raw_key)
+		if str(_crop_types.get(key, "")) != crop_type or float(_crop_growth_remaining.get(key, 1.0)) > 0.0:
+			continue
+		var crop := _crop_nodes.get(key) as Node3D
+		if crop != null and is_instance_valid(crop) and crop.has_node("CropRoot") and not crop.has_node("RottenCrop"):
+			total += 1
+	for crop in _dropped_crop_roots:
+		if crop != null and is_instance_valid(crop) and str(crop.get_meta("crop_type", "")) == crop_type:
+			total += 1
+	return total
 
 func _business_level_current_summary(level: Dictionary) -> String:
 	var parts: Array[String] = []
 	for crop_type in _business_level_requirements(level).keys():
 		var crop := str(crop_type)
-		parts.append("%s：已存%d / 种子%d" % [_crop_display_name(crop), _stored_crop_total(crop), _seed_total(crop)])
+		if _is_first_kitchen_tutorial_level(level):
+			parts.append("%s：食材箱%d" % [_crop_display_name(crop), _stored_crop_total(crop)])
+		else:
+			parts.append("%s：种子%d / 田间%d / 箱内%d" % [_crop_display_name(crop), _seed_total(crop), _field_planted_crop_total(crop), _stored_crop_total(crop)])
 	return "当前准备  " + "；".join(parts)
 
 func _business_level_shortage_lines(level: Dictionary) -> Array[String]:
@@ -4245,46 +8780,100 @@ func _business_level_shortage_lines(level: Dictionary) -> Array[String]:
 	for crop_type in _business_level_requirements(level).keys():
 		var crop := str(crop_type)
 		var need := int(_business_level_requirements(level).get(crop_type, 0))
-		var prepared := _prepared_crop_total(crop)
+		var prepared := _business_level_requirement_total(level, crop)
 		if prepared < need:
-			gaps.append("%s还差%d个" % [_crop_display_name(crop), need - prepared])
+			if _is_first_kitchen_tutorial_level(level):
+				gaps.append("食材箱里的%s还差%d个" % [_crop_display_name(crop), need - prepared])
+			else:
+				gaps.append("%s还差%d个" % [_crop_display_name(crop), need - prepared])
 	return gaps
 
-func _business_level_blockers(level: Dictionary, include_stamina: bool = true) -> Array[String]:
-	var blockers: Array[String] = []
+func _business_level_gate_state(level: Dictionary, include_stamina: bool = true) -> Dictionary:
 	var level_id := int(level.get("id", 1))
+	var unlocked := _is_business_level_unlocked(level_id)
+	var discovery_state := _business_discovery_state(level_id)
+	var blockers: Array[String] = []
+	if not unlocked:
+		if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE:
+			blockers.append("先按线索在大世界找到顾客委托")
+		else:
+			blockers.append("尚未获得这一站的经营线索")
+	elif level_id > 1 and discovery_state == BusinessDiscoveryCatalog.STATE_DISCOVERED and not _is_camper_parked_at_mainline_site(level_id):
+		blockers.append("首次委托需把房车停入顾客现场")
 	if _kitchen_business_active:
 		blockers.append("正在营业中")
-	if level_id <= 1:
-		if not _has_all_first_day_kitchen_equipment():
-			blockers.append("先摆好洗菜池、煮锅和备菜架")
-	else:
-		if not _has_all_formal_kitchen_equipment():
-			blockers.append("正式营业需要洗菜池、煮锅、烧烤架和备菜架")
-	if _placed_food_chests.is_empty():
-		blockers.append("食材箱未摆放")
 	if level_id == 1 and not _kitchen_intro_completed:
 		blockers.append("先和%s确认接单流程" % MOM_NAME)
-	if level_id > 1:
-		if not _kitchen_first_day_completed:
-			blockers.append("完成第1关后解锁")
-		if not _opening_sign_placed:
-			blockers.append("摆放开业小木牌后解锁正式营业")
+	var required_equipment := _business_level_required_equipment_ids(level)
+	var missing_equipment := _business_level_missing_equipment_ids(level)
+	var missing_equipment_names := _business_equipment_names(missing_equipment)
+	if not missing_equipment_names.is_empty():
+		blockers.append("缺少已摆放设备：%s" % "、".join(missing_equipment_names))
+	var shortages := _business_level_shortage_lines(level)
 	if include_stamina and not _has_business_stamina():
 		blockers.append("体力不足：每关需要 %d 点体力" % BUSINESS_STAMINA_COST)
-	return blockers
+	var ready := blockers.is_empty() and shortages.is_empty()
+	var primary_message := ""
+	var button_text := "开始 -%d体力" % BUSINESS_STAMINA_COST
+	if not unlocked:
+		primary_message = blockers[0]
+		button_text = "追踪线索" if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE else "尚无线索"
+	elif level_id > 1 and discovery_state == BusinessDiscoveryCatalog.STATE_DISCOVERED and not _is_camper_parked_at_mainline_site(level_id):
+		primary_message = "首次委托需把房车停入顾客现场"
+		button_text = "前往委托地点"
+	elif _kitchen_business_active:
+		primary_message = "正在营业中"
+		button_text = "正在营业中"
+	elif level_id == 1 and not _kitchen_intro_completed:
+		primary_message = "先和%s确认接单流程" % MOM_NAME
+		button_text = "先确认接单"
+	elif not missing_equipment_names.is_empty():
+		primary_message = "请先摆放：%s" % "、".join(missing_equipment_names)
+		button_text = "缺少：%s" % missing_equipment_names[0] if missing_equipment_names.size() == 1 else "缺少设备 %d项" % missing_equipment_names.size()
+	elif not shortages.is_empty():
+		primary_message = shortages[0]
+		button_text = "食材不足"
+	elif include_stamina and not _has_business_stamina():
+		primary_message = "体力不足：每关需要 %d 点体力" % BUSINESS_STAMINA_COST
+		button_text = "体力不足"
+	return {
+		"unlocked": unlocked,
+		"discovery_state": discovery_state,
+		"ready": ready,
+		"blockers": blockers,
+		"shortages": shortages,
+		"required_equipment_ids": required_equipment,
+		"missing_equipment_ids": missing_equipment,
+		"primary_message": primary_message,
+		"button_text": button_text,
+	}
+
+func _business_level_blockers(level: Dictionary, include_stamina: bool = true) -> Array[String]:
+	var result: Array[String] = []
+	var blockers: Array = _business_level_gate_state(level, include_stamina).get("blockers", [])
+	for blocker in blockers:
+		result.append(str(blocker))
+	return result
 
 func _business_level_conditions_ready(level: Dictionary) -> bool:
-	return _business_level_blockers(level, false).is_empty() and _business_level_shortage_lines(level).is_empty()
+	return bool(_business_level_gate_state(level, false).get("ready", false))
 
 func _business_level_ready(level: Dictionary) -> bool:
-	return _business_level_blockers(level).is_empty() and _business_level_shortage_lines(level).is_empty()
+	return bool(_business_level_gate_state(level).get("ready", false))
 
 func _business_level_popularity_reward(level: Dictionary) -> int:
-	return int(level.get("popularity", 0))
+	return int(round(float(level.get("popularity", 0)) * KitchenUpgradeCatalog.get_village_effect_multiplier(_village_upgrades, "first_clear_popularity_reward")))
 
 func _business_level_star_count(level_id: int) -> int:
 	return clampi(int(_business_level_stars.get(str(level_id), 0)), 0, 3)
+
+func _is_duel_unlocked() -> bool:
+	return _business_level_star_count(5) >= 1
+
+func _is_business_level_unlocked(level_id: int) -> bool:
+	if level_id <= 1:
+		return true
+	return _business_discovery_state(level_id) >= BusinessDiscoveryCatalog.STATE_DISCOVERED
 
 func _business_total_stars() -> int:
 	var total := 0
@@ -4315,11 +8904,21 @@ func _start_business_level(level_id: int) -> void:
 	var level := _business_level_by_id(level_id)
 	if level.is_empty():
 		return
-	if not _business_level_ready(level):
-		var gaps := _business_level_shortage_lines(level)
-		var blockers := _business_level_blockers(level)
-		var message := blockers[0] if not blockers.is_empty() else gaps[0]
-		_show_side_toast(message)
+	if level_id > 1:
+		var discovery_state := _business_discovery_state(level_id)
+		if discovery_state == BusinessDiscoveryCatalog.STATE_HIDDEN:
+			_show_notification("这处经营机会尚无线索，先推进当前主线。")
+			return
+		if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE:
+			_focus_mainline_discovery_clue(level_id)
+			return
+		if discovery_state == BusinessDiscoveryCatalog.STATE_DISCOVERED and not _is_camper_parked_at_mainline_site(level_id):
+			_focus_mainline_discovery_clue(level_id)
+			_show_side_toast("首次经营必须把房车停入委托地点的彩旗范围")
+			return
+	var gate := _business_level_gate_state(level)
+	if not bool(gate.get("ready", false)):
+		_show_notification("暂不能开业：%s" % str(gate.get("primary_message", "请检查开业条件")))
 		_rebuild_business_prep_ui()
 		return
 	if not _try_spend_business_stamina():
@@ -4338,6 +8937,7 @@ func _start_business_level(level_id: int) -> void:
 func _start_prepared_business_level(level: Dictionary, spend_stamina: bool = true) -> bool:
 	if _kitchen_business_active:
 		return true
+	_settle_kitchen_held_item_after_business()
 	if spend_stamina and not _business_level_ready(level):
 		return false
 	if not spend_stamina and not _business_level_conditions_ready(level):
@@ -4346,13 +8946,19 @@ func _start_prepared_business_level(level: Dictionary, spend_stamina: bool = tru
 		return false
 	var level_id := int(level.get("id", 1))
 	var duration := float(level.get("duration", 90.0))
+	_business_active_first_commission_level = level_id if level_id > 1 and _business_discovery_state(level_id) == BusinessDiscoveryCatalog.STATE_DISCOVERED else 0
 	_kitchen_business_active = true
+	AudioManager.set_business_mode(true)
+	AudioManager.stop_all_kitchen_loops()
 	_kitchen_business_time = duration
 	_kitchen_served_count = 0
 	_kitchen_failed_count = 0
+	_kitchen_service_combo_count = 0
+	_lock_active_business_location_bonus()
+	_begin_flower_gift_for_business()
 	_kitchen_orders = _build_business_level_orders(level)
-	_kitchen_pot_state.clear()
-	_kitchen_grill_state.clear()
+	_kitchen_cook_states.clear()
+	_kitchen_equipment_progress.clear()
 	_kitchen_ready_dishes.clear()
 	_kitchen_scrap_dishes.clear()
 	_kitchen_scrap_income = 0
@@ -4377,50 +8983,62 @@ func _build_business_level_orders(level: Dictionary) -> Array[Dictionary]:
 	return result
 
 func _make_kitchen_order(recipe: String, time_limit: float, delay: float = 0.0) -> Dictionary:
+	var bonus_seconds := KitchenUpgradeCatalog.get_equipment_effect_addition("prep_shelf", _kitchen_function_upgrades, "all_order_seconds")
+	if _recipe_needs_wash(recipe):
+		bonus_seconds += KitchenUpgradeCatalog.get_equipment_effect_addition("sink", _kitchen_function_upgrades, "washed_recipe_order_seconds")
+	if _recipe_needs_cut(recipe):
+		bonus_seconds += KitchenUpgradeCatalog.get_equipment_effect_addition("cutting_table", _kitchen_function_upgrades, "cut_recipe_order_seconds")
+	bonus_seconds += FlowerGardenManager.active_order_time_bonus()
+	time_limit += bonus_seconds
 	return {
 		"recipe": recipe,
 		"time": maxf(time_limit, 1.0),
 		"limit": maxf(time_limit, 1.0),
 		"delay": maxf(delay, 0.0),
+		"audio_announced": false,
+		"audio_warning_played": false,
 	}
 
 func _is_kitchen_order_active(order: Dictionary) -> bool:
 	return float(order.get("delay", 0.0)) <= 0.0
 
-func _calculate_business_level_stars(level: Dictionary, elapsed_seconds: float, served_count: int) -> int:
-	if served_count < int(level.get("orders", 0)):
-		return 0
-	var star_times: Array = level.get("star_times", [])
-	var stars := 0
-	if star_times.size() > 0 and elapsed_seconds <= float(star_times[0]):
-		stars = 1
-	if star_times.size() > 1 and elapsed_seconds <= float(star_times[1]):
-		stars = 2
-	if star_times.size() > 2 and elapsed_seconds <= float(star_times[2]):
-		stars = 3
-	return stars
+func _business_level_star_orders(level: Dictionary) -> Array[int]:
+	var order_total := maxi(int(level.get("orders", 1)), 1)
+	var configured: Array = level.get("star_orders", [])
+	var one_star := clampi(int(configured[0]) if configured.size() > 0 else maxi(roundi(float(order_total) * 0.4), 1), 1, order_total)
+	var two_star := clampi(int(configured[1]) if configured.size() > 1 else maxi(roundi(float(order_total) * 0.6), one_star + 1), one_star, order_total)
+	var three_star := clampi(int(configured[2]) if configured.size() > 2 else order_total, two_star, order_total)
+	return [one_star, two_star, three_star]
+
+func _calculate_business_level_stars(level: Dictionary, served_count: int) -> int:
+	var star_orders := _business_level_star_orders(level)
+	if served_count >= star_orders[2]:
+		return 3
+	if served_count >= star_orders[1]:
+		return 2
+	if served_count >= star_orders[0]:
+		return 1
+	return 0
 
 func _format_business_result_time(seconds: float) -> String:
 	var total := maxi(int(round(seconds)), 0)
 	return "%02d:%02d" % [total / 60, total % 60]
 
 func _business_result_rule_text(level: Dictionary) -> String:
-	var star_times: Array = level.get("star_times", [])
-	var one := float(star_times[0]) if star_times.size() > 0 else float(level.get("duration", 120.0))
-	var two := float(star_times[1]) if star_times.size() > 1 else one * 0.78
-	var three := float(star_times[2]) if star_times.size() > 2 else one * 0.58
-	return "星级规则：3星 %s 内完成  /  2星 %s 内完成  /  1星 完成全部订单" % [_format_business_result_time(three), _format_business_result_time(two)]
+	var order_total := int(level.get("orders", 0))
+	var star_orders := _business_level_star_orders(level)
+	return "星级规则：1星 %d/%d单  /  2星 %d/%d单  /  3星 %d/%d单" % [star_orders[0], order_total, star_orders[1], order_total, star_orders[2], order_total]
 
 func _business_result_reward_coin_amount(stars: int, served_count: int) -> int:
 	if stars <= 0:
 		return 0
 	return stars * 24 + served_count * 6
 
-func _grant_business_popularity_reward(level_id: int, level: Dictionary, order_total: int) -> Dictionary:
+func _grant_business_popularity_reward(level_id: int, level: Dictionary, stars: int) -> Dictionary:
 	var before_xp := _kitchen_popularity_xp
 	var before_level := _kitchen_popularity_level
 	var reward := 0
-	if level_id > 0 and not level.is_empty() and _kitchen_served_count >= order_total:
+	if level_id > 0 and not level.is_empty() and stars >= 1:
 		var key := str(level_id)
 		if not bool(_business_popularity_claimed.get(key, false)):
 			reward = _business_level_popularity_reward(level)
@@ -4442,11 +9060,21 @@ func _grant_business_popularity_reward(level_id: int, level: Dictionary, order_t
 
 func _show_business_result_after_delay(result: Dictionary) -> void:
 	_business_result_pending_open = true
-	_show_notification("所有订单完成！")
+	var level: Dictionary = result.get("level", {})
+	var stars := int(result.get("stars", 0))
+	var served := int(result.get("served", 0))
+	var order_total := int(result.get("order_total", 0))
+	if stars >= 1:
+		_show_notification("经营通过：完成 %d/%d 单，获得 %d 星" % [served, order_total, stars])
+	elif int(result.get("previous_stars", 0)) >= 1:
+		_show_notification("本次完成 %d/%d 单，历史最高 %d 星与已有解锁均保留" % [served, order_total, int(result.get("previous_stars", 0))])
+	else:
+		var star_orders := _business_level_star_orders(level)
+		_show_notification("经营结束：完成 %d/%d 单，至少完成 %d 单可获 1 星" % [served, order_total, star_orders[0]])
 	if _kitchen_status_panel != null:
 		_kitchen_status_panel.visible = false
 	_clear_kitchen_order_cards()
-	var timer := get_tree().create_timer(0.5)
+	var timer := get_tree().create_timer(0.85)
 	timer.timeout.connect(_show_business_result_overlay.bind(result))
 
 func _show_business_result_overlay(result: Dictionary) -> void:
@@ -4476,26 +9104,69 @@ func _fill_business_result_overlay(result: Dictionary) -> void:
 	var elapsed := float(result.get("elapsed", 0.0))
 	var order_total := int(result.get("order_total", 0))
 	var served := int(result.get("served", 0))
+	var failed := int(result.get("failed", maxi(order_total - served, 0)))
 	var gained := int(result.get("gained_stars", 0))
 	var previous := int(result.get("previous_stars", 0))
 	var coin_reward := int(result.get("coin_reward", 0))
 	var popularity_reward := int(result.get("popularity_reward", 0))
 	if _business_result_record_label != null:
 		_business_result_record_label.text = ""
-		if gained > 0 and previous > 0:
+		var duel_unlocked_now := bool(result.get("duel_unlocked_now", false))
+		var flower_garden_unlocked_now := bool(result.get("flower_garden_unlocked_now", false))
+		if duel_unlocked_now and flower_garden_unlocked_now:
+			_business_result_record_label.text = "地图发生了些许变化：晨露花圃已开放 · 新功能：双人料理竞速"
+		elif duel_unlocked_now:
+			_business_result_record_label.text = "新功能解锁：双人料理竞速"
+		elif flower_garden_unlocked_now:
+			_business_result_record_label.text = "地图发生了些许变化：晨露花圃已开放 · 开园礼包已入仓储"
+		elif bool(result.get("camper_drive_unlocked_now", false)):
+			_business_result_record_label.text = "地图发生了些许变化 · 新传闻：东南草坡的兔子野餐"
+		elif bool(result.get("traveler_unlocked_now", false)):
+			_business_result_record_label.text = "新访客：旅人诺亚已经来到村落"
+		elif bool(result.get("became_regular_now", false)):
+			var result_level_id := int(result.get("level_id", 0))
+			var result_site := BusinessDiscoveryCatalog.get_site(result_level_id)
+			var clue_level := int(result.get("new_clue_level", 0))
+			_business_result_record_label.text = "%s已成为老主顾" % str(result_site.get("customer_name", "顾客"))
+			if clue_level > 0:
+				_business_result_record_label.text += " · 地图发生了些许变化"
+		elif int(result.get("level_id", 0)) == 1 and (_wind_chase_intro_pending or _sifter_intro_pending):
+			_business_result_record_label.text = "新内容开启：逐风、溪流筛种、烧烤架与经营线索"
+		elif gained > 0 and previous > 0:
 			_business_result_record_label.text = "星级提升：%d星 → %d星" % [previous, stars]
 		elif gained > 0:
 			_business_result_record_label.text = "新纪录！获得 %d 星" % stars
+		elif int(result.get("level_id", 0)) == 1 and stars < 1:
+			if previous >= 1 or _kitchen_first_day_completed:
+				_business_result_record_label.text = "本次未达1星，历史最高星级与已有解锁保留"
+			else:
+				var star_orders := _business_level_star_orders(level)
+				_business_result_record_label.text = "第1关至少完成 %d/%d 单，才能开启后续内容" % [star_orders[0], order_total]
 	if _business_result_stats_label != null:
-		var star_times: Array = level.get("star_times", [])
-		var three_target := float(star_times[2]) if star_times.size() > 2 else float(level.get("duration", 120.0))
-		_business_result_stats_label.text = "本关用时：%s    3星目标：%s\n完成订单：%d/%d    获得星级：%d星\n%s" % [_format_business_result_time(elapsed), _format_business_result_time(three_target), served, order_total, stars, _business_result_rule_text(level)]
-	_fill_business_result_rewards(coin_reward, gained, popularity_reward)
+		_business_result_stats_label.text = "经营用时：%s（仅记录，不影响星级）\n完成订单：%d/%d    漏单：%d    获得星级：%d星\n%s" % [_format_business_result_time(elapsed), served, order_total, failed, stars, _business_result_rule_text(level)]
+		var flower_summary := _business_flower_gift_result_text(result.get("flower_gift_result", {}) as Dictionary, order_total)
+		if flower_summary != "":
+			_business_result_stats_label.text += "\n✿ 花礼总结：%s" % flower_summary
+	_fill_business_result_rewards(coin_reward, gained, popularity_reward, int(result.get("location_bonus_coins", 0)))
 	_fill_business_result_progress(int(result.get("old_total_stars", 0)), int(result.get("new_total_stars", 0)), result)
 	_prepare_business_result_star_labels(stars)
 	if _business_result_buttons != null:
 		_business_result_buttons.visible = false
 	_update_business_result_next_button()
+	_update_business_result_garden_button()
+	_update_business_result_duel_button()
+
+func _business_flower_gift_result_text(gift_result: Dictionary, order_total: int) -> String:
+	if str(gift_result.get("gift_id", "")) == "":
+		return ""
+	var gift_name := str(gift_result.get("gift_name", "花礼"))
+	if int(gift_result.get("bonus_coins", 0)) > 0:
+		return "%s额外获得金币 +%d" % [gift_name, int(gift_result.get("bonus_coins", 0))]
+	if int(gift_result.get("time_bonus", 0)) > 0:
+		return "%s令本场 %d 个订单初始时限 +%d秒" % [gift_name, order_total, int(gift_result.get("time_bonus", 0))]
+	if int(gift_result.get("quality_orders", 0)) > 0:
+		return "%s提升了 %d 份出餐品质" % [gift_name, int(gift_result.get("quality_orders", 0))]
+	return "%s已在本场消耗" % gift_name
 
 func _prepare_business_result_star_labels(stars: int) -> void:
 	if _business_result_star_row == null:
@@ -4508,7 +9179,7 @@ func _prepare_business_result_star_labels(stars: int) -> void:
 		star.add_theme_color_override("font_color", Color(0.55, 0.50, 0.42, 0.50))
 		star.modulate.a = 0.56
 
-func _fill_business_result_rewards(coin_reward: int, gained_stars: int, popularity_reward: int) -> void:
+func _fill_business_result_rewards(coin_reward: int, gained_stars: int, popularity_reward: int, location_bonus_coins: int = 0) -> void:
 	if _business_result_reward_box == null:
 		return
 	for child in _business_result_reward_box.get_children():
@@ -4517,6 +9188,8 @@ func _fill_business_result_rewards(coin_reward: int, gained_stars: int, populari
 	_business_result_reward_box.add_child(_create_business_result_reward_chip("金币", "+%d" % coin_reward, Color(1.0, 0.76, 0.24, 1.0)))
 	_business_result_reward_box.add_child(_create_business_result_reward_chip("星星", "+%d" % gained_stars, Color(1.0, 0.70, 0.18, 1.0)))
 	_business_result_reward_box.add_child(_create_business_result_reward_chip("人气", "+%d" % popularity_reward, Color(0.72, 0.86, 0.44, 1.0)))
+	if location_bonus_coins > 0:
+		_business_result_reward_box.add_child(_create_business_result_reward_chip("地点加成", "+%d" % location_bonus_coins, Color(0.95, 0.48, 0.20, 1.0)))
 
 func _make_business_result_texture_style(texture_path: String, patch_margin: int) -> StyleBoxTexture:
 	var style := StyleBoxTexture.new()
@@ -4564,6 +9237,8 @@ func _play_business_result_sequence(stars: int) -> void:
 	if _business_result_star_row == null:
 		return
 	await get_tree().create_timer(0.20).timeout
+	if stars > 0:
+		AudioManager.play_sfx("reward_stage")
 	for index in range(_business_result_star_row.get_child_count()):
 		var star := _business_result_star_row.get_child(index) as Label
 		if star == null:
@@ -4606,23 +9281,25 @@ func _spawn_business_star_spark(star: Control) -> void:
 func _update_business_result_next_button() -> void:
 	if _business_result_next_button == null:
 		return
-	var level_id := int(_business_result_data.get("level_id", 0))
-	var next_level := _business_level_by_id(level_id + 1)
-	if next_level.is_empty():
-		_business_result_next_button.text = "下一关"
-		_business_result_next_button.disabled = true
-		_business_result_next_button.tooltip_text = "已经是当前最后一关"
+	var clue_level := int(_business_result_data.get("new_clue_level", 0))
+	if clue_level <= 0:
+		clue_level = _active_mainline_clue_level()
+	_business_result_next_button.text = "追踪新传闻" if clue_level > 0 else "等待新传闻"
+	_business_result_next_button.disabled = clue_level <= 0
+	_business_result_next_button.tooltip_text = "回到大世界，根据任务栏方向寻找顾客" if clue_level > 0 else "尚未获得新的经营线索"
+
+func _update_business_result_garden_button() -> void:
+	if _business_result_garden_button == null:
 		return
-	var blockers := _business_level_blockers(next_level)
-	var shortages := _business_level_shortage_lines(next_level)
-	var ready := blockers.is_empty() and shortages.is_empty()
-	_business_result_next_button.text = "下一关"
-	_business_result_next_button.disabled = not ready
-	if ready:
-		_business_result_next_button.tooltip_text = ""
-	else:
-		var reasons := blockers + shortages
-		_business_result_next_button.tooltip_text = "未解锁：" + ("；".join(reasons) if not reasons.is_empty() else "条件未达成")
+	var show_garden := bool(_business_result_data.get("flower_garden_unlocked_now", false))
+	_business_result_garden_button.visible = show_garden
+	if _business_result_next_button != null:
+		_business_result_next_button.visible = not show_garden
+
+func _update_business_result_duel_button() -> void:
+	if _business_result_duel_button == null:
+		return
+	_business_result_duel_button.visible = int(_business_result_data.get("level_id", 0)) == 5 and _is_duel_unlocked()
 
 func _close_business_result_overlay() -> void:
 	if _business_result_overlay != null:
@@ -4634,25 +9311,93 @@ func _close_business_result_overlay() -> void:
 	_rebuild_business_prep_ui()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
+func _queue_sifter_guide_after_result(action: String, level_id: int) -> bool:
+	if not _should_show_sifter_unlock_guide():
+		return false
+	_sifter_intro_pending = true
+	_sifter_guide_resume_action = action
+	_sifter_guide_resume_level = level_id
+	_close_business_result_overlay()
+	call_deferred("_show_sifter_guide_after_result")
+	return true
+
+func _queue_camper_drive_note_after_result(action: String, level_id: int) -> bool:
+	if not _camper_drive_note_pending or _camper_drive_note_seen:
+		return false
+	_camper_drive_note_resume_action = action
+	_camper_drive_note_resume_level = level_id
+	_close_business_result_overlay()
+	call_deferred("_try_show_pending_camper_drive_note")
+	return true
+
 func _on_business_result_retry() -> void:
 	var level_id := int(_business_result_data.get("level_id", 0))
+	if _queue_sifter_guide_after_result("retry", level_id):
+		return
+	if _queue_camper_drive_note_after_result("retry", level_id):
+		return
 	_close_business_result_overlay()
 	if level_id > 0:
 		_start_business_level(level_id)
 
 func _on_business_result_next() -> void:
-	var level_id := int(_business_result_data.get("level_id", 0)) + 1
+	var level_id := int(_business_result_data.get("new_clue_level", 0))
+	if level_id <= 0:
+		level_id = _active_mainline_clue_level()
+	if _queue_sifter_guide_after_result("clue", level_id):
+		return
+	if _queue_camper_drive_note_after_result("clue", level_id):
+		return
 	_close_business_result_overlay()
 	if level_id > 0:
-		_start_business_level(level_id)
+		_focus_mainline_discovery_clue(level_id)
 
 func _on_business_result_return() -> void:
+	if _queue_sifter_guide_after_result("return", 0):
+		return
+	if _queue_camper_drive_note_after_result("return", 0):
+		return
 	_close_business_result_overlay()
 	_open_business_prep()
+
+func _on_business_result_garden() -> void:
+	_close_business_result_overlay()
+	if _business_prep_overlay != null:
+		_business_prep_overlay.visible = false
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
+		_flower_garden_controller.call("enter_garden", "level_result")
+
+func _on_business_result_duel() -> void:
+	_open_duel_overlay()
+
+func _open_duel_overlay() -> void:
+	if not _is_duel_unlocked():
+		return
+	if _duel_client_instance != null and is_instance_valid(_duel_client_instance):
+		return
+	_duel_previous_mouse_mode = Input.mouse_mode
+	_duel_previous_tree_paused = get_tree().paused
+	var duel := DUEL_CLIENT_SCENE.instantiate()
+	duel.name = "DuelSession"
+	if duel.has_method("configure_embedded"):
+		duel.call("configure_embedded")
+	duel.connect("duel_closed", Callable(self, "_on_duel_overlay_closed"))
+	_duel_client_instance = duel
+	get_tree().root.add_child(duel)
+	get_tree().paused = true
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+func _on_duel_overlay_closed() -> void:
+	_duel_client_instance = null
+	get_tree().paused = _duel_previous_tree_paused
+	if _camera != null and is_instance_valid(_camera):
+		_camera.current = true
+	Input.set_mouse_mode(_duel_previous_mouse_mode)
 
 func _rebuild_kitchen_equipment_grid() -> void:
 	if _kitchen_equipment_grid == null:
 		return
+	_hide_kitchen_instance_selector()
 	for child in _kitchen_equipment_grid.get_children():
 		_kitchen_equipment_grid.remove_child(child)
 		child.queue_free()
@@ -4661,32 +9406,69 @@ func _rebuild_kitchen_equipment_grid() -> void:
 		var slot := _create_kitchen_equipment_slot(equipment_id, str(equipment.get("name", "设备")))
 		_kitchen_equipment_grid.add_child(slot)
 
-func _create_kitchen_equipment_slot(equipment_id: String, equipment_name: String) -> Button:
+func _create_kitchen_equipment_slot(equipment_id: String, equipment_name: String) -> Control:
 	var unlocked := _is_kitchen_equipment_unlocked(equipment_id)
-	var slot := Button.new()
-	slot.text = equipment_name if unlocked else "锁定\n%s" % equipment_name
-	slot.custom_minimum_size = Vector2(78.0, 64.0)
-	slot.focus_mode = Control.FOCUS_NONE
-	slot.disabled = not unlocked
-	slot.add_theme_font_size_override("font_size", 12)
-	slot.add_theme_color_override("font_color", Color(0.25, 0.16, 0.07, 0.96) if unlocked else Color(0.34, 0.25, 0.14, 0.48))
-	slot.add_theme_color_override("font_disabled_color", Color(0.34, 0.25, 0.14, 0.48))
-	slot.add_theme_stylebox_override("normal", _make_paper_info_card_style("normal" if unlocked else "locked"))
-	slot.add_theme_stylebox_override("hover", _make_paper_info_card_style("hover"))
-	slot.add_theme_stylebox_override("disabled", _make_paper_info_card_style("locked"))
-	if unlocked:
-		slot.pressed.connect(_start_kitchen_equipment_placement.bind(equipment_id))
+	var level := _kitchen_quantity_level(equipment_id)
+	var placed := _kitchen_placed_count(equipment_id)
+	var upgradeable := bool(_equipment_definition(equipment_id).get("upgradeable", true))
+	var slot := PanelContainer.new()
+	slot.name = "EquipmentCard_%s" % equipment_id
+	slot.custom_minimum_size = Vector2(96.0, 86.0)
+	slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slot.add_theme_stylebox_override("panel", _make_kitchen_equipment_slot_style("normal" if unlocked else "locked"))
+
+	var content := VBoxContainer.new()
+	content.name = "CardContent"
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 5.0
+	content.offset_top = 4.0
+	content.offset_right = -5.0
+	content.offset_bottom = -4.0
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	slot.add_child(content)
+	var name_label := Label.new()
+	name_label.text = ("%s\nLv.%d  已摆 %d/%d" % [equipment_name, level, placed, level] if upgradeable else "%s\n已摆 %d/1" % [equipment_name, placed]) if unlocked else "%s\n未解锁" % equipment_name
+	name_label.custom_minimum_size = Vector2(0.0, 42.0)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.add_theme_font_size_override("font_size", 11)
+	name_label.add_theme_color_override("font_color", Color(0.24, 0.16, 0.09, 1.0) if unlocked else Color(0.34, 0.28, 0.20, 0.58))
+	content.add_child(name_label)
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 4)
+	content.add_child(actions)
+	var add_button := Button.new()
+	add_button.text = "新增"
+	add_button.custom_minimum_size = Vector2(40.0, 25.0)
+	add_button.focus_mode = Control.FOCUS_NONE
+	add_button.disabled = not unlocked or placed >= level or _kitchen_business_active
+	add_button.tooltip_text = "达到当前数量等级上限" if placed >= level else "摆放一台新的%s" % equipment_name
+	add_button.add_theme_font_size_override("font_size", 10)
+	add_button.pressed.connect(_start_kitchen_equipment_placement.bind(equipment_id))
+	actions.add_child(add_button)
+	var move_button := Button.new()
+	move_button.text = "调整"
+	move_button.custom_minimum_size = Vector2(40.0, 25.0)
+	move_button.focus_mode = Control.FOCUS_NONE
+	move_button.disabled = not unlocked or placed <= 0 or _kitchen_business_active
+	move_button.add_theme_font_size_override("font_size", 10)
+	move_button.pressed.connect(_start_kitchen_equipment_adjustment.bind(equipment_id))
+	actions.add_child(move_button)
 	return slot
 
 func _is_kitchen_equipment_unlocked(equipment_id: String) -> bool:
-	if not _chest_lesson_completed or _equipment_definition(equipment_id).is_empty():
+	if _equipment_definition(equipment_id).is_empty():
 		return false
 	if equipment_id in FIRST_DAY_KITCHEN_EQUIPMENT_IDS:
 		return true
 	if equipment_id == "grill":
-		return _opening_sign_placed
+		return _kitchen_first_day_completed
 	if equipment_id == "cutting_table":
-		return _post_tutorial_grand_reward_claimed or _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET) > 0 or int(_kitchen_upgrade_levels.get(equipment_id, 1)) >= 2
+		return _kitchen_first_day_completed or _post_tutorial_grand_reward_claimed or _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET) > 0 or _kitchen_quantity_level(equipment_id) >= 2
+	if equipment_id == "research_table":
+		return _research_table_unlocked
 	return false
 
 func _is_kitchen_phase_unlocked() -> bool:
@@ -4694,7 +9476,7 @@ func _is_kitchen_phase_unlocked() -> bool:
 		return false
 	if _kitchen_intro_completed or _kitchen_first_day_completed or _post_tutorial_grand_reward_claimed or _opening_sign_placed:
 		return true
-	return _chest_lesson_completed and not _placed_food_chests.is_empty() and _has_stored_first_kitchen_carrots_once()
+	return _has_stored_first_kitchen_carrots_once()
 
 func _is_business_prep_entry_unlocked() -> bool:
 	return _kitchen_intro_completed or _kitchen_first_day_completed or _opening_sign_placed
@@ -4709,10 +9491,10 @@ func _create_kitchen_button(root: Control) -> void:
 	_kitchen_button.anchor_top = 1.0
 	_kitchen_button.anchor_right = 1.0
 	_kitchen_button.anchor_bottom = 1.0
-	_kitchen_button.offset_left = -236.0
-	_kitchen_button.offset_top = -136.0
-	_kitchen_button.offset_right = -126.0
-	_kitchen_button.offset_bottom = -84.0
+	_kitchen_button.offset_left = -320.0
+	_kitchen_button.offset_top = -78.0
+	_kitchen_button.offset_right = -210.0
+	_kitchen_button.offset_bottom = -38.0
 	_kitchen_button.focus_mode = Control.FOCUS_NONE
 	_apply_corner_action_button_style(_kitchen_button)
 	_kitchen_button.pressed.connect(_on_kitchen_button_pressed)
@@ -4728,57 +9510,81 @@ func _create_warehouse_ui(root: Control) -> void:
 	_warehouse_button.anchor_top = 1.0
 	_warehouse_button.anchor_right = 1.0
 	_warehouse_button.anchor_bottom = 1.0
-	_warehouse_button.offset_left = -118.0
-	_warehouse_button.offset_top = -136.0
-	_warehouse_button.offset_right = -8.0
-	_warehouse_button.offset_bottom = -84.0
+	_warehouse_button.offset_left = -202.0
+	_warehouse_button.offset_top = -78.0
+	_warehouse_button.offset_right = -92.0
+	_warehouse_button.offset_bottom = -38.0
 	_warehouse_button.focus_mode = Control.FOCUS_NONE
 	_apply_corner_action_button_style(_warehouse_button)
 	_warehouse_button.pressed.connect(_open_warehouse_panel)
 	root.add_child(_warehouse_button)
 
+	_warehouse_modal_root = Control.new()
+	_warehouse_modal_root.name = "WarehouseModalRoot"
+	_warehouse_modal_root.visible = false
+	_warehouse_modal_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_warehouse_modal_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_warehouse_modal_root.z_index = 25
+	root.add_child(_warehouse_modal_root)
+
 	_warehouse_panel = PanelContainer.new()
 	_warehouse_panel.name = "WarehousePanel"
-	_warehouse_panel.visible = false
-	_warehouse_panel.anchor_left = 1.0
-	_warehouse_panel.anchor_top = 1.0
-	_warehouse_panel.anchor_right = 1.0
-	_warehouse_panel.anchor_bottom = 1.0
-	_warehouse_panel.offset_left = -522.0
-	_warehouse_panel.offset_top = -378.0
-	_warehouse_panel.offset_right = -238.0
-	_warehouse_panel.offset_bottom = -104.0
+	_warehouse_panel.anchor_left = 0.5
+	_warehouse_panel.anchor_top = 0.5
+	_warehouse_panel.anchor_right = 0.5
+	_warehouse_panel.anchor_bottom = 0.5
+	_warehouse_panel.offset_left = -380.0
+	_warehouse_panel.offset_top = -250.0
+	_warehouse_panel.offset_right = 380.0
+	_warehouse_panel.offset_bottom = 250.0
 	_warehouse_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_warehouse_panel.add_theme_stylebox_override("panel", _make_notice_board_style())
-	root.add_child(_warehouse_panel)
+	_warehouse_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	_warehouse_modal_root.add_child(_warehouse_panel)
+	var warehouse_layer := Control.new()
+	warehouse_layer.name = "WarehouseLayer"
+	_warehouse_panel.add_child(warehouse_layer)
 
-	var warehouse_box := VBoxContainer.new()
-	warehouse_box.name = "WarehouseBox"
+	var cabinet_art := TextureRect.new()
+	cabinet_art.name = "CabinetArt"
+	cabinet_art.texture = _load_ui_texture(WAREHOUSE_CABINET_PATH)
+	cabinet_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cabinet_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	cabinet_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	cabinet_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	warehouse_layer.add_child(cabinet_art)
+
+	var warehouse_box := Control.new()
+	warehouse_box.name = "WarehouseContent"
 	warehouse_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	warehouse_box.offset_left = 14.0
-	warehouse_box.offset_top = 12.0
-	warehouse_box.offset_right = -14.0
-	warehouse_box.offset_bottom = -12.0
-	warehouse_box.add_theme_constant_override("separation", 8)
-	_warehouse_panel.add_child(warehouse_box)
+	warehouse_box.offset_left = 188.0
+	warehouse_box.offset_top = 34.0
+	warehouse_box.offset_right = -188.0
+	warehouse_box.offset_bottom = -54.0
+	warehouse_layer.add_child(warehouse_box)
 
 	var header := HBoxContainer.new()
+	header.name = "Header"
+	header.anchor_right = 1.0
+	header.offset_bottom = 50.0
 	header.add_theme_constant_override("separation", 8)
 	warehouse_box.add_child(header)
 
 	var title := Label.new()
 	title.text = "仓库"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(0.24, 0.16, 0.07))
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(0.24, 0.14, 0.05))
+	title.add_theme_color_override("font_shadow_color", Color(1.0, 0.91, 0.65, 0.74))
+	title.add_theme_constant_override("shadow_offset_y", 2)
 	header.add_child(title)
 
 	var close_button := Button.new()
 	close_button.text = "×"
-	close_button.custom_minimum_size = Vector2(30.0, 28.0)
+	close_button.custom_minimum_size = Vector2(38.0, 34.0)
 	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.add_theme_font_size_override("font_size", 18)
+	close_button.add_theme_font_size_override("font_size", 20)
 	close_button.add_theme_color_override("font_color", Color(0.32, 0.20, 0.08))
 	close_button.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.68, 0.78), Color(0.72, 0.52, 0.25, 0.45), 10.0, 1))
 	close_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.94, 0.76, 0.95), Color(0.72, 0.52, 0.25, 0.68), 10.0, 1))
@@ -4787,7 +9593,11 @@ func _create_warehouse_ui(root: Control) -> void:
 
 	var tabs := HBoxContainer.new()
 	tabs.name = "Tabs"
-	tabs.add_theme_constant_override("separation", 8)
+	tabs.anchor_top = 0.0
+	tabs.anchor_right = 1.0
+	tabs.offset_top = 55.0
+	tabs.offset_bottom = 91.0
+	tabs.add_theme_constant_override("separation", 10)
 	warehouse_box.add_child(tabs)
 
 	var decor_tab := _create_warehouse_tab_button("装饰", "decor")
@@ -4795,22 +9605,52 @@ func _create_warehouse_ui(root: Control) -> void:
 	var ticket_tab := _create_warehouse_tab_button("解锁", "ticket")
 	tabs.add_child(ticket_tab)
 
+	_warehouse_scroll = ScrollContainer.new()
+	_warehouse_scroll.name = "WarehouseScroll"
+	_warehouse_scroll.anchor_right = 1.0
+	_warehouse_scroll.anchor_bottom = 1.0
+	_warehouse_scroll.offset_top = 100.0
+	_warehouse_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_warehouse_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_warehouse_scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	warehouse_box.add_child(_warehouse_scroll)
+
 	_warehouse_grid = GridContainer.new()
 	_warehouse_grid.name = "WarehouseGrid"
 	_warehouse_grid.columns = 2
-	_warehouse_grid.add_theme_constant_override("h_separation", 8)
-	_warehouse_grid.add_theme_constant_override("v_separation", 8)
-	warehouse_box.add_child(_warehouse_grid)
+	_warehouse_grid.custom_minimum_size = Vector2(374.0, 0.0)
+	_warehouse_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_warehouse_grid.add_theme_constant_override("h_separation", 10)
+	_warehouse_grid.add_theme_constant_override("v_separation", 10)
+	_warehouse_scroll.add_child(_warehouse_grid)
 	_rebuild_warehouse_panel()
 
 func _create_warehouse_tab_button(label_text: String, tab_id: String) -> Button:
 	var tab := Button.new()
 	tab.name = "Tab_%s" % tab_id
 	tab.text = label_text
-	tab.custom_minimum_size = Vector2(76.0, 28.0)
+	tab.custom_minimum_size = Vector2(182.0, 34.0)
+	tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab.focus_mode = Control.FOCUS_NONE
-	tab.add_theme_font_size_override("font_size", 13)
+	tab.add_theme_font_size_override("font_size", 15)
 	tab.pressed.connect(_set_warehouse_tab.bind(tab_id))
+	_warehouse_tab_buttons[tab_id] = tab
+	var badge := Label.new()
+	badge.name = "NewBadge"
+	badge.text = "●"
+	badge.visible = false
+	badge.anchor_left = 1.0
+	badge.anchor_right = 1.0
+	badge.offset_left = -20.0
+	badge.offset_top = 1.0
+	badge.offset_right = -4.0
+	badge.offset_bottom = 18.0
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.add_theme_font_size_override("font_size", 15)
+	badge.add_theme_color_override("font_color", Color(0.94, 0.20, 0.10, 1.0))
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tab.add_child(badge)
+	_warehouse_tab_badges[tab_id] = badge
 	return tab
 
 func _create_opening_package_reward_panel(root: Control) -> void:
@@ -4821,22 +9661,22 @@ func _create_opening_package_reward_panel(root: Control) -> void:
 	_opening_package_reward_panel.anchor_top = 0.5
 	_opening_package_reward_panel.anchor_right = 0.5
 	_opening_package_reward_panel.anchor_bottom = 0.5
-	_opening_package_reward_panel.offset_left = -190.0
-	_opening_package_reward_panel.offset_top = -118.0
-	_opening_package_reward_panel.offset_right = 190.0
-	_opening_package_reward_panel.offset_bottom = 118.0
+	_opening_package_reward_panel.offset_left = -270.0
+	_opening_package_reward_panel.offset_top = -180.0
+	_opening_package_reward_panel.offset_right = 270.0
+	_opening_package_reward_panel.offset_bottom = 180.0
 	_opening_package_reward_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_opening_package_reward_panel.z_index = 18
+	_opening_package_reward_panel.z_index = 82
 	_opening_package_reward_panel.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.91, 0.68, 0.95), Color(0.86, 0.67, 0.34, 1.0), 18.0, 1))
 	root.add_child(_opening_package_reward_panel)
 
 	var panel_box := VBoxContainer.new()
 	panel_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel_box.offset_left = 18.0
-	panel_box.offset_top = 14.0
-	panel_box.offset_right = -18.0
-	panel_box.offset_bottom = -16.0
-	panel_box.add_theme_constant_override("separation", 10)
+	panel_box.offset_left = 26.0
+	panel_box.offset_top = 20.0
+	panel_box.offset_right = -26.0
+	panel_box.offset_bottom = -22.0
+	panel_box.add_theme_constant_override("separation", 12)
 	_opening_package_reward_panel.add_child(panel_box)
 
 	var header := HBoxContainer.new()
@@ -4844,9 +9684,10 @@ func _create_opening_package_reward_panel(root: Control) -> void:
 	panel_box.add_child(header)
 
 	var title := Label.new()
-	title.text = "房车开业礼"
+	title.text = "开业礼包已领取！"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 19)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.25, 0.16, 0.06))
 	header.add_child(title)
 
@@ -4861,20 +9702,34 @@ func _create_opening_package_reward_panel(root: Control) -> void:
 	close_button.pressed.connect(_close_opening_package_reward_panel)
 	header.add_child(close_button)
 
-	var body := Label.new()
-	body.name = "RewardBody"
-	body.text = "个人金币 x150\n合作金币 x20\n豌豆种子 x3\n房车开业小木牌已放入仓库\n简易料理台 Lv2 解锁券已获得"
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_theme_font_size_override("font_size", 15)
-	body.add_theme_color_override("font_color", Color(0.29, 0.18, 0.07))
-	panel_box.add_child(body)
+	_opening_package_reward_body = Label.new()
+	_opening_package_reward_body.name = "RewardBody"
+	_opening_package_reward_body.text = "个人金币 +150  → 顶部个人金币\n合作金币 +20  → 顶部合作金币\n豌豆种子 x3  → 背包\n房车开业小木牌 x1  → 仓库·装饰\n料理台 Lv2 解锁券 x1  → 仓库·解锁"
+	_opening_package_reward_body.custom_minimum_size = Vector2(0.0, 190.0)
+	_opening_package_reward_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_opening_package_reward_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_opening_package_reward_body.add_theme_font_size_override("font_size", 17)
+	_opening_package_reward_body.add_theme_color_override("font_color", Color(0.29, 0.18, 0.07))
+	panel_box.add_child(_opening_package_reward_body)
 
-	var hint := Label.new()
-	hint.text = "去仓库的装饰页签，把小木牌摆在房车旁边吧！"
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.add_theme_font_size_override("font_size", 13)
-	hint.add_theme_color_override("font_color", Color(0.52, 0.32, 0.10))
-	panel_box.add_child(hint)
+	var button_row := HBoxContainer.new()
+	button_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	button_row.add_theme_constant_override("separation", 14)
+	panel_box.add_child(button_row)
+
+	var warehouse_button := Button.new()
+	warehouse_button.text = "查看仓库"
+	warehouse_button.custom_minimum_size = Vector2(180.0, 46.0)
+	_apply_kitchen_parchment_button_style(warehouse_button, 16)
+	warehouse_button.pressed.connect(_on_opening_package_view_warehouse_pressed)
+	button_row.add_child(warehouse_button)
+
+	var accept_button := Button.new()
+	accept_button.text = "收下"
+	accept_button.custom_minimum_size = Vector2(140.0, 46.0)
+	_apply_kitchen_parchment_button_style(accept_button, 16)
+	accept_button.pressed.connect(_close_opening_package_reward_panel)
+	button_row.add_child(accept_button)
 
 func _create_opening_sign_status_panel(root: Control) -> void:
 	_opening_sign_status_panel = PanelContainer.new()
@@ -4936,33 +9791,34 @@ func _create_kitchen_status_ui(root: Control) -> void:
 	_kitchen_status_panel = PanelContainer.new()
 	_kitchen_status_panel.name = "KitchenStatusPanel"
 	_kitchen_status_panel.visible = false
-	_kitchen_status_panel.anchor_left = 0.0
+	_kitchen_status_panel.anchor_left = 1.0
 	_kitchen_status_panel.anchor_top = 0.0
-	_kitchen_status_panel.anchor_right = 0.0
+	_kitchen_status_panel.anchor_right = 1.0
 	_kitchen_status_panel.anchor_bottom = 0.0
-	_kitchen_status_panel.offset_left = 18.0
-	_kitchen_status_panel.offset_top = 46.0
-	_kitchen_status_panel.offset_right = 398.0
-	_kitchen_status_panel.offset_bottom = 338.0
+	_kitchen_status_panel.offset_left = -316.0
+	_kitchen_status_panel.offset_top = 122.0
+	_kitchen_status_panel.offset_right = -16.0
+	_kitchen_status_panel.offset_bottom = 472.0
 	# 订单提示只作展示，不能抢走鼠标事件，否则鼠标停在面板上会无法转动视角。
 	_kitchen_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_kitchen_status_panel.add_theme_stylebox_override("panel", _make_notice_board_style())
+	_kitchen_status_panel.add_theme_stylebox_override("panel", _make_kitchen_order_board_style())
 	root.add_child(_kitchen_status_panel)
 
 	var box := VBoxContainer.new()
 	box.name = "KitchenStatusBox"
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = 12.0
-	box.offset_top = 10.0
-	box.offset_right = -12.0
-	box.offset_bottom = -10.0
-	box.add_theme_constant_override("separation", 6)
+	box.offset_left = 0.0
+	box.offset_top = 0.0
+	box.offset_right = 0.0
+	box.offset_bottom = 0.0
+	box.add_theme_constant_override("separation", 7)
 	_kitchen_status_panel.add_child(box)
 
 	var header := HBoxContainer.new()
 	header.name = "KitchenStatusHeader"
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.custom_minimum_size = Vector2(0.0, 24.0)
 	header.add_theme_constant_override("separation", 8)
 	box.add_child(header)
 
@@ -4970,6 +9826,7 @@ func _create_kitchen_status_ui(root: Control) -> void:
 	_kitchen_status_timer_label.name = "Timer"
 	_kitchen_status_timer_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_kitchen_status_timer_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_kitchen_status_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_kitchen_status_timer_label.add_theme_font_size_override("font_size", _business_ui_font_size(14))
 	_kitchen_status_timer_label.add_theme_color_override("font_color", Color(0.23, 0.13, 0.05))
 	header.add_child(_kitchen_status_timer_label)
@@ -4978,6 +9835,7 @@ func _create_kitchen_status_ui(root: Control) -> void:
 	_kitchen_status_label.name = "Stats"
 	_kitchen_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_kitchen_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_kitchen_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_kitchen_status_label.add_theme_font_size_override("font_size", _business_ui_font_size(12))
 	_kitchen_status_label.add_theme_color_override("font_color", Color(0.34, 0.18, 0.07))
 	header.add_child(_kitchen_status_label)
@@ -4986,14 +9844,17 @@ func _create_kitchen_status_ui(root: Control) -> void:
 	_kitchen_order_scroll.name = "OrderScroll"
 	_kitchen_order_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_kitchen_order_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_kitchen_order_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 订单列表固定在公告板上方的羊皮纸区域；超过可视区域时可直接滚轮查看。
+	_kitchen_order_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_kitchen_order_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_kitchen_order_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	box.add_child(_kitchen_order_scroll)
 
 	_kitchen_order_list = VBoxContainer.new()
 	_kitchen_order_list.name = "OrderList"
 	_kitchen_order_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_kitchen_order_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_kitchen_order_list.add_theme_constant_override("separation", 8)
+	_kitchen_order_list.add_theme_constant_override("separation", 7)
 	_kitchen_order_scroll.add_child(_kitchen_order_list)
 
 func _create_held_crop_quality_panel(root: Control) -> void:
@@ -5005,20 +9866,51 @@ func _create_held_crop_quality_panel(root: Control) -> void:
 	_held_crop_quality_panel.anchor_right = 0.0
 	_held_crop_quality_panel.anchor_bottom = 0.0
 	_held_crop_quality_panel.offset_left = 18.0
-	_held_crop_quality_panel.offset_top = 18.0
-	_held_crop_quality_panel.offset_right = 258.0
-	_held_crop_quality_panel.offset_bottom = 62.0
+	_held_crop_quality_panel.offset_top = 72.0
+	_held_crop_quality_panel.offset_right = 278.0
+	_held_crop_quality_panel.offset_bottom = 116.0
 	_held_crop_quality_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_held_crop_quality_panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.92, 0.80, 0.56, 0.90), Color(1.0, 0.95, 0.72, 0.96), 12.0, 1))
+	_held_crop_quality_panel.z_index = 3
+	var card_style := StyleBoxFlat.new()
+	card_style.bg_color = Color(0.96, 0.91, 0.79, 0.97)
+	card_style.border_color = Color(0.43, 0.31, 0.18, 0.90)
+	card_style.set_border_width_all(2)
+	card_style.set_corner_radius_all(6)
+	card_style.content_margin_left = 10.0
+	card_style.content_margin_top = 5.0
+	card_style.content_margin_right = 10.0
+	card_style.content_margin_bottom = 5.0
+	card_style.shadow_color = Color(0.20, 0.13, 0.07, 0.20)
+	card_style.shadow_size = 2
+	card_style.shadow_offset = Vector2(0.0, 2.0)
+	_held_crop_quality_panel.add_theme_stylebox_override("panel", card_style)
 	root.add_child(_held_crop_quality_panel)
 
+	var row := HBoxContainer.new()
+	row.name = "StatusRow"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 8)
+	_held_crop_quality_panel.add_child(row)
+
 	_held_crop_quality_label = Label.new()
-	_held_crop_quality_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_held_crop_quality_label.name = "ItemAndQuality"
+	_held_crop_quality_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_held_crop_quality_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_held_crop_quality_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_held_crop_quality_label.add_theme_font_size_override("font_size", 18)
-	_held_crop_quality_label.add_theme_color_override("font_color", Color(0.25, 0.17, 0.08))
-	_held_crop_quality_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_held_crop_quality_panel.add_child(_held_crop_quality_label)
+	_held_crop_quality_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_held_crop_quality_label.add_theme_font_size_override("font_size", 13)
+	_held_crop_quality_label.add_theme_color_override("font_color", Color(0.27, 0.18, 0.10))
+	row.add_child(_held_crop_quality_label)
+
+	_held_crop_freshness_label = Label.new()
+	_held_crop_freshness_label.name = "Freshness"
+	_held_crop_freshness_label.custom_minimum_size = Vector2(84.0, 0.0)
+	_held_crop_freshness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_held_crop_freshness_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_held_crop_freshness_label.add_theme_font_size_override("font_size", 13)
+	_held_crop_freshness_label.add_theme_color_override("font_color", Color(0.53, 0.27, 0.10))
+	row.add_child(_held_crop_freshness_label)
+	_layout_left_status_stack(false)
 
 func _create_post_tutorial_objective(root: Control) -> void:
 	_post_tutorial_objective = Control.new()
@@ -5043,6 +9935,16 @@ func _create_post_tutorial_objective(root: Control) -> void:
 	compact_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	compact_backdrop.add_theme_stylebox_override("panel", _make_round_style(Color(0.94, 0.88, 0.73, 0.96), Color(0.57, 0.43, 0.27, 0.94), 6.0, 2))
 	_post_tutorial_objective.add_child(compact_backdrop)
+
+	var compact_art := TextureRect.new()
+	compact_art.name = "TaskCompactArt"
+	compact_art.texture = _load_ui_texture(TASK_TAB_PATH)
+	compact_art.visible = false
+	compact_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	compact_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	compact_art.stretch_mode = TextureRect.STRETCH_SCALE
+	compact_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_post_tutorial_objective.add_child(compact_art)
 
 	_post_tutorial_board_art = TextureRect.new()
 	_post_tutorial_board_art.name = "TaskBoardArt"
@@ -5212,7 +10114,8 @@ func _create_post_tutorial_dropdown() -> void:
 	_post_tutorial_dropdown = Control.new()
 	_post_tutorial_dropdown.name = "OpeningPackageDropdown"
 	_post_tutorial_dropdown.visible = false
-	_post_tutorial_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
+	_post_tutorial_dropdown.clip_contents = true
+	_post_tutorial_dropdown.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_post_tutorial_dropdown.anchor_left = 1.0
 	_post_tutorial_dropdown.anchor_top = 0.0
 	_post_tutorial_dropdown.anchor_right = 1.0
@@ -5222,31 +10125,51 @@ func _create_post_tutorial_dropdown() -> void:
 	_post_tutorial_dropdown.offset_right = 0.0
 	_post_tutorial_dropdown.offset_bottom = 236.0
 	_post_tutorial_dropdown.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.92, 0.72, 0.82), Color(0.86, 0.70, 0.42, 0.82), 14.0, 1))
-	_post_tutorial_dropdown.gui_input.connect(_on_post_tutorial_dropdown_input)
 	_post_tutorial_objective.add_child(_post_tutorial_dropdown)
 
-	var box := VBoxContainer.new()
+	var box := Control.new()
 	box.name = "DropdownContent"
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.offset_left = 12.0
 	box.offset_top = 10.0
 	box.offset_right = -12.0
 	box.offset_bottom = -12.0
-	box.add_theme_constant_override("separation", 5)
 	_post_tutorial_dropdown.add_child(box)
+
+	var scroll := ScrollContainer.new()
+	scroll.name = "OpeningPackageScroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	box.add_child(scroll)
+
+	var scroll_content := VBoxContainer.new()
+	scroll_content.name = "ScrollContent"
+	scroll_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(scroll_content)
 
 	_post_tutorial_dropdown_label = Label.new()
 	_post_tutorial_dropdown_label.name = "DropdownText"
 	_post_tutorial_dropdown_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_post_tutorial_dropdown_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_post_tutorial_dropdown_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_post_tutorial_dropdown_label.add_theme_font_size_override("font_size", 12)
 	_post_tutorial_dropdown_label.add_theme_color_override("font_color", Color(0.26, 0.17, 0.07, 0.98))
-	box.add_child(_post_tutorial_dropdown_label)
+	_post_tutorial_dropdown_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scroll_content.add_child(_post_tutorial_dropdown_label)
 
 	_post_tutorial_claim_button = Button.new()
 	_post_tutorial_claim_button.name = "ClaimOpeningPackage"
 	_post_tutorial_claim_button.text = "领取"
-	_post_tutorial_claim_button.custom_minimum_size = Vector2(0.0, 30.0)
+	_post_tutorial_claim_button.custom_minimum_size = Vector2(108.0, 32.0)
+	_post_tutorial_claim_button.anchor_left = 0.5
+	_post_tutorial_claim_button.anchor_top = 1.0
+	_post_tutorial_claim_button.anchor_right = 0.5
+	_post_tutorial_claim_button.anchor_bottom = 1.0
+	_post_tutorial_claim_button.offset_left = -54.0
+	_post_tutorial_claim_button.offset_top = -36.0
+	_post_tutorial_claim_button.offset_right = 54.0
+	_post_tutorial_claim_button.offset_bottom = -4.0
 	_post_tutorial_claim_button.focus_mode = Control.FOCUS_NONE
 	_post_tutorial_claim_button.add_theme_font_size_override("font_size", 14)
 	_post_tutorial_claim_button.add_theme_color_override("font_color", Color(0.25, 0.15, 0.05))
@@ -5296,111 +10219,222 @@ func _create_rebas_shop(root: Control) -> void:
 	_shop_overlay.visible = false
 	_shop_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_shop_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_shop_overlay.z_index = 100
 	root.add_child(_shop_overlay)
 
 	var dim := ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.22)
+	dim.name = "ShopDim"
+	dim.color = Color(0.08, 0.06, 0.04, 0.46)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_shop_overlay.add_child(dim)
 
-	var panel := PanelContainer.new()
-	panel.name = "ShopPanel"
-	panel.anchor_left = 0.12
-	panel.anchor_top = 0.10
-	panel.anchor_right = 0.88
-	panel.anchor_bottom = 0.88
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.92, 0.80, 0.58, 0.96), Color(1.0, 0.94, 0.70, 1.0), 12.0, 2))
-	_shop_overlay.add_child(panel)
+	_shop_panel = Control.new()
+	_shop_panel.name = "ShopPanel"
+	_shop_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_shop_overlay.add_child(_shop_panel)
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 14)
-	panel.add_child(margin)
-
-	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 10)
-	margin.add_child(layout)
-
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 14)
-	layout.add_child(header)
+	var panel_art := TextureRect.new()
+	panel_art.name = "ShopPanelArt"
+	panel_art.texture = _load_ui_texture(REBAS_SHOP_PANEL_PATH)
+	panel_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	panel_art.stretch_mode = TextureRect.STRETCH_SCALE
+	panel_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shop_panel.add_child(panel_art)
 
 	var title := Label.new()
+	title.name = "ShopTitle"
 	title.text = "%s的交换商店" % REBAS_NAME
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(0.24, 0.16, 0.08))
-	header.add_child(title)
-
-	_shop_coin_label = Label.new()
-	_shop_coin_label.add_theme_font_size_override("font_size", 20)
-	_shop_coin_label.add_theme_color_override("font_color", Color(0.36, 0.24, 0.08))
-	header.add_child(_shop_coin_label)
+	title.anchor_left = 0.30
+	title.anchor_top = 0.045
+	title.anchor_right = 0.70
+	title.anchor_bottom = 0.205
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.add_theme_font_size_override("font_size", 27)
+	title.add_theme_color_override("font_color", Color(0.26, 0.14, 0.055, 1.0))
+	title.add_theme_color_override("font_shadow_color", Color(1.0, 0.82, 0.44, 0.28))
+	title.add_theme_constant_override("shadow_offset_y", 2)
+	_shop_panel.add_child(title)
 
 	var close_button := Button.new()
-	close_button.text = "关闭"
-	close_button.custom_minimum_size = Vector2(72.0, 34.0)
-	close_button.add_theme_font_size_override("font_size", 16)
+	close_button.name = "ShopCloseButton"
+	close_button.text = "×"
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.anchor_left = 0.895
+	close_button.anchor_top = 0.075
+	close_button.anchor_right = 0.955
+	close_button.anchor_bottom = 0.075
+	close_button.offset_bottom = 42.0
+	close_button.add_theme_font_size_override("font_size", 24)
+	close_button.add_theme_color_override("font_color", Color(1.0, 0.94, 0.78, 1.0))
+	close_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.38, 0.23, 0.12, 0.96), Color(0.82, 0.58, 0.26, 0.96), 12.0, 2))
+	close_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.58, 0.29, 0.14, 1.0), Color(1.0, 0.76, 0.34, 1.0), 12.0, 2))
+	close_button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.29, 0.16, 0.09, 1.0), Color(0.70, 0.43, 0.20, 1.0), 12.0, 2))
 	close_button.pressed.connect(_close_rebas_shop)
-	header.add_child(close_button)
+	_shop_panel.add_child(close_button)
+
+	var body := VBoxContainer.new()
+	body.name = "ShopBody"
+	body.anchor_left = 0.15
+	body.anchor_top = 0.225
+	body.anchor_right = 0.85
+	body.anchor_bottom = 0.74
+	body.add_theme_constant_override("separation", 7)
+	_shop_panel.add_child(body)
+
+	var header := HBoxContainer.new()
+	header.name = "ShopStatusHeader"
+	header.custom_minimum_size = Vector2(0.0, 34.0)
+	header.add_theme_constant_override("separation", 10)
+	body.add_child(header)
+
+	_shop_coin_label = Label.new()
+	_shop_coin_label.name = "ShopCoinLabel"
+	_shop_coin_label.custom_minimum_size = Vector2(166.0, 32.0)
+	_shop_coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shop_coin_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shop_coin_label.add_theme_font_size_override("font_size", 17)
+	_shop_coin_label.add_theme_color_override("font_color", Color(0.32, 0.19, 0.06, 1.0))
+	_shop_coin_label.add_theme_stylebox_override("normal", _make_round_style(Color(0.98, 0.86, 0.57, 0.92), Color(0.68, 0.43, 0.16, 0.86), 16.0, 1))
+	header.add_child(_shop_coin_label)
 
 	_shop_refresh_label = Label.new()
-	_shop_refresh_label.add_theme_font_size_override("font_size", 16)
-	_shop_refresh_label.add_theme_color_override("font_color", Color(0.34, 0.27, 0.18))
-	layout.add_child(_shop_refresh_label)
+	_shop_refresh_label.name = "ShopRefreshLabel"
+	_shop_refresh_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_shop_refresh_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_shop_refresh_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shop_refresh_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_shop_refresh_label.add_theme_font_size_override("font_size", 14)
+	_shop_refresh_label.add_theme_color_override("font_color", Color(0.40, 0.29, 0.14, 0.96))
+	_shop_refresh_label.tooltip_text = "商店每日 05:00 刷新"
+	header.add_child(_shop_refresh_label)
+	var header_right_spacer := Control.new()
+	header_right_spacer.custom_minimum_size = Vector2(34.0, 0.0)
+	header.add_child(header_right_spacer)
 
 	var tabs := HBoxContainer.new()
+	tabs.name = "ShopTabs"
 	tabs.add_theme_constant_override("separation", 8)
-	layout.add_child(tabs)
-	_shop_tab_sell = _create_shop_tab_button("出售", "sell")
-	_shop_tab_buy = _create_shop_tab_button("购买", "buy")
+	body.add_child(tabs)
+	_shop_tab_sell = _create_shop_tab_button("出售食材", "sell")
+	_shop_tab_buy = _create_shop_tab_button("购买种子", "buy")
 	tabs.add_child(_shop_tab_sell)
 	tabs.add_child(_shop_tab_buy)
 
 	var scroll := ScrollContainer.new()
+	scroll.name = "ShopScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	layout.add_child(scroll)
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	body.add_child(scroll)
 
 	_shop_grid = GridContainer.new()
+	_shop_grid.name = "ShopGrid"
 	_shop_grid.columns = 4
 	_shop_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_shop_grid.add_theme_constant_override("h_separation", 10)
-	_shop_grid.add_theme_constant_override("v_separation", 10)
+	_shop_grid.add_theme_constant_override("h_separation", 8)
+	_shop_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(_shop_grid)
 
 	var footer := HBoxContainer.new()
-	footer.add_theme_constant_override("separation", 12)
-	layout.add_child(footer)
+	footer.name = "ShopFooter"
+	footer.anchor_left = 0.21
+	footer.anchor_top = 0.75
+	footer.anchor_right = 0.72
+	footer.anchor_bottom = 0.825
+	footer.alignment = BoxContainer.ALIGNMENT_CENTER
+	footer.add_theme_constant_override("separation", 10)
+	_shop_panel.add_child(footer)
 
 	_shop_select_all = CheckBox.new()
-	_shop_select_all.text = "一键勾选可出售"
-	_shop_select_all.add_theme_font_size_override("font_size", 16)
+	_shop_select_all.name = "ShopSelectAll"
+	_shop_select_all.text = "全选"
+	_shop_select_all.tooltip_text = "选择食材箱内所有可出售食材"
+	_shop_select_all.focus_mode = Control.FOCUS_NONE
+	_shop_select_all.add_theme_font_size_override("font_size", 13)
+	_shop_select_all.add_theme_color_override("font_color", Color(0.31, 0.20, 0.09, 1.0))
 	_shop_select_all.toggled.connect(_on_shop_select_all_toggled)
 	footer.add_child(_shop_select_all)
 
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	footer.add_child(spacer)
+	_shop_summary_label = Label.new()
+	_shop_summary_label.name = "ShopSummary"
+	_shop_summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_shop_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shop_summary_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shop_summary_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_shop_summary_label.add_theme_font_size_override("font_size", 12)
+	_shop_summary_label.add_theme_color_override("font_color", Color(0.33, 0.21, 0.09, 1.0))
+	footer.add_child(_shop_summary_label)
 
 	_shop_action_button = Button.new()
-	_shop_action_button.text = "出售"
-	_shop_action_button.custom_minimum_size = Vector2(180.0, 44.0)
-	_shop_action_button.add_theme_font_size_override("font_size", 20)
+	_shop_action_button.name = "ShopActionButton"
+	_shop_action_button.text = "确认出售"
+	_shop_action_button.custom_minimum_size = Vector2(144.0, 38.0)
+	_shop_action_button.focus_mode = Control.FOCUS_NONE
+	_shop_action_button.add_theme_font_size_override("font_size", 16)
+	_shop_action_button.add_theme_color_override("font_color", Color(1.0, 0.95, 0.80, 1.0))
+	_shop_action_button.add_theme_color_override("font_disabled_color", Color(0.52, 0.46, 0.36, 0.78))
+	_shop_action_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.42, 0.31, 0.17, 1.0), Color(0.24, 0.16, 0.08, 1.0), 8.0, 2))
+	_shop_action_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.58, 0.39, 0.19, 1.0), Color(0.32, 0.20, 0.08, 1.0), 8.0, 2))
+	_shop_action_button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.31, 0.22, 0.13, 1.0), Color(0.20, 0.13, 0.07, 1.0), 8.0, 2))
+	_shop_action_button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.56, 0.51, 0.43, 0.52), Color(0.39, 0.34, 0.28, 0.45), 8.0, 1))
 	_shop_action_button.pressed.connect(_execute_shop_action)
 	footer.add_child(_shop_action_button)
+	_layout_rebas_shop(true)
+	_update_shop_summary()
 
 func _create_shop_tab_button(text: String, mode: String) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(120.0, 38.0)
-	button.add_theme_font_size_override("font_size", 18)
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(138.0, 34.0)
+	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_color_override("font_color", Color(0.38, 0.24, 0.09, 1.0))
+	button.add_theme_color_override("font_pressed_color", Color(1.0, 0.94, 0.74, 1.0))
+	button.add_theme_stylebox_override("normal", _make_round_style(Color(0.90, 0.75, 0.47, 0.82), Color(0.57, 0.36, 0.15, 0.82), 7.0, 1))
+	button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.84, 0.53, 0.96), Color(0.70, 0.44, 0.18, 0.94), 7.0, 2))
+	button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.46, 0.31, 0.16, 1.0), Color(0.27, 0.17, 0.08, 1.0), 7.0, 2))
 	button.pressed.connect(_set_shop_mode.bind(mode))
 	return button
+
+func _layout_rebas_shop(force: bool = false) -> void:
+	if _shop_panel == null or not is_instance_valid(_shop_panel):
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	var signature := "%s" % viewport_size
+	if not force and signature == _shop_layout_signature:
+		return
+	_shop_layout_signature = signature
+	var available := Vector2(maxf(viewport_size.x - 32.0, 1.0), maxf(viewport_size.y - 24.0, 1.0))
+	var scale_factor := minf(available.x / 1600.0, available.y / 960.0)
+	scale_factor = minf(scale_factor, 0.70)
+	var panel_size := Vector2(1600.0, 960.0) * maxf(scale_factor, 0.1)
+	_shop_panel.anchor_left = 0.5
+	_shop_panel.anchor_top = 0.5
+	_shop_panel.anchor_right = 0.5
+	_shop_panel.anchor_bottom = 0.5
+	_shop_panel.offset_left = -panel_size.x * 0.5
+	_shop_panel.offset_top = -panel_size.y * 0.5
+	_shop_panel.offset_right = panel_size.x * 0.5
+	_shop_panel.offset_bottom = panel_size.y * 0.5
+	if _shop_grid != null:
+		_shop_grid.columns = 4 if panel_size.x >= 760.0 else 2
+
+func _set_shop_modal_hud_suppressed(suppressed: bool) -> void:
+	if suppressed:
+		if _post_tutorial_objective != null:
+			_post_tutorial_objective.visible = false
+		if _post_tutorial_alt_guide != null:
+			_post_tutorial_alt_guide.visible = false
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = false
+		return
+	_update_post_tutorial_objective()
+	_refresh_interaction_prompt_text()
 
 func _open_rebas_shop() -> void:
 	_refresh_shop_stock_if_needed()
@@ -5412,9 +10446,11 @@ func _open_rebas_shop() -> void:
 	_set_rebas_highlight(false)
 	if _rebas_exclamation != null:
 		_rebas_exclamation.visible = false
+	_set_shop_modal_hud_suppressed(true)
 	if _shop_overlay != null:
 		_shop_overlay.visible = true
 		_shop_overlay.move_to_front()
+		_layout_rebas_shop(true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_rebuild_shop_items()
 
@@ -5425,6 +10461,7 @@ func _close_rebas_shop() -> void:
 	_shop_hold_item_id = ""
 	_shop_hold_direction = 0
 	_shop_selected_quantities.clear()
+	_set_shop_modal_hud_suppressed(false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _create_food_chest_inventory_panel(root: Control) -> void:
@@ -5433,71 +10470,89 @@ func _create_food_chest_inventory_panel(root: Control) -> void:
 	_food_chest_overlay.visible = false
 	_food_chest_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_food_chest_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_food_chest_overlay.z_index = 100
 	root.add_child(_food_chest_overlay)
 
 	var dim := ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.18)
+	dim.color = Color(0.12, 0.17, 0.15, 0.42)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_food_chest_overlay.add_child(dim)
 
 	var panel := PanelContainer.new()
-	panel.anchor_left = 0.18
-	panel.anchor_top = 0.14
-	panel.anchor_right = 0.82
-	panel.anchor_bottom = 0.86
+	panel.name = "FoodChestPaperPanel"
+	panel.anchor_left = 0.23
+	panel.anchor_top = 0.17
+	panel.anchor_right = 0.77
+	panel.anchor_bottom = 0.83
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.92, 0.80, 0.58, 0.97), Color(1.0, 0.94, 0.70, 1.0), 12.0, 2))
+	var panel_style := _make_round_style(Color(0.94, 0.90, 0.80, 0.99), Color(0.28, 0.22, 0.15, 0.96), 16.0, 3)
+	panel_style.shadow_color = Color(0.05, 0.08, 0.06, 0.42)
+	panel_style.shadow_size = 12
+	panel_style.shadow_offset = Vector2(0.0, 6.0)
+	panel.add_theme_stylebox_override("panel", panel_style)
 	_food_chest_overlay.add_child(panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 16)
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_top", 22)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_bottom", 22)
 	panel.add_child(margin)
 
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 12)
+	layout.add_theme_constant_override("separation", 14)
 	margin.add_child(layout)
+
+	var header_panel := PanelContainer.new()
+	header_panel.custom_minimum_size = Vector2(0.0, 54.0)
+	header_panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.85, 0.77, 0.59, 0.72), Color(0.46, 0.34, 0.20, 0.72), 8.0, 1))
+	layout.add_child(header_panel)
 
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 12)
-	layout.add_child(header)
+	header_panel.add_child(header)
 
 	var title := Label.new()
 	title.text = "食材箱"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(0.24, 0.16, 0.08))
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color(0.22, 0.18, 0.11))
 	header.add_child(title)
 
 	_food_chest_capacity_label = Label.new()
 	_food_chest_capacity_label.name = "FoodChestCapacity"
 	_food_chest_capacity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_food_chest_capacity_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_food_chest_capacity_label.custom_minimum_size = Vector2(180.0, 34.0)
-	_food_chest_capacity_label.add_theme_font_size_override("font_size", 16)
+	_food_chest_capacity_label.custom_minimum_size = Vector2(160.0, 32.0)
+	_food_chest_capacity_label.add_theme_font_size_override("font_size", 15)
 	_food_chest_capacity_label.add_theme_color_override("font_color", Color(0.34, 0.24, 0.10))
+	_food_chest_capacity_label.add_theme_stylebox_override("normal", _make_round_style(Color(0.96, 0.92, 0.82, 0.94), Color(0.52, 0.39, 0.22, 0.68), 12.0, 1))
 	header.add_child(_food_chest_capacity_label)
 
 	var close_button := Button.new()
-	close_button.text = "关闭"
-	close_button.custom_minimum_size = Vector2(72.0, 34.0)
-	close_button.add_theme_font_size_override("font_size", 16)
+	close_button.text = "×"
+	close_button.custom_minimum_size = Vector2(34.0, 34.0)
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.add_theme_font_size_override("font_size", 22)
+	close_button.add_theme_color_override("font_color", Color(0.95, 0.92, 0.82))
+	close_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.42, 0.31, 0.19, 1.0), Color(0.24, 0.18, 0.11, 1.0), 12.0, 1))
+	close_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.60, 0.35, 0.20, 1.0), Color(0.30, 0.16, 0.09, 1.0), 12.0, 1))
 	close_button.pressed.connect(_close_food_chest_inventory_panel)
 	header.add_child(close_button)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	layout.add_child(scroll)
 
 	_food_chest_grid = GridContainer.new()
-	_food_chest_grid.columns = 4
+	_food_chest_grid.columns = 3
 	_food_chest_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_food_chest_grid.add_theme_constant_override("h_separation", 10)
-	_food_chest_grid.add_theme_constant_override("v_separation", 10)
+	_food_chest_grid.add_theme_constant_override("h_separation", 14)
+	_food_chest_grid.add_theme_constant_override("v_separation", 14)
 	scroll.add_child(_food_chest_grid)
 
 func _open_food_chest_inventory_panel() -> bool:
@@ -5506,12 +10561,15 @@ func _open_food_chest_inventory_panel() -> bool:
 	_rebuild_food_chest_inventory_panel()
 	_food_chest_overlay.visible = true
 	_food_chest_overlay.move_to_front()
+	if _post_tutorial_objective != null:
+		_post_tutorial_objective.visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	return true
 
 func _close_food_chest_inventory_panel() -> void:
 	if _food_chest_overlay != null:
 		_food_chest_overlay.visible = false
+	_update_post_tutorial_objective()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _refresh_food_chest_capacity_label() -> void:
@@ -5523,7 +10581,7 @@ func _refresh_food_chest_capacity_label() -> void:
 	_food_chest_capacity_label.add_theme_color_override("font_color", Color(0.68, 0.16, 0.08) if used >= capacity else Color(0.34, 0.24, 0.10))
 
 func _food_chest_capacity() -> int:
-	return FOOD_CHEST_STORED_CROP_CAPACITY + _chapter_one_food_chest_capacity_bonus
+	return FOOD_CHEST_STORED_CROP_CAPACITY
 
 func _rebuild_food_chest_inventory_panel() -> void:
 	if _food_chest_grid == null:
@@ -5574,33 +10632,37 @@ func _create_food_chest_inventory_card(item: Dictionary) -> PanelContainer:
 	var crop_type := str(item.get("crop_type", CROP_CARROT))
 	var count := int(item.get("count", 0))
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(150.0, 184.0)
+	card.custom_minimum_size = Vector2(170.0, 178.0)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.add_theme_stylebox_override("panel", _make_round_style(Color(0.98, 0.86, 0.60, 0.94), Color(1.0, 0.96, 0.76, 1.0), 8.0, 1))
+	var card_style := _make_round_style(Color(0.98, 0.95, 0.87, 1.0), Color(0.48, 0.35, 0.20, 0.78), 7.0, 2)
+	card_style.shadow_color = Color(0.20, 0.14, 0.07, 0.12)
+	card_style.shadow_size = 2
+	card_style.shadow_offset = Vector2(0.0, 1.0)
+	card.add_theme_stylebox_override("panel", card_style)
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 4)
+	box.add_theme_constant_override("separation", 5)
 	card.add_child(box)
 
 	var icon := TextureRect.new()
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.custom_minimum_size = Vector2(124.0, 46.0)
+	icon.custom_minimum_size = Vector2(132.0, 50.0)
 	box.add_child(icon)
 	_setup_food_chest_crop_icon(icon, crop_type)
 
 	var name_label := Label.new()
 	name_label.text = "%s  x%d" % [_crop_display_name(crop_type), count]
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 17)
-	name_label.add_theme_color_override("font_color", Color(0.24, 0.16, 0.08))
+	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_color_override("font_color", Color(0.25, 0.17, 0.10))
 	box.add_child(name_label)
 
 	var quality_label := Label.new()
 	quality_label.text = _food_chest_quality_summary(item)
 	quality_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	quality_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	quality_label.custom_minimum_size = Vector2(124.0, 34.0)
+	quality_label.custom_minimum_size = Vector2(132.0, 28.0)
 	quality_label.add_theme_font_size_override("font_size", 13)
 	quality_label.add_theme_color_override("font_color", Color(0.46, 0.32, 0.14))
 	box.add_child(quality_label)
@@ -5608,14 +10670,14 @@ func _create_food_chest_inventory_card(item: Dictionary) -> PanelContainer:
 	var discard_button := Button.new()
 	discard_button.text = "丢弃 1"
 	discard_button.disabled = count <= 0
-	discard_button.custom_minimum_size = Vector2(100.0, 28.0)
+	discard_button.custom_minimum_size = Vector2(112.0, 30.0)
 	discard_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	discard_button.focus_mode = Control.FOCUS_NONE
 	discard_button.add_theme_font_size_override("font_size", 13)
-	discard_button.add_theme_color_override("font_color", Color(0.30, 0.18, 0.07))
-	discard_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.90, 0.70, 0.44, 0.84), Color(0.72, 0.48, 0.22, 0.62), 9.0, 1))
-	discard_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.98, 0.80, 0.52, 0.95), Color(0.82, 0.54, 0.24, 0.82), 9.0, 1))
-	discard_button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.68, 0.60, 0.48, 0.48), Color(0.50, 0.42, 0.30, 0.30), 9.0, 1))
+	discard_button.add_theme_color_override("font_color", Color(0.43, 0.20, 0.10))
+	discard_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.95, 0.80, 0.65, 1.0), Color(0.66, 0.37, 0.20, 0.72), 6.0, 1))
+	discard_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.87, 0.72, 1.0), Color(0.75, 0.35, 0.18, 0.92), 6.0, 2))
+	discard_button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.78, 0.73, 0.65, 0.72), Color(0.52, 0.46, 0.36, 0.38), 6.0, 1))
 	discard_button.pressed.connect(_discard_food_chest_crop.bind(crop_type))
 	box.add_child(discard_button)
 	return card
@@ -5670,11 +10732,7 @@ func _discard_food_chest_crop(crop_type: String) -> void:
 		var current := int(_stored_crop_counts.get(key, 0))
 		if current <= 0:
 			continue
-		current -= 1
-		if current <= 0:
-			_stored_crop_counts.erase(key)
-		else:
-			_stored_crop_counts[key] = current
+		_remove_stored_crop_units(key, 1)
 		var quality_text := _kitchen_quality_suffix(quality)
 		_show_side_toast("丢弃 %s%s x1（容量 %d/%d）" % [_crop_display_name(crop_type), quality_text, _stored_crop_total_all(), _food_chest_capacity()])
 		_rebuild_food_chest_inventory_panel()
@@ -5684,11 +10742,22 @@ func _discard_food_chest_crop(crop_type: String) -> void:
 	_rebuild_food_chest_inventory_panel()
 
 func _set_shop_mode(mode: String) -> void:
+	if mode != "sell" and mode != "buy":
+		return
+	if _shop_mode == mode:
+		_refresh_shop_tab_styles()
+		return
 	_shop_mode = mode
 	_shop_selected_quantities.clear()
 	if _shop_select_all != null:
-		_shop_select_all.button_pressed = false
+		_shop_select_all.set_pressed_no_signal(false)
 	_rebuild_shop_items()
+
+func _refresh_shop_tab_styles() -> void:
+	if _shop_tab_sell != null:
+		_shop_tab_sell.set_pressed_no_signal(_shop_mode == "sell")
+	if _shop_tab_buy != null:
+		_shop_tab_buy.set_pressed_no_signal(_shop_mode == "buy")
 
 func _refresh_shop_stock_if_needed() -> void:
 	var key := _shop_day_key()
@@ -5699,12 +10768,23 @@ func _refresh_shop_stock_if_needed() -> void:
 	_shop_buy_stock["seed:%s:0" % CROP_CARROT] = 12
 	_shop_buy_stock["seed:%s:1" % CROP_CARROT] = 5
 	_shop_buy_stock["seed:%s:2" % CROP_CARROT] = 2
-	_shop_buy_stock["seed:%s:0" % CROP_PEA] = 8
-	_shop_buy_stock["seed:%s:1" % CROP_PEA] = 3
-	_shop_buy_stock["seed:%s:0" % CROP_EGGPLANT] = 6
-	_shop_buy_stock["seed:%s:1" % CROP_EGGPLANT] = 2
-	_shop_buy_stock["seed:%s:2" % CROP_EGGPLANT] = 1
-	_shop_buy_stock["seed:%s:0" % CROP_MARSHMALLOW] = 3
+	for crop_type in CropCatalog.ALL_IDS:
+		if crop_type == CROP_CARROT or not bool(_unlocked_crops.get(crop_type, false)):
+			continue
+		_shop_buy_stock["seed:%s:0" % crop_type] = 6 if not CropCatalog.is_event_crop(crop_type) else 2
+		if not CropCatalog.is_event_crop(crop_type):
+			_shop_buy_stock["seed:%s:1" % crop_type] = 2
+	var village_stock_bonus := int(round(KitchenUpgradeCatalog.get_village_effect_addition(_village_upgrades, "rebas_shop_stock_per_item")))
+	if village_stock_bonus > 0:
+		for stock_key in _shop_buy_stock.keys():
+			_shop_buy_stock[stock_key] = int(_shop_buy_stock[stock_key]) + village_stock_bonus
+
+func _unlock_crop_for_shop(crop_type: String, immediate_stock: int = 2) -> void:
+	if not CropCatalog.has(crop_type):
+		return
+	_unlocked_crops[crop_type] = true
+	var stock_key := "seed:%s:0" % crop_type
+	_shop_buy_stock[stock_key] = maxi(int(_shop_buy_stock.get(stock_key, 0)), immediate_stock)
 
 func _shop_day_key() -> String:
 	var unix := Time.get_unix_time_from_system()
@@ -5722,41 +10802,65 @@ func _seconds_until_shop_refresh() -> int:
 
 func _update_shop_header() -> void:
 	if _shop_coin_label != null:
-		_shop_coin_label.text = "金币：%d" % _coins
+		_shop_coin_label.text = "◆  金币  %d" % _coins
 	if _shop_refresh_label != null:
 		var seconds := _seconds_until_shop_refresh()
-		var hours := seconds / 3600
-		var minutes := (seconds % 3600) / 60
-		var remaining_seconds := seconds % 60
-		_shop_refresh_label.text = "每天 05:00 刷新"
+		var hours := int(seconds / 3600)
+		var minutes := int((seconds % 3600) / 60)
+		_shop_refresh_label.text = "距换货  %02d:%02d" % [hours, minutes]
 
 func _rebuild_shop_items() -> void:
 	if _shop_grid == null:
 		return
 	_refresh_shop_stock_if_needed()
 	_update_shop_header()
+	_shop_card_nodes.clear()
 	for child in _shop_grid.get_children():
 		child.queue_free()
-	if _shop_tab_sell != null:
-		_shop_tab_sell.disabled = _shop_mode == "sell"
-	if _shop_tab_buy != null:
-		_shop_tab_buy.disabled = _shop_mode == "buy"
-	if _shop_select_all != null:
-		_shop_select_all.visible = _shop_mode == "sell"
+	_refresh_shop_tab_styles()
 	if _shop_action_button != null:
-		_shop_action_button.text = "出售" if _shop_mode == "sell" else "购买"
+		_shop_action_button.text = "确认出售" if _shop_mode == "sell" else "确认购买"
 	var items := _get_shop_sell_items() if _shop_mode == "sell" else _get_shop_buy_items()
 	items.sort_custom(_sort_shop_items)
+	if _shop_select_all != null:
+		_shop_select_all.visible = _shop_mode == "sell" and not items.is_empty()
 	if items.is_empty():
-		var empty_label := Label.new()
-		empty_label.text = "食材箱里暂时没有可出售的食材" if _shop_mode == "sell" else "今天没有新货"
-		empty_label.custom_minimum_size = Vector2(360.0, 80.0)
-		empty_label.add_theme_font_size_override("font_size", 20)
-		empty_label.add_theme_color_override("font_color", Color(0.32, 0.24, 0.15))
-		_shop_grid.add_child(empty_label)
+		_shop_grid.columns = 1
+		_shop_grid.add_child(_create_shop_empty_state())
+		_update_shop_summary()
 		return
+	_shop_grid.columns = 4 if _shop_panel == null or _shop_panel.size.x >= 760.0 else 2
 	for item in items:
 		_shop_grid.add_child(_create_shop_item_card(item))
+	_update_shop_summary()
+
+func _create_shop_empty_state() -> PanelContainer:
+	var card := PanelContainer.new()
+	card.name = "ShopEmptyState"
+	card.custom_minimum_size = Vector2(0.0, 170.0)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := _make_round_style(Color(0.96, 0.90, 0.76, 0.72), Color(0.61, 0.43, 0.22, 0.54), 10.0, 1)
+	style.shadow_color = Color(0.20, 0.12, 0.05, 0.10)
+	style.shadow_size = 3
+	style.shadow_offset = Vector2(0.0, 2.0)
+	card.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 8)
+	card.add_child(box)
+	var title := Label.new()
+	title.text = "货架暂时空着"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(0.33, 0.21, 0.09, 1.0))
+	box.add_child(title)
+	var hint := Label.new()
+	hint.text = "先把收获放进食材箱吧" if _shop_mode == "sell" else "明天 05:00 再来看看新货"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 14)
+	hint.add_theme_color_override("font_color", Color(0.46, 0.34, 0.20, 0.90))
+	box.add_child(hint)
+	return card
 
 func _sort_shop_items(a: Dictionary, b: Dictionary) -> bool:
 	var a_is_mystery := str(a.get("crop_type", "")) == CROP_MARSHMALLOW
@@ -5798,13 +10902,13 @@ func _get_shop_buy_items() -> Array[Dictionary]:
 		var stock := int(_shop_buy_stock.get(item_id, 0))
 		var price := _seed_buy_price(crop_type, quality)
 		var can_add := _find_inventory_slot_for_item(item_id, -1) != -1 or _find_empty_inventory_slot() != -1
-		var display_name := "神秘种子" if crop_type == CROP_MARSHMALLOW else _seed_display_name(crop_type, quality)
+		var display_name := _seed_display_name(crop_type, quality)
 		items.append({
 			"id": item_id,
 			"kind": "buy",
 			"crop_type": crop_type,
 			"quality": quality,
-			"name": "绁炵绉嶅瓙" if crop_type == CROP_MARSHMALLOW else _seed_display_name(crop_type, quality),
+			"name": display_name,
 			"price": price,
 			"count": stock,
 			"enabled": stock > 0 and _coins >= price and can_add,
@@ -5812,93 +10916,192 @@ func _get_shop_buy_items() -> Array[Dictionary]:
 	for item in items:
 		var crop_type_for_name := str(item.get("crop_type", CROP_CARROT))
 		var quality_for_name := int(item.get("quality", 0))
-		item["name"] = "神秘种子" if crop_type_for_name == CROP_MARSHMALLOW else _seed_display_name(crop_type_for_name, quality_for_name)
+		item["name"] = _seed_display_name(crop_type_for_name, quality_for_name)
 	return items
 
 func _create_shop_item_card(item: Dictionary) -> PanelContainer:
 	var enabled := bool(item.get("enabled", false))
 	var item_id := str(item.get("id", ""))
-	var selected := int(_shop_selected_quantities.get(item_id, 0))
-	var max_qty := _shop_item_max_quantity(item)
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(166.0, 196.0)
+	card.name = "ShopItemCard"
+	card.custom_minimum_size = Vector2(134.0, 208.0)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.modulate = Color(1, 1, 1, 1) if enabled else Color(0.55, 0.55, 0.55, 0.62)
-	card.add_theme_stylebox_override("panel", _make_round_style(Color(0.98, 0.86, 0.60, 0.94), Color(1.0, 0.96, 0.76, 1.0), 8.0, 1))
+	card.set_meta("item_id", item_id)
+	_shop_card_nodes[item_id] = card
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 7)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 7)
+	card.add_child(margin)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	card.add_child(box)
+	box.name = "Content"
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 3)
+	margin.add_child(box)
 
 	var icon := TextureRect.new()
-	icon.name = "ShopSeedIcon"
-	icon.texture = load(SEED_ICON_PATH) as Texture2D
+	icon.name = "ShopItemIcon"
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.custom_minimum_size = Vector2(148.0, 48.0)
-	icon.modulate = _seed_color(str(item.get("crop_type", CROP_CARROT)), int(item.get("quality", 0)))
+	icon.custom_minimum_size = Vector2(0.0, 58.0)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(icon)
+	var crop_type := str(item.get("crop_type", CROP_CARROT))
+	var quality := int(item.get("quality", 0))
+	if str(item.get("kind", _shop_mode)) == "sell":
+		icon.ready.connect(_setup_food_chest_crop_icon.bind(icon, crop_type), CONNECT_ONE_SHOT)
+	else:
+		icon.texture = load(SEED_ICON_PATH) as Texture2D
+		icon.modulate = _seed_color(crop_type, quality)
 
-	var star_label := Label.new()
-	star_label.text = "%d⭐" % clampi(int(item.get("quality", 0)), 0, 3)
-	star_label.text = "%d★" % clampi(int(item.get("quality", 0)), 0, 3)
-	star_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	star_label.custom_minimum_size = Vector2(148.0, 20.0)
-	star_label.add_theme_font_size_override("font_size", 15)
-	star_label.add_theme_color_override("font_color", Color(0.76, 0.50, 0.08))
-	box.add_child(star_label)
+	var quality_badge := Label.new()
+	quality_badge.name = "QualityBadge"
+	quality_badge.text = "普通" if quality <= 0 else _quality_stars(quality)
+	quality_badge.custom_minimum_size = Vector2(62.0, 20.0)
+	quality_badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	quality_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	quality_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	quality_badge.add_theme_font_size_override("font_size", 12)
+	quality_badge.add_theme_color_override("font_color", Color(0.50, 0.31, 0.08, 1.0))
+	quality_badge.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.88, 0.56, 0.86), Color(0.76, 0.51, 0.16, 0.70), 9.0, 1))
+	box.add_child(quality_badge)
 
 	var name_label := Label.new()
+	name_label.name = "ItemName"
 	name_label.text = str(item.get("name", ""))
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_label.custom_minimum_size = Vector2(148.0, 34.0)
-	name_label.add_theme_font_size_override("font_size", 15)
-	name_label.add_theme_color_override("font_color", Color(0.25, 0.17, 0.08))
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.custom_minimum_size = Vector2(0.0, 22.0)
+	name_label.add_theme_font_size_override("font_size", 14)
+	name_label.add_theme_color_override("font_color", Color(0.25, 0.15, 0.055, 1.0))
 	box.add_child(name_label)
 
-	var info := Label.new()
-	info.text = "%d 閲戝竵 路 %s锛?d" % [int(item.get("price", 0)), "搴撳瓨" if _shop_mode == "buy" else "鎷ユ湁", int(item.get("count", 0))]
-	info.text = "%d 金币 · %s：%d" % [int(item.get("price", 0)), "库存" if _shop_mode == "buy" else "拥有", int(item.get("count", 0))]
-	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info.add_theme_font_size_override("font_size", 13)
-	info.add_theme_color_override("font_color", Color(0.42, 0.30, 0.14))
-	box.add_child(info)
+	var price_label := Label.new()
+	price_label.name = "Price"
+	price_label.text = "◆  %d 金币" % int(item.get("price", 0))
+	price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	price_label.add_theme_font_size_override("font_size", 13)
+	price_label.add_theme_color_override("font_color", Color(0.62, 0.38, 0.07, 1.0))
+	box.add_child(price_label)
+
+	var stock_label := Label.new()
+	stock_label.name = "Stock"
+	stock_label.text = "%s  %d" % ["今日库存" if _shop_mode == "buy" else "食材箱拥有", int(item.get("count", 0))]
+	stock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stock_label.add_theme_font_size_override("font_size", 11)
+	stock_label.add_theme_color_override("font_color", Color(0.43, 0.32, 0.19, 0.92))
+	box.add_child(stock_label)
 
 	var qty_row := HBoxContainer.new()
+	qty_row.name = "QuantityRow"
 	qty_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	qty_row.add_theme_constant_override("separation", 8)
+	qty_row.add_theme_constant_override("separation", 6)
 	box.add_child(qty_row)
-	var minus := _create_shop_quantity_button("-", item_id, -1, enabled)
+	var minus := _create_shop_quantity_button("−", item_id, -1, false)
+	minus.name = "MinusButton"
 	qty_row.add_child(minus)
 	var qty := Label.new()
-	qty.text = str(selected)
-	qty.custom_minimum_size = Vector2(42.0, 28.0)
+	qty.name = "Quantity"
+	qty.text = "0"
+	qty.custom_minimum_size = Vector2(36.0, 28.0)
 	qty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	qty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	qty.add_theme_font_size_override("font_size", 18)
-	qty.add_theme_color_override("font_color", Color(0.22, 0.15, 0.08))
+	qty.add_theme_font_size_override("font_size", 16)
+	qty.add_theme_color_override("font_color", Color(0.22, 0.13, 0.05, 1.0))
 	qty_row.add_child(qty)
-	var plus := _create_shop_quantity_button("+", item_id, 1, enabled and max_qty > 0)
+	var plus := _create_shop_quantity_button("+", item_id, 1, enabled)
+	plus.name = "PlusButton"
 	qty_row.add_child(plus)
 
-	if not enabled:
-		var reason := Label.new()
-		reason.text = _shop_disabled_reason(item)
-		reason.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		reason.add_theme_font_size_override("font_size", 13)
-		reason.add_theme_color_override("font_color", Color(0.42, 0.30, 0.20))
-		box.add_child(reason)
+	var reason := Label.new()
+	reason.name = "DisabledReason"
+	reason.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reason.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	reason.custom_minimum_size = Vector2(0.0, 17.0)
+	reason.add_theme_font_size_override("font_size", 11)
+	reason.add_theme_color_override("font_color", Color(0.54, 0.25, 0.12, 0.96))
+	box.add_child(reason)
+	_refresh_shop_card_state(item_id)
 	return card
 
 func _create_shop_quantity_button(text: String, item_id: String, direction: int, enabled: bool) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.disabled = not enabled
-	button.custom_minimum_size = Vector2(34.0, 30.0)
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(30.0, 28.0)
+	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_color_override("font_color", Color(1.0, 0.94, 0.78, 1.0))
+	button.add_theme_color_override("font_disabled_color", Color(0.49, 0.43, 0.35, 0.62))
+	button.add_theme_stylebox_override("normal", _make_round_style(Color(0.43, 0.31, 0.18, 0.98), Color(0.25, 0.17, 0.09, 0.94), 6.0, 1))
+	button.add_theme_stylebox_override("hover", _make_round_style(Color(0.62, 0.40, 0.19, 1.0), Color(0.34, 0.20, 0.08, 1.0), 6.0, 2))
+	button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.31, 0.22, 0.13, 1.0), Color(0.18, 0.12, 0.07, 1.0), 6.0, 1))
+	button.add_theme_stylebox_override("disabled", _make_round_style(Color(0.62, 0.57, 0.48, 0.42), Color(0.43, 0.38, 0.31, 0.34), 6.0, 1))
 	button.gui_input.connect(_on_shop_quantity_button_input.bind(item_id, direction))
 	button.pressed.connect(_change_shop_quantity.bind(item_id, direction))
 	return button
+
+func _refresh_shop_card_state(item_id: String) -> void:
+	var card := _shop_card_nodes.get(item_id, null) as PanelContainer
+	if card == null or not is_instance_valid(card):
+		return
+	var item := _find_shop_item(item_id)
+	if item.is_empty():
+		return
+	var enabled := bool(item.get("enabled", false))
+	var selected := int(_shop_selected_quantities.get(item_id, 0))
+	var max_qty := _shop_item_max_quantity(item)
+	var selected_state := enabled and selected > 0
+	var card_style := _make_round_style(
+		Color(1.0, 0.91, 0.67, 0.98) if selected_state else (Color(0.98, 0.94, 0.84, 0.96) if enabled else Color(0.78, 0.74, 0.65, 0.76)),
+		Color(0.88, 0.56, 0.13, 1.0) if selected_state else (Color(0.53, 0.36, 0.18, 0.72) if enabled else Color(0.48, 0.43, 0.35, 0.48)),
+		8.0,
+		3 if selected_state else 1
+	)
+	card_style.shadow_color = Color(0.20, 0.12, 0.05, 0.22 if selected_state else 0.10)
+	card_style.shadow_size = 5 if selected_state else 2
+	card_style.shadow_offset = Vector2(0.0, 2.0)
+	card.add_theme_stylebox_override("panel", card_style)
+	card.modulate = Color.WHITE if enabled else Color(0.78, 0.78, 0.76, 0.76)
+	var qty := card.get_node_or_null("Margin/Content/QuantityRow/Quantity") as Label
+	if qty != null:
+		qty.text = str(selected)
+	var minus := card.get_node_or_null("Margin/Content/QuantityRow/MinusButton") as Button
+	if minus != null:
+		minus.disabled = not enabled or selected <= 0
+	var plus := card.get_node_or_null("Margin/Content/QuantityRow/PlusButton") as Button
+	if plus != null:
+		plus.disabled = not enabled or selected >= max_qty
+	var reason := card.get_node_or_null("Margin/Content/DisabledReason") as Label
+	if reason != null:
+		reason.text = _shop_disabled_reason(item) if not enabled else ("已选择 %d" % selected if selected > 0 else "")
+		reason.add_theme_color_override("font_color", Color(0.65, 0.38, 0.08, 1.0) if selected > 0 and enabled else Color(0.54, 0.25, 0.12, 0.96))
+
+func _update_shop_summary() -> void:
+	var selected_count := 0
+	var selected_total := 0
+	for raw_id in _shop_selected_quantities.keys():
+		var item_id := str(raw_id)
+		var quantity := int(_shop_selected_quantities.get(item_id, 0))
+		if quantity <= 0:
+			continue
+		var item := _find_shop_item(item_id)
+		if item.is_empty():
+			continue
+		selected_count += quantity
+		selected_total += quantity * int(item.get("price", 0))
+	if _shop_summary_label != null:
+		if selected_count <= 0:
+			_shop_summary_label.text = "尚未选择商品"
+		elif _shop_mode == "sell":
+			_shop_summary_label.text = "已选 %d 件  ·  预计获得 %d 金币" % [selected_count, selected_total]
+		else:
+			_shop_summary_label.text = "已选 %d 件  ·  预计花费 %d 金币" % [selected_count, selected_total]
+	if _shop_action_button != null:
+		_shop_action_button.disabled = selected_count <= 0
+		_shop_action_button.text = "确认出售" if _shop_mode == "sell" else "确认购买"
 
 func _on_shop_quantity_button_input(event: InputEvent, item_id: String, direction: int) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -5935,7 +11138,8 @@ func _change_shop_quantity(item_id: String, direction: int) -> void:
 		_shop_selected_quantities.erase(item_id)
 	else:
 		_shop_selected_quantities[item_id] = current
-	_rebuild_shop_items()
+	_refresh_shop_card_state(item_id)
+	_update_shop_summary()
 
 func _find_shop_item(item_id: String) -> Dictionary:
 	var items := _get_shop_sell_items() if _shop_mode == "sell" else _get_shop_buy_items()
@@ -5961,7 +11165,9 @@ func _on_shop_select_all_toggled(enabled: bool) -> void:
 		for item in _get_shop_sell_items():
 			if bool(item.get("enabled", false)):
 				_shop_selected_quantities[str(item.get("id", ""))] = int(item.get("count", 0))
-	_rebuild_shop_items()
+	for raw_item_id in _shop_card_nodes.keys():
+		_refresh_shop_card_state(str(raw_item_id))
+	_update_shop_summary()
 
 func _execute_shop_action() -> void:
 	if _shop_selected_quantities.is_empty():
@@ -5973,7 +11179,7 @@ func _execute_shop_action() -> void:
 		_execute_shop_buy()
 	_shop_selected_quantities.clear()
 	if _shop_select_all != null:
-		_shop_select_all.button_pressed = false
+		_shop_select_all.set_pressed_no_signal(false)
 	_rebuild_shop_items()
 
 func _execute_shop_sell() -> void:
@@ -5992,11 +11198,7 @@ func _execute_shop_sell() -> void:
 		var crop_type := _crop_type_from_storage_key(key)
 		var quality := _quality_from_storage_key(key)
 		total += _crop_sell_price(crop_type, quality) * sell_qty
-		current -= sell_qty
-		if current <= 0:
-			_stored_crop_counts.erase(key)
-		else:
-			_stored_crop_counts[key] = current
+		_remove_stored_crop_units(key, sell_qty)
 		sold_total += sell_qty
 	_coins += total
 	_chapter_one_shop_crop_sold_total += sold_total
@@ -6060,25 +11262,13 @@ func _quality_from_storage_key(key: String) -> int:
 	return 0
 
 func _crop_sell_price(crop_type: String, quality: int) -> int:
-	var base := 8
-	match crop_type:
-		CROP_PEA:
-			base = 10
-		CROP_EGGPLANT:
-			base = 12
-		CROP_MARSHMALLOW:
-			base = 220
-	return int(round(float(base) * [1.0, 1.5, 2.2, 3.4][clampi(quality, 0, 3)]))
+	var base := CropCatalog.sell_price(crop_type)
+	var quality_multiplier: float = [1.0, 1.5, 2.2, 3.4][clampi(quality, 0, 3)]
+	var storehouse_multiplier := KitchenUpgradeCatalog.get_village_effect_multiplier(_village_upgrades, "stored_crop_sell_price")
+	return int(round(float(base) * quality_multiplier * storehouse_multiplier))
 
 func _seed_buy_price(crop_type: String, quality: int) -> int:
-	var base := 5
-	match crop_type:
-		CROP_PEA:
-			base = 7
-		CROP_EGGPLANT:
-			base = 9
-		CROP_MARSHMALLOW:
-			base = 120
+	var base := CropCatalog.seed_price(crop_type)
 	return int(round(float(base) * [1.0, 1.6, 2.5, 3.8][clampi(quality, 0, 3)]))
 
 func _create_map_popup(root: Control) -> void:
@@ -6245,7 +11435,7 @@ func _create_map_codex_panel() -> void:
 	_map_codex_panel.anchor_left = 0.142
 	_map_codex_panel.anchor_top = 0.205
 	_map_codex_panel.anchor_right = 0.376
-	_map_codex_panel.anchor_bottom = 0.315
+	_map_codex_panel.anchor_bottom = 0.355
 	_map_codex_panel.offset_left = 0.0
 	_map_codex_panel.offset_top = 0.0
 	_map_codex_panel.offset_right = 0.0
@@ -6266,6 +11456,18 @@ func _create_map_codex_panel() -> void:
 	var cooking_controls := _create_map_codex_text_row(box, "料理", "cooking")
 	_map_codex_cooking_claim_button = cooking_controls["button"] as Button
 	_map_codex_cooking_red_dot = cooking_controls["red_dot"] as Label
+	var flavor_row := HBoxContainer.new()
+	flavor_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(flavor_row)
+	_map_local_flavor_button = Button.new()
+	_map_local_flavor_button.flat = true
+	_map_local_flavor_button.focus_mode = Control.FOCUS_NONE
+	_map_local_flavor_button.custom_minimum_size = Vector2(176.0, 28.0)
+	_map_local_flavor_button.text = "地方风味 0/4"
+	_map_local_flavor_button.add_theme_font_size_override("font_size", 18)
+	_map_local_flavor_button.add_theme_color_override("font_color", Color(0.24, 0.15, 0.06))
+	_map_local_flavor_button.pressed.connect(_show_local_flavor_atlas)
+	flavor_row.add_child(_map_local_flavor_button)
 	_create_map_codex_detail_popup()
 	_update_map_codex_panel()
 
@@ -6353,6 +11555,392 @@ func _show_map_codex_detail_popup_legacy(kind: String) -> void:
 func _update_map_codex_panel() -> void:
 	_update_map_codex_text_row("作物", _codex_discovered_crops.size(), CODEX_CROP_TOTAL, CODEX_CROP_REWARDS, "crop", _map_codex_crop_claim_button, _map_codex_crop_red_dot)
 	_update_map_codex_text_row("料理", _codex_discovered_cooking.size(), CODEX_COOKING_TOTAL, CODEX_COOKING_REWARDS, "cooking", _map_codex_cooking_claim_button, _map_codex_cooking_red_dot)
+	if _map_local_flavor_button != null:
+		_map_local_flavor_button.text = "地方风味 %d/4" % _local_event_atlas.size()
+
+func _show_local_flavor_atlas() -> void:
+	if _map_codex_detail_popup == null:
+		return
+	for child in _map_codex_detail_popup.get_children():
+		child.queue_free()
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	_map_codex_detail_popup.add_child(box)
+	var title := Label.new()
+	title.text = "地方风味图谱"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	box.add_child(title)
+	for event_id in LocalEventCatalog.ALL_IDS:
+		var config := LocalEventCatalog.get_event(event_id)
+		var record := _local_event_atlas.get(event_id, {}) as Dictionary
+		var line := Label.new()
+		if record.is_empty():
+			line.text = "未发现的地方风味\n料理研究：线索未发现"
+		else:
+			var stars := int(record.get("best_stars", 0))
+			var reward_text := _crop_display_name(str(config.get("reward_crop", ""))) if bool(record.get("reward_revealed", false)) else "神秘特殊奖励"
+			var special_recipe := _local_event_special_recipe(event_id)
+			var recipe_name := _recipe_name(special_recipe) if _is_special_recipe_researched(special_recipe) else "未知特色料理"
+			line.text = "%s　偏爱%s料理　最高%d星\n已揭晓：%s　%s：%s" % [str(config.get("name", event_id)), _crop_display_name(str(config.get("preferred_crop", ""))), stars, reward_text, recipe_name, _local_flavor_research_state(event_id)]
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.add_theme_font_size_override("font_size", 16)
+		box.add_child(line)
+	_map_codex_detail_popup.visible = true
+	_map_codex_detail_popup.move_to_front()
+
+func _local_flavor_research_state(event_id: String) -> String:
+	if not _research_event_clue_unlocked(event_id):
+		return "线索未发现"
+	var recipe := _local_event_special_recipe(event_id)
+	if bool(_special_recipe_first_served.get(recipe, false)):
+		return "已完成"
+	if _is_special_recipe_researched(recipe):
+		return "已研究待上桌"
+	var crop := str(_recipe_data(recipe).get("crop", ""))
+	if crop == "" or not bool(_codex_harvested_crops.get(crop, false)):
+		return "待收获"
+	return "可研究"
+
+func _research_event_clue_unlocked(event_id: String) -> bool:
+	var record := _local_event_atlas.get(event_id, {}) as Dictionary
+	return not record.is_empty() and bool(record.get("reward_revealed", false))
+
+func _open_research_table_panel() -> bool:
+	if _kitchen_business_active:
+		_show_notification("营业中不能进行料理研究")
+		return true
+	if not _research_table_unlocked:
+		_show_notification("料理图鉴达到 3/10 并领取设计图后解锁")
+		return true
+	if not _has_kitchen_equipment("research_table"):
+		_show_notification("请先在设备栏摆放料理研究台")
+		return true
+	if _research_overlay == null or not is_instance_valid(_research_overlay):
+		_create_research_table_panel()
+	if _research_overlay == null:
+		return false
+	if _research_selected_recipe == "":
+		_research_selected_recipe = ResearchRecipeCatalog.ALL_IDS[0]
+	_research_selected_crop = ""
+	_research_selected_station = ""
+	_research_feedback = ""
+	_rebuild_research_table_panel()
+	_research_overlay.visible = true
+	_research_overlay.move_to_front()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	return true
+
+func _create_research_table_panel() -> void:
+	if _hud_root == null:
+		return
+	_research_overlay = Control.new()
+	_research_overlay.name = "ResearchTableOverlay"
+	_research_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_research_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_research_overlay.z_index = 140
+	_research_overlay.visible = false
+	_hud_root.add_child(_research_overlay)
+	_research_panel = PanelContainer.new()
+	_research_panel.name = "ResearchTablePanel"
+	_research_panel.anchor_left = 0.5
+	_research_panel.anchor_top = 0.5
+	_research_panel.anchor_right = 0.5
+	_research_panel.anchor_bottom = 0.5
+	_research_panel.offset_left = -430.0
+	_research_panel.offset_top = -285.0
+	_research_panel.offset_right = 430.0
+	_research_panel.offset_bottom = 285.0
+	_research_panel.clip_contents = true
+	var style := _make_round_style(Color(0.94, 0.87, 0.68, 0.99), Color(0.38, 0.25, 0.11, 0.96), 18.0, 3)
+	style.shadow_color = Color(0.08, 0.06, 0.03, 0.34)
+	style.shadow_size = 10
+	style.shadow_offset = Vector2(0.0, 6.0)
+	_research_panel.add_theme_stylebox_override("panel", style)
+	_research_overlay.add_child(_research_panel)
+
+func _close_research_table_panel() -> void:
+	if _research_overlay != null:
+		_research_overlay.visible = false
+	_research_attempt_locked = false
+	_research_feedback = ""
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _rebuild_research_table_panel() -> void:
+	if _research_panel == null or not is_instance_valid(_research_panel):
+		return
+	for child in _research_panel.get_children():
+		_research_panel.remove_child(child)
+		child.queue_free()
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	_research_panel.add_child(margin)
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 12)
+	margin.add_child(layout)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
+	layout.add_child(header)
+	var title := Label.new()
+	title.text = "料理研究台"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color(0.27, 0.16, 0.06))
+	header.add_child(title)
+	var progress := Label.new()
+	progress.text = "地方料理 %d/4" % _researched_special_recipe_count()
+	progress.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	progress.add_theme_font_size_override("font_size", 16)
+	progress.add_theme_color_override("font_color", Color(0.42, 0.29, 0.12))
+	header.add_child(progress)
+	var close := Button.new()
+	close.text = "×"
+	close.custom_minimum_size = Vector2(40.0, 36.0)
+	close.focus_mode = Control.FOCUS_NONE
+	close.add_theme_font_size_override("font_size", 22)
+	close.pressed.connect(_close_research_table_panel)
+	header.add_child(close)
+	var body := HBoxContainer.new()
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 16)
+	layout.add_child(body)
+	var recipe_list := VBoxContainer.new()
+	recipe_list.custom_minimum_size = Vector2(238.0, 0.0)
+	recipe_list.add_theme_constant_override("separation", 7)
+	body.add_child(recipe_list)
+	var list_title := Label.new()
+	list_title.text = "地方料理线索"
+	list_title.add_theme_font_size_override("font_size", 16)
+	list_title.add_theme_color_override("font_color", Color(0.34, 0.22, 0.08))
+	recipe_list.add_child(list_title)
+	for recipe_id in ResearchRecipeCatalog.ALL_IDS:
+		var data := ResearchRecipeCatalog.get_data(recipe_id)
+		var event_id := str(data.get("event_id", ""))
+		var clue_unlocked := _research_event_clue_unlocked(event_id)
+		var researched := _is_special_recipe_researched(recipe_id)
+		var card := Button.new()
+		card.custom_minimum_size = Vector2(232.0, 74.0)
+		card.focus_mode = Control.FOCUS_NONE
+		card.text = "%s\n%s" % [str(data.get("name", "特色料理")) if researched else (str(data.get("clue_title", "未知线索")) if clue_unlocked else "？？？"), _research_recipe_state_text(recipe_id)]
+		card.add_theme_font_size_override("font_size", 13)
+		card.add_theme_color_override("font_color", Color(0.26, 0.16, 0.06))
+		card.add_theme_stylebox_override("normal", _make_round_style(Color(0.88, 0.78, 0.55, 0.78) if recipe_id == _research_selected_recipe else Color(0.84, 0.77, 0.61, 0.55), Color(0.53, 0.37, 0.16, 0.62), 9.0, 1))
+		card.add_theme_stylebox_override("hover", _make_round_style(Color(0.96, 0.86, 0.61, 0.94), Color(0.63, 0.42, 0.16, 0.82), 9.0, 2))
+		card.pressed.connect(_select_research_recipe.bind(recipe_id))
+		recipe_list.add_child(card)
+	var divider := VSeparator.new()
+	body.add_child(divider)
+	var detail := VBoxContainer.new()
+	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail.add_theme_constant_override("separation", 10)
+	body.add_child(detail)
+	_build_research_recipe_detail(detail, _research_selected_recipe)
+
+func _build_research_recipe_detail(parent: VBoxContainer, recipe_id: String) -> void:
+	var data := ResearchRecipeCatalog.get_data(recipe_id)
+	if data.is_empty():
+		return
+	var event_id := str(data.get("event_id", ""))
+	var clue_unlocked := _research_event_clue_unlocked(event_id)
+	var researched := _is_special_recipe_researched(recipe_id)
+	var heading := Label.new()
+	heading.text = str(data.get("name", "特色料理")) if researched else str(data.get("clue_title", "未知料理"))
+	heading.add_theme_font_size_override("font_size", 22)
+	heading.add_theme_color_override("font_color", Color(0.28, 0.16, 0.06))
+	parent.add_child(heading)
+	var clue := Label.new()
+	clue.custom_minimum_size = Vector2(0.0, 76.0)
+	clue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	clue.add_theme_font_size_override("font_size", 15)
+	clue.add_theme_color_override("font_color", Color(0.36, 0.24, 0.10))
+	if not clue_unlocked:
+		clue.text = "尚未发现这条地方料理线索。驾驶房车探索并通过对应的地方事件后，笔记会自动补全。"
+	elif researched:
+		clue.text = "%s\n\n已研究完成；再次参加对应地方事件时，最后一单会出现这道料理。" % str(data.get("clue", ""))
+	else:
+		clue.text = str(data.get("clue", ""))
+	parent.add_child(clue)
+	if not clue_unlocked or researched:
+		var state_label := Label.new()
+		state_label.text = _research_recipe_state_text(recipe_id)
+		state_label.add_theme_font_size_override("font_size", 17)
+		state_label.add_theme_color_override("font_color", Color(0.28, 0.48, 0.22) if researched else Color(0.53, 0.38, 0.16))
+		parent.add_child(state_label)
+		return
+	var target_crop := str(data.get("crop", ""))
+	if not bool(_codex_harvested_crops.get(target_crop, false)):
+		var harvest_hint := Label.new()
+		harvest_hint.text = "先种植并首次收获%s，才能验证这条线索。" % _crop_display_name(target_crop)
+		harvest_hint.add_theme_font_size_override("font_size", 17)
+		harvest_hint.add_theme_color_override("font_color", Color(0.62, 0.28, 0.10))
+		parent.add_child(harvest_hint)
+		return
+	var ingredient_title := Label.new()
+	ingredient_title.text = "1. 选择研究食材（手持或食材箱）"
+	ingredient_title.add_theme_font_size_override("font_size", 15)
+	parent.add_child(ingredient_title)
+	var ingredient_grid := GridContainer.new()
+	ingredient_grid.columns = 2
+	ingredient_grid.add_theme_constant_override("h_separation", 8)
+	ingredient_grid.add_theme_constant_override("v_separation", 6)
+	parent.add_child(ingredient_grid)
+	for crop in CropCatalog.EVENT_IDS:
+		var available := _research_crop_available_count(crop)
+		var harvested := bool(_codex_harvested_crops.get(crop, false))
+		var button := Button.new()
+		button.text = "%s  x%d" % [_crop_display_name(crop), available] if harvested else "未收获的食材"
+		button.custom_minimum_size = Vector2(206.0, 38.0)
+		button.focus_mode = Control.FOCUS_NONE
+		button.disabled = not harvested or available <= 0
+		button.add_theme_stylebox_override("normal", _make_round_style(Color(0.95, 0.83, 0.55, 0.92) if crop == _research_selected_crop else Color(0.88, 0.82, 0.68, 0.72), Color(0.55, 0.39, 0.18, 0.52), 8.0, 1))
+		button.pressed.connect(_select_research_crop.bind(crop))
+		ingredient_grid.add_child(button)
+	var station_title := Label.new()
+	station_title.text = "2. 选择最终烹饪设备"
+	station_title.add_theme_font_size_override("font_size", 15)
+	parent.add_child(station_title)
+	var station_row := HBoxContainer.new()
+	station_row.add_theme_constant_override("separation", 10)
+	parent.add_child(station_row)
+	for station in ["pot", "grill"]:
+		var station_button := Button.new()
+		station_button.text = _equipment_name(station)
+		station_button.custom_minimum_size = Vector2(150.0, 38.0)
+		station_button.focus_mode = Control.FOCUS_NONE
+		station_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.95, 0.83, 0.55, 0.92) if station == _research_selected_station else Color(0.88, 0.82, 0.68, 0.72), Color(0.55, 0.39, 0.18, 0.52), 8.0, 1))
+		station_button.pressed.connect(_select_research_station.bind(station))
+		station_row.add_child(station_button)
+	var feedback := Label.new()
+	feedback.custom_minimum_size = Vector2(0.0, 42.0)
+	feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	feedback.text = _research_feedback if _research_feedback != "" else "正确研究只消耗一份食材；错误尝试会原样退回。"
+	feedback.add_theme_font_size_override("font_size", 14)
+	feedback.add_theme_color_override("font_color", Color(0.62, 0.22, 0.10) if _research_feedback != "" else Color(0.38, 0.30, 0.18))
+	parent.add_child(feedback)
+	var research_button := Button.new()
+	research_button.text = "开始研究"
+	research_button.custom_minimum_size = Vector2(210.0, 46.0)
+	research_button.focus_mode = Control.FOCUS_NONE
+	research_button.disabled = _research_attempt_locked or _research_selected_crop == "" or _research_selected_station == ""
+	research_button.add_theme_font_size_override("font_size", 18)
+	research_button.pressed.connect(_attempt_selected_recipe_research)
+	parent.add_child(research_button)
+
+func _select_research_recipe(recipe_id: String) -> void:
+	_research_selected_recipe = recipe_id
+	_research_selected_crop = ""
+	_research_selected_station = ""
+	_research_feedback = ""
+	_rebuild_research_table_panel()
+
+func _select_research_crop(crop: String) -> void:
+	_research_selected_crop = crop
+	_research_feedback = ""
+	_rebuild_research_table_panel()
+
+func _select_research_station(station: String) -> void:
+	_research_selected_station = station
+	_research_feedback = ""
+	_rebuild_research_table_panel()
+
+func _research_recipe_state_text(recipe_id: String) -> String:
+	var data := ResearchRecipeCatalog.get_data(recipe_id)
+	var event_id := str(data.get("event_id", ""))
+	if not _research_event_clue_unlocked(event_id):
+		return "线索未发现"
+	if bool(_special_recipe_first_served.get(recipe_id, false)):
+		return "已完成"
+	if _is_special_recipe_researched(recipe_id):
+		return "已研究待上桌"
+	var crop := str(data.get("crop", ""))
+	if not bool(_codex_harvested_crops.get(crop, false)):
+		return "待收获%s" % _crop_display_name(crop)
+	return "可研究"
+
+func _researched_special_recipe_count() -> int:
+	var count := 0
+	for recipe_id in ResearchRecipeCatalog.ALL_IDS:
+		if _is_special_recipe_researched(recipe_id):
+			count += 1
+	return count
+
+func _research_crop_available_count(crop: String) -> int:
+	return _stored_crop_total(crop) + (1 if _held_crop_item == crop else 0)
+
+func _consume_research_crop(crop: String) -> bool:
+	if _held_crop_item == crop:
+		_clear_held_crop()
+		_update_inventory_bar()
+		return true
+	var entry := _take_shortest_stored_crop_entry(crop)
+	if entry.is_empty():
+		return false
+	_update_post_tutorial_objective()
+	return true
+
+func _take_shortest_stored_crop_entry(crop_type: String) -> Dictionary:
+	var selected_quality := -1
+	var shortest_time := INF
+	for quality in range(4):
+		var key := _stored_crop_key(crop_type, quality)
+		if int(_stored_crop_counts.get(key, 0)) <= 0:
+			continue
+		var times := _sync_stored_crop_fresh_times(key)
+		if times.is_empty():
+			continue
+		var candidate_time := float(times[0])
+		if candidate_time < shortest_time:
+			shortest_time = candidate_time
+			selected_quality = quality
+	if selected_quality < 0:
+		return {}
+	return _take_stored_crop_entry(crop_type, selected_quality)
+
+func _attempt_selected_recipe_research() -> void:
+	if _research_attempt_locked or _research_selected_recipe == "" or _is_special_recipe_researched(_research_selected_recipe):
+		return
+	var data := ResearchRecipeCatalog.get_data(_research_selected_recipe)
+	if data.is_empty() or not _research_event_clue_unlocked(str(data.get("event_id", ""))):
+		return
+	var target_crop := str(data.get("crop", ""))
+	var target_station := str(data.get("station", ""))
+	if _research_selected_crop != target_crop:
+		_research_feedback = str(data.get("wrong_crop_hint", "这份食材与线索不符。"))
+		AudioManager.play_sfx("ui_locked")
+		_rebuild_research_table_panel()
+		return
+	if _research_selected_station != target_station:
+		_research_feedback = str(data.get("wrong_station_hint", "这台设备无法验证当前线索。"))
+		AudioManager.play_sfx("ui_locked")
+		_rebuild_research_table_panel()
+		return
+	if _research_crop_available_count(target_crop) <= 0:
+		_research_feedback = "手上或食材箱里没有可用于研究的%s。" % _crop_display_name(target_crop)
+		AudioManager.play_sfx("ui_locked")
+		_rebuild_research_table_panel()
+		return
+	_research_attempt_locked = true
+	if not _consume_research_crop(target_crop):
+		_research_attempt_locked = false
+		return
+	_researched_special_recipes[_research_selected_recipe] = true
+	var event_id := str(data.get("event_id", ""))
+	var record := (_local_event_atlas.get(event_id, {}) as Dictionary).duplicate(true)
+	record["special_recipe"] = _research_selected_recipe
+	record["special_recipe_researched"] = true
+	record["special_recipe_served"] = false
+	_local_event_atlas[event_id] = record
+	_research_feedback = "研究成功：%s" % str(data.get("name", "地方料理"))
+	AudioManager.play_sfx("reward_stage")
+	_sync_progression_world_state()
+	_update_map_codex_panel()
+	_rebuild_research_table_panel()
+	if _research_panel != null and is_instance_valid(_research_panel):
+		_play_chapter_one_task_confetti(_research_panel.get_global_rect().get_center(), 1.1)
+	_research_attempt_locked = false
 
 func _update_map_codex_text_row(title_text: String, count: int, total: int, rewards: Array, kind: String, button: Button, red_dot: Label) -> void:
 	if button == null or red_dot == null:
@@ -6507,7 +12095,7 @@ func _create_map_codex_entry_card(kind: String, id: String, index: int, discover
 	card.add_child(row)
 
 	var icon := Label.new()
-	icon.text = _codex_entry_icon_text(kind, id, discovered and revealed)
+	icon.text = _codex_entry_icon_text(kind, id, discovered)
 	icon.custom_minimum_size = Vector2(32.0, 34.0)
 	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -6555,8 +12143,7 @@ func _on_map_codex_entry_pressed(kind: String, id: String, index: int, discovere
 	if detail_label == null or not is_instance_valid(detail_label):
 		return
 	if discovered and not revealed:
-		_reveal_codex_id(kind, id)
-		_show_map_codex_detail_popup(kind)
+		detail_label.text = "%s：已获得种子；首次收获后解锁完整模型、售价和来源说明。" % _codex_entry_name(kind, id)
 		return
 	if discovered and revealed:
 		detail_label.text = "%s：%s" % [_codex_entry_name(kind, id), _codex_entry_detail_text(kind, id)]
@@ -6655,8 +12242,8 @@ func _codex_rewards(kind: String) -> Array:
 
 func _codex_known_ids(kind: String) -> Array[String]:
 	if kind == "crop":
-		return [CROP_CARROT, CROP_EGGPLANT, CROP_PEA, CROP_BELL_PEPPER, CROP_MARSHMALLOW]
-	return [KITCHEN_RECIPE_SOUP, KITCHEN_RECIPE_GRILLED, KITCHEN_RECIPE_PEA_SOUP, KITCHEN_RECIPE_EGGPLANT_GRILL, KITCHEN_RECIPE_PEPPER_SKEWERS]
+		return CropCatalog.ALL_IDS.duplicate()
+	return [KITCHEN_RECIPE_SOUP, KITCHEN_RECIPE_GRILLED, KITCHEN_RECIPE_PEA_SOUP, KITCHEN_RECIPE_EGGPLANT_GRILL, KITCHEN_RECIPE_TOMATO_STEW, KITCHEN_RECIPE_TOMATO_ROAST, KITCHEN_RECIPE_PEPPER_SOUP, KITCHEN_RECIPE_PEPPER_SKEWERS, KITCHEN_RECIPE_PUMPKIN_POTAGE, KITCHEN_RECIPE_PUMPKIN_ROAST]
 
 func _is_codex_id_discovered(kind: String, id: String) -> bool:
 	if id == "":
@@ -6687,7 +12274,7 @@ func _codex_entry_display_name(kind: String, id: String, discovered: bool, revea
 	if not discovered:
 		return "未发现"
 	if not revealed:
-		return "可解锁"
+		return "%s（待收获）" % _codex_entry_name(kind, id) if kind == "crop" else "可解锁"
 	return _codex_entry_name(kind, id)
 
 func _codex_entry_name(kind: String, id: String) -> String:
@@ -6705,18 +12292,7 @@ func _codex_entry_icon_text(kind: String, id: String, discovered: bool) -> Strin
 			KITCHEN_RECIPE_GRILLED:
 				return "烤"
 		return "菜"
-	match id:
-		CROP_CARROT:
-			return "胡"
-		CROP_EGGPLANT:
-			return "茄"
-		CROP_PEA:
-			return "豆"
-		CROP_BELL_PEPPER:
-			return "椒"
-		CROP_MARSHMALLOW:
-			return "糖"
-	return "芽"
+	return CropCatalog.short_name(id)
 
 func _codex_entry_unlock_hint(kind: String, id: String, index: int) -> String:
 	if kind == "cooking":
@@ -6731,25 +12307,15 @@ func _codex_entry_detail_text(kind: String, id: String) -> String:
 	if kind == "cooking":
 		match id:
 			KITCHEN_RECIPE_SOUP:
-				return "基础热汤料理。需要胡萝卜清洗、切好后下锅，完成后可提交给订单。"
+				return "基础热汤料理。胡萝卜洗净后直接下锅，完成后可提交给订单。"
 			KITCHEN_RECIPE_GRILLED:
 				return "简单烧烤料理。需要把胡萝卜放上烧烤架，注意火候后出餐。"
 		return "这道料理已经记录在房车厨房里。"
-	match id:
-		CROP_CARROT:
-			return "最早学会种植的基础食材，也是第一次经营订单的核心原料。"
-		CROP_EGGPLANT:
-			return "村庄阶段可获得的作物，可通过草地掉落或瑞巴斯商店扩展种植。"
-		CROP_PEA:
-			return "村庄阶段可获得的作物，可用于后续更多轻食订单。"
-		CROP_BELL_PEPPER:
-			return "摇树时可能发现的作物种子，偏向探索奖励。"
-		CROP_MARSHMALLOW:
-			return "神秘种子长出的特殊食材，主要来自瑞巴斯商店。"
-	return "这项作物已经被记录进图鉴。"
+	var crop_data := CropCatalog.get_data(id)
+	return "%s  售价：%d 金币。来源：%s" % [str(crop_data.get("detail", "这项作物已经被记录进图鉴。")), int(crop_data.get("sell_price", 0)), str(crop_data.get("source", "继续探索"))]
 
 func _claim_map_codex_reward(kind: String) -> void:
-	var count := _codex_discovered_crops.size() if kind == "crop" else _codex_discovered_cooking.size()
+	var count := _codex_count(kind)
 	var rewards := CODEX_CROP_REWARDS if kind == "crop" else CODEX_COOKING_REWARDS
 	var reward := _find_next_codex_reward(kind, rewards)
 	if reward.is_empty():
@@ -6758,7 +12324,7 @@ func _claim_map_codex_reward(kind: String) -> void:
 	_claim_map_codex_reward_at(kind, threshold)
 
 func _claim_map_codex_reward_at(kind: String, threshold: int) -> void:
-	var count := _codex_discovered_crops.size() if kind == "crop" else _codex_discovered_cooking.size()
+	var count := _codex_count(kind)
 	var rewards := CODEX_CROP_REWARDS if kind == "crop" else CODEX_COOKING_REWARDS
 	var reward := _find_codex_reward_by_threshold(rewards, threshold)
 	if reward.is_empty():
@@ -6774,8 +12340,15 @@ func _claim_map_codex_reward_at(kind: String, threshold: int) -> void:
 		_coins += int(reward["coins"])
 	if reward.has("seed_crop"):
 		_add_seed_to_inventory(str(reward["seed_crop"]), int(reward.get("seed_quality", 0)), int(reward.get("seed_count", 1)), true)
+	if bool(reward.get("unlock_research_table", false)):
+		_research_table_unlocked = true
+		_kitchen_upgrade_levels["research_table"] = 1
+		_rebuild_kitchen_equipment_grid()
+	# 任务到账音需要盖过环境音乐；领取按钮本身设为静音，避免普通点击声遮住它。
+	AudioManager.play_sfx("reward_small", 5.0)
 	_show_side_toast(str(reward.get("toast", "领取图鉴奖励：%s" % str(reward.get("label", "奖励")))))
 	_update_map_codex_panel()
+	_sync_progression_world_state()
 
 func _find_codex_reward_by_threshold(rewards: Array, threshold: int) -> Dictionary:
 	for reward in rewards:
@@ -6783,12 +12356,24 @@ func _find_codex_reward_by_threshold(rewards: Array, threshold: int) -> Dictiona
 			return reward
 	return {}
 
-func _record_codex_crop(crop_type: String) -> void:
-	if crop_type == "" or _codex_discovered_crops.has(crop_type):
+func _record_codex_seed(crop_type: String) -> void:
+	if crop_type == "" or not CropCatalog.has(crop_type) or _codex_discovered_crops.has(crop_type):
 		return
 	_codex_discovered_crops[crop_type] = true
-	_show_side_toast("图鉴更新：%s" % _crop_display_name(crop_type))
+	_unlocked_crops[crop_type] = true
+	_show_side_toast("作物图鉴发现：%s（首次收获后解锁完整资料）" % _crop_display_name(crop_type))
 	_update_map_codex_panel()
+	_sync_progression_world_state()
+
+func _record_codex_crop(crop_type: String) -> void:
+	_record_codex_seed(crop_type)
+	if crop_type == "" or _codex_harvested_crops.has(crop_type):
+		return
+	_codex_harvested_crops[crop_type] = true
+	_codex_revealed_crops[crop_type] = true
+	_show_side_toast("图鉴完整记录：%s" % _crop_display_name(crop_type))
+	_update_map_codex_panel()
+	_sync_progression_world_state()
 
 func _create_map_page_button(button_name: String, label_text: String) -> Button:
 	var button := Button.new()
@@ -6886,52 +12471,10 @@ func _seed_display_name(crop_type: String, quality: int) -> String:
 	return "%s%s种子" % [quality_name, crop_name]
 
 func _crop_display_name(crop_type: String) -> String:
-	match crop_type:
-		CROP_EGGPLANT:
-			return "茄子"
-		CROP_PEA:
-			return "豌豆"
-		CROP_BELL_PEPPER:
-			return "甜椒"
-		CROP_MARSHMALLOW:
-			return "棉花糖"
-		_:
-			return "胡萝卜"
-	match crop_type:
-		CROP_EGGPLANT:
-			return "茄子"
-		CROP_PEA:
-			return "豌豆"
-		CROP_BELL_PEPPER:
-			return "甜椒"
-		CROP_MARSHMALLOW:
-			return "棉花糖"
-		_:
-			return "胡萝卜"
+	return CropCatalog.display_name(crop_type)
 
 func _crop_short_name(crop_type: String) -> String:
-	match crop_type:
-		CROP_EGGPLANT:
-			return "茄"
-		CROP_PEA:
-			return "豆"
-		CROP_BELL_PEPPER:
-			return "椒"
-		CROP_MARSHMALLOW:
-			return "糖"
-		_:
-			return "胡"
-	match crop_type:
-		CROP_EGGPLANT:
-			return "茄"
-		CROP_PEA:
-			return "豆"
-		CROP_BELL_PEPPER:
-			return "椒"
-		CROP_MARSHMALLOW:
-			return "糖"
-		_:
-			return "胡"
+	return CropCatalog.short_name(crop_type)
 
 func _quality_stars(quality: int) -> String:
 	return "⭐".repeat(clampi(quality, 0, 3))
@@ -6946,22 +12489,35 @@ func _quality_color(quality: int) -> Color:
 			return Color(1.0, 0.72, 0.30, 1.0)
 	return Color(1.0, 0.94, 0.70, 1.0)
 
+func _toast_quality_color(quality: int) -> Color:
+	match clampi(quality, 0, 3):
+		1:
+			return Color(0.20, 0.43, 0.16, 1.0)
+		2:
+			return Color(0.16, 0.34, 0.62, 1.0)
+		3:
+			return Color(0.52, 0.28, 0.06, 1.0)
+	return Color(0.25, 0.17, 0.09, 1.0)
+
 func _show_pickup_toast(display_name: String, amount: int, quality: int = 0) -> void:
 	if _pickup_feed == null or not is_instance_valid(_pickup_feed):
 		return
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.modulate.a = 0.0
-	panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.35, 0.25, 0.13, 0.68), Color(1.0, 0.88, 0.46, 0.80), 8.0, 1))
+	panel.add_theme_stylebox_override("panel", _make_wood_toast_style())
 	var label := Label.new()
 	var star_text := _quality_stars(quality)
 	label.text = "%s%s x%d" % [star_text + " " if star_text != "" else "", display_name, amount]
 	label.custom_minimum_size = Vector2(230.0, 30.0)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 18)
-	label.add_theme_color_override("font_color", _quality_color(quality))
-	label.add_theme_color_override("font_shadow_color", Color(0.12, 0.08, 0.04, 0.78))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 2)
+	label.add_theme_color_override("font_color", _toast_quality_color(quality))
+	label.add_theme_color_override("font_shadow_color", Color(1.0, 0.96, 0.82, 0.86))
+	label.add_theme_constant_override("shadow_offset_x", 0)
+	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.offset_left = 12.0
 	label.offset_right = -12.0
 	label.offset_top = 4.0
@@ -6975,32 +12531,8 @@ func _show_pickup_toast(display_name: String, amount: int, quality: int = 0) -> 
 	tween.finished.connect(panel.queue_free)
 
 func _show_side_toast(text: String) -> void:
-	if _pickup_feed == null or not is_instance_valid(_pickup_feed):
-		return
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.modulate.a = 0.0
-	panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.35, 0.25, 0.13, 0.68), Color(1.0, 0.88, 0.46, 0.80), 8.0, 1))
-	var label := Label.new()
-	label.text = text
-	label.custom_minimum_size = Vector2(280.0, 32.0)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_size_override("font_size", 17)
-	label.add_theme_color_override("font_color", Color(1.0, 0.94, 0.70, 1.0))
-	label.add_theme_color_override("font_shadow_color", Color(0.12, 0.08, 0.04, 0.78))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 2)
-	label.offset_left = 12.0
-	label.offset_right = -12.0
-	label.offset_top = 4.0
-	label.offset_bottom = -4.0
-	panel.add_child(label)
-	_pickup_feed.add_child(panel)
-	var tween := create_tween()
-	tween.tween_property(panel, "modulate:a", 1.0, 0.16)
-	tween.tween_interval(2.2)
-	tween.tween_property(panel, "modulate:a", 0.0, 0.28)
-	tween.finished.connect(panel.queue_free)
+	# 过程性成功反馈不弹横条，避免遮挡场景和频繁打断玩家。
+	return
 
 func _sync_total_seed_count() -> void:
 	var total := 0
@@ -7019,6 +12551,7 @@ func _add_seed_to_inventory(crop_type: String, quality: int, amount: int, show_f
 		return false
 	var key := _seed_inventory_key(crop_type, quality)
 	_seed_inventory[key] = int(_seed_inventory.get(key, 0)) + amount
+	_record_codex_seed(crop_type)
 	_sync_total_seed_count()
 	if existing_slot == -1:
 		var target_slot := _find_empty_inventory_slot()
@@ -7040,6 +12573,7 @@ func _remove_seed_from_inventory(crop_type: String, quality: int, amount: int) -
 	else:
 		_seed_inventory[key] = count
 	_sync_total_seed_count()
+	_sync_progression_world_state()
 	return true
 
 func _find_empty_inventory_slot() -> int:
@@ -7161,15 +12695,8 @@ func _update_inventory_bar() -> void:
 		var locked := index >= INVENTORY_UNLOCKED_SLOT_COUNT
 		var selected := index == _selected_inventory_slot
 		var drag_hover := _inventory_dragging_item and index == _inventory_drag_hover_slot and not locked
-		var fill := Color(0.98, 0.84, 0.48, 0.96) if selected else Color(0.92, 0.80, 0.58, 0.86)
-		var border := Color(1.0, 0.98, 0.74, 1.0) if selected else Color(1.0, 0.94, 0.72, 0.96)
-		if locked:
-			fill = Color(0.40, 0.36, 0.30, 0.78)
-			border = Color(0.64, 0.58, 0.49, 0.86)
-		elif drag_hover:
-			fill = Color(0.98, 0.88, 0.58, 0.98)
-			border = Color(0.58, 0.95, 0.78, 1.0)
-		slot.add_theme_stylebox_override("panel", _make_round_style(fill, border, 8.0, 3 if selected else 2))
+		var slot_state := "locked" if locked else ("drag_hover" if drag_hover else ("selected" if selected else "normal"))
+		slot.add_theme_stylebox_override("panel", _make_wood_inventory_slot_style(slot_state))
 		var label := slot.get_node_or_null("SlotLabel") as Label
 		if label == null:
 			continue
@@ -7773,7 +13300,7 @@ func _try_execute_selected_interaction_option() -> bool:
 		"return_kitchen_ingredient":
 			return _try_return_kitchen_held_item_to_food_chest()
 		"kitchen_take_order_ingredient":
-			return _try_take_kitchen_order_ingredient()
+			return _try_take_kitchen_order_ingredient(str(option.get("crop_type", "")))
 		"open_kitchen_equipment":
 			return _open_kitchen_equipment_panel()
 		"start_kitchen_business":
@@ -7781,13 +13308,17 @@ func _try_execute_selected_interaction_option() -> bool:
 		"start_formal_kitchen_business":
 			return _start_formal_kitchen_business()
 		"use_kitchen_equipment":
-			return _use_nearest_kitchen_equipment()
+			return _use_kitchen_equipment_instance(str(option.get("instance_id", _nearest_kitchen_equipment_id())))
+		"open_research_table":
+			return _open_research_table_panel()
 		"opening_sign_status":
 			return _open_opening_sign_status_panel()
 		"house_door":
 			return _try_use_house_door()
 		"business_prep":
 			return _try_open_business_prep_from_camper()
+		"drive_camper":
+			return _try_start_camper_driving()
 		"camper":
 			return _try_open_camper_map()
 		"mom":
@@ -7796,13 +13327,27 @@ func _try_execute_selected_interaction_option() -> bool:
 			return _try_start_rebas_shop()
 		"seed_sifter":
 			return _try_start_seed_sifter()
+		"wind_chase":
+			_open_wind_chase()
+			return true
 		"young_traveler":
 			return _try_start_young_traveler()
+		"local_event":
+			return _open_local_event_card(str(option.get("event_id", _active_world_event_id)))
+		"mainline_site":
+			return _open_mainline_commission_card(int(option.get("level_id", 0)))
+		"wardrobe_bundle", "wardrobe_tailor", "wardrobe_trunk":
+			if _wardrobe_system != null and is_instance_valid(_wardrobe_system):
+				return bool(_wardrobe_system.call("execute_interaction", action, option))
 	return false
 
 func _update_interaction_options() -> void:
+	_sync_food_chest_tutorial_state()
 	_interaction_options.clear()
-	if _dialogue_open or _map_open or _warehouse_panel_open or _warehouse_placing_item != "" or _kitchen_equipment_panel_open or _kitchen_upgrade_panel_open or (_business_prep_overlay != null and _business_prep_overlay.visible) or (_opening_package_reward_panel != null and _opening_package_reward_panel.visible) or (_opening_sign_status_panel != null and _opening_sign_status_panel.visible) or (_food_chest_overlay != null and _food_chest_overlay.visible) or (_reward_overlay != null and _reward_overlay.visible):
+	if _camper_driving:
+		_interaction_option_index = 0
+		return
+	if _dialogue_open or _map_open or _warehouse_panel_open or _warehouse_placing_item != "" or _kitchen_equipment_panel_open or _kitchen_upgrade_panel_open or (_research_overlay != null and _research_overlay.visible) or (_business_prep_overlay != null and _business_prep_overlay.visible) or (_mainline_commission_overlay != null and is_instance_valid(_mainline_commission_overlay) and _mainline_commission_overlay.visible) or (_opening_package_reward_panel != null and _opening_package_reward_panel.visible) or (_opening_sign_status_panel != null and _opening_sign_status_panel.visible) or (_food_chest_overlay != null and _food_chest_overlay.visible) or (_reward_overlay != null and _reward_overlay.visible):
 		_interaction_option_index = 0
 		return
 	if _held_crop_item == "" and _kitchen_held_item == "" and _find_near_dropped_seed() != null:
@@ -7818,10 +13363,15 @@ func _update_interaction_options() -> void:
 		_interaction_options.append({"action": "clear_rotten_crop", "text": "清理腐烂作物"})
 	if _inside_house and _is_player_near_food_chest():
 		_interaction_options.append({"action": "food_chest", "text": "查看食材箱子"})
-	if _is_player_near_placed_food_chest() and _kitchen_item_is_raw_crop(_kitchen_held_item):
+	if _is_player_near_placed_food_chest() and _kitchen_item_can_return_to_food_chest(_kitchen_held_item):
 		_interaction_options.append({"action": "return_kitchen_ingredient", "text": "放回食材箱"})
 	elif _is_player_near_placed_food_chest() and _kitchen_business_active and _kitchen_held_item == "" and _held_crop_item == "":
-		_interaction_options.append({"action": "kitchen_take_order_ingredient", "text": "取订单食材"})
+		for crop_type in _pending_kitchen_crop_types():
+			_interaction_options.append({
+				"action": "kitchen_take_order_ingredient",
+				"crop_type": crop_type,
+				"text": "取%s" % _crop_display_name(crop_type),
+			})
 	if _is_player_near_placed_food_chest():
 		_interaction_options.append({"action": "view_placed_food_chest", "text": "查看食材箱子"})
 		_interaction_options.append({"action": "pickup_placed_food_chest", "text": "收起食材箱子"})
@@ -7829,7 +13379,12 @@ func _update_interaction_options() -> void:
 		_interaction_options.append({"action": "place_food_chest", "text": "摆放食材箱子"})
 	var nearest_equipment := _nearest_kitchen_equipment_id()
 	if nearest_equipment != "" and _should_show_kitchen_equipment_use_prompt():
-		_interaction_options.append({"action": "use_kitchen_equipment", "text": "使用%s" % _equipment_name(nearest_equipment)})
+		var nearest_type := _kitchen_instance_type(nearest_equipment)
+		_interaction_options.append({"action": "use_kitchen_equipment", "instance_id": nearest_equipment, "text": "使用%s %d号" % [_equipment_name(nearest_type), _kitchen_instance_index(nearest_equipment)]})
+	if not _kitchen_business_active:
+		var nearest_research_table := _nearest_kitchen_equipment_id("research_table")
+		if nearest_research_table != "":
+			_interaction_options.append({"action": "open_research_table", "instance_id": nearest_research_table, "text": "查看料理研究"})
 	if _is_player_near_opening_sign():
 		_interaction_options.append({"action": "opening_sign_status", "text": "查看房车厨房状态"})
 	if _is_player_near_house_entry() or _is_player_near_house_exit():
@@ -7839,6 +13394,8 @@ func _update_interaction_options() -> void:
 			if _is_business_prep_entry_unlocked():
 				_interaction_options.append({"action": "business_prep", "text": "进入经营准备"})
 				_interaction_options.append({"action": "camper", "text": "打开房车地图"})
+				if _is_camper_drive_unlocked():
+					_interaction_options.append({"action": "drive_camper", "text": "驾驶房车"})
 			else:
 				_interaction_options.append({"action": "camper", "text": "进入房车地图"})
 		else:
@@ -7848,9 +13405,31 @@ func _update_interaction_options() -> void:
 	if _is_player_near_rebas():
 		_interaction_options.append({"action": "rebas_shop", "text": "与%s交换" % REBAS_NAME})
 	if _is_player_near_seed_sifter():
-		_interaction_options.append({"action": "seed_sifter", "text": "与%s聊聊筛种" % SIFTER_NAME})
+		_interaction_options.append({"action": "seed_sifter", "text": "与%s开始溪流筛种" % SIFTER_NAME})
+	if _wind_chase_unlocked and not _wind_chase_completed and _is_player_near_wind_chase():
+		_interaction_options.append({"action": "wind_chase", "text": "追踪风种"})
 	if _is_player_near_young_traveler():
 		_interaction_options.append({"action": "young_traveler", "text": "与%s聊聊换种" % TRAVELER_NAME})
+	var nearby_mainline_level := _nearby_mainline_site_level()
+	if nearby_mainline_level > 0:
+		var mainline_site := BusinessDiscoveryCatalog.get_site(nearby_mainline_level)
+		var discovery_state := _business_discovery_state(nearby_mainline_level)
+		var mainline_text := ""
+		if discovery_state == BusinessDiscoveryCatalog.STATE_CLUE:
+			mainline_text = "与%s谈谈" % str(mainline_site.get("customer_name", "当地顾客"))
+		elif discovery_state == BusinessDiscoveryCatalog.STATE_DISCOVERED:
+			mainline_text = ("开始首次宴会" if _is_camper_parked_at_mainline_site(nearby_mainline_level) else "查看委托（需房车停靠）")
+		elif discovery_state == BusinessDiscoveryCatalog.STATE_REGULAR:
+			mainline_text = "拜访老主顾 · %s" % str(mainline_site.get("short_name", "经营委托"))
+		if mainline_text != "":
+			_interaction_options.append({"action": "mainline_site", "level_id": nearby_mainline_level, "world_position": _mainline_site_world_position(nearby_mainline_level), "text": mainline_text})
+	var nearby_event := _nearby_local_event_id(3.8)
+	if nearby_event != "":
+		var event_config := LocalEventCatalog.get_event(nearby_event)
+		var parked := _is_camper_parked_at_local_event(nearby_event)
+		_interaction_options.append({"action": "local_event", "event_id": nearby_event, "world_position": _local_event_world_position(nearby_event), "text": ("开始%s经营" if parked else "查看%s（需房车停靠）") % str(event_config.get("short_name", "地方活动"))})
+	if _wardrobe_system != null and is_instance_valid(_wardrobe_system):
+		_wardrobe_system.call("append_interaction_options", _interaction_options)
 	if not _is_business_prep_entry_unlocked():
 		for index in range(_interaction_options.size() - 1, -1, -1):
 			if str(_interaction_options[index].get("action", "")) == "business_prep":
@@ -7865,6 +13444,9 @@ func _show_interaction_options_prompt() -> bool:
 		return false
 	if _interaction_options.size() == 1:
 		var option := _interaction_options[0]
+		if _should_suppress_kitchen_interaction_prompt(option):
+			_interaction_prompt.visible = false
+			return true
 		_interaction_prompt_label.text = "F / 点击  %s" % str(option.get("text", ""))
 		_interaction_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if not _is_repeatable_interaction_action(str(option.get("action", ""))) and _has_shown_interaction_prompt(_interaction_prompt_label.text):
@@ -7890,9 +13472,17 @@ func _show_interaction_options_prompt() -> bool:
 	_interaction_prompt.move_to_front()
 	return true
 
+func _should_suppress_kitchen_interaction_prompt(option: Dictionary) -> bool:
+	if str(option.get("action", "")) != "use_kitchen_equipment":
+		return false
+	var instance_id := str(option.get("instance_id", _nearest_kitchen_equipment_id()))
+	return instance_id != "" and _kitchen_equipment_bubble_text(instance_id) != ""
+
 func _is_repeatable_interaction_action(action: String) -> bool:
 	# 设备、仓库和操作台的 F / 点击提示只在首次靠近时教学，避免经营中反复遮挡订单。
-	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "business_prep", "camper", "rebas_shop"]
+	if action == "use_kitchen_equipment" and (_held_crop_item != "" or _kitchen_held_item != ""):
+		return true
+	return action in ["start_kitchen_business", "start_formal_kitchen_business", "opening_sign_status", "kitchen_take_order_ingredient", "return_kitchen_ingredient", "pickup_kitchen_item", "open_research_table", "business_prep", "drive_camper", "camper", "rebas_shop", "local_event", "mainline_site", "wardrobe_tailor", "wardrobe_trunk"]
 
 func _has_shown_interaction_prompt(text: String) -> bool:
 	return _shown_interaction_prompt_texts.has(text.strip_edges())
@@ -7910,8 +13500,8 @@ func _fit_interaction_prompt_to_lines(lines: Array[String]) -> void:
 		var longest_width := 0.0
 		for line in lines:
 			longest_width = maxf(longest_width, _estimate_prompt_text_width(line))
-		var panel_width := clampf(longest_width + 44.0, 190.0, 500.0)
-		var panel_height := maxf(54.0, 18.0 + float(maxi(lines.size(), 1)) * 30.0)
+		var panel_width := clampf(longest_width + 72.0, 205.0, 340.0)
+		var panel_height := maxf(panel_width / 3.95, 18.0 + float(maxi(lines.size(), 1)) * 27.0)
 		_interaction_prompt.anchor_left = 1.0
 		_interaction_prompt.anchor_top = 1.0
 		_interaction_prompt.anchor_right = 1.0
@@ -7922,9 +13512,12 @@ func _fit_interaction_prompt_to_lines(lines: Array[String]) -> void:
 		_interaction_prompt.offset_bottom = -92.0
 
 func _position_interaction_prompt_for_option(option: Dictionary) -> void:
+	if option.has("world_position") and option.get("world_position") is Vector3:
+		_position_interaction_prompt_near_world((option.get("world_position") as Vector3) + Vector3(0.0, 1.5, 0.0))
+		return
 	var action := str(option.get("action", ""))
 	match action:
-		"business_prep", "camper":
+		"business_prep", "drive_camper", "camper":
 			if _camper != null and is_instance_valid(_camper):
 				_position_interaction_prompt_near_world(_camper.global_position + Vector3(0.0, 2.6, 0.0))
 				return
@@ -7949,9 +13542,9 @@ func _position_interaction_prompt_for_option(option: Dictionary) -> void:
 			if kitchen_item != null and is_instance_valid(kitchen_item):
 				_position_interaction_prompt_near_world(kitchen_item.global_position + Vector3(0.0, 1.1, 0.0))
 				return
-		"use_kitchen_equipment":
-			var equipment_id := _nearest_kitchen_equipment_id()
-			var equipment := _kitchen_equipment_roots.get(equipment_id) as Node3D
+		"use_kitchen_equipment", "open_research_table":
+			var equipment_id := str(option.get("instance_id", _nearest_kitchen_equipment_id()))
+			var equipment := _kitchen_root_for_instance(equipment_id)
 			if equipment != null and is_instance_valid(equipment):
 				_position_interaction_prompt_near_world(equipment.global_position + Vector3(0.0, 1.7, 0.0))
 				return
@@ -8014,12 +13607,20 @@ func _estimate_prompt_text_width(text: String) -> float:
 	return width
 
 func _reset_kitchen_state() -> void:
+	AudioManager.set_business_mode(false)
+	AudioManager.stop_all_kitchen_loops()
+	_hide_kitchen_instance_selector()
 	_kitchen_equipment_roots.clear()
 	_kitchen_equipment_preview = null
 	_kitchen_equipment_panel_open = false
 	_kitchen_upgrade_panel_open = false
 	_kitchen_placing_equipment = ""
+	_kitchen_placing_instance_id = ""
 	_kitchen_placing_yaw = 0.0
+	_kitchen_placing_position = Vector3.ZERO
+	_kitchen_placing_cursor_valid = false
+	_kitchen_upgrade_preview_dragging = false
+	_kitchen_upgrade_preview_last_mouse = Vector2.ZERO
 	_kitchen_washed_carrot = 0
 	_kitchen_chopped_carrot = 0
 	_kitchen_served_count = 0
@@ -8030,11 +13631,11 @@ func _reset_kitchen_state() -> void:
 	_business_active_level_id = 0
 	_business_active_level_duration = 0.0
 	_kitchen_orders.clear()
-	_kitchen_pot_state.clear()
-	_kitchen_grill_state.clear()
+	_kitchen_cook_states.clear()
 	_kitchen_ready_dishes.clear()
 	_kitchen_scrap_dishes.clear()
 	_kitchen_scrap_income = 0
+	_kitchen_burnt_food_disposal_guide_completed = false
 	_kitchen_held_item = ""
 	_kitchen_held_recipe = ""
 	_kitchen_held_quality = 0
@@ -8043,6 +13644,8 @@ func _reset_kitchen_state() -> void:
 		_kitchen_held_visual.queue_free()
 	_kitchen_held_visual = null
 	_dropped_kitchen_item_roots.clear()
+	if _kitchen_prompt_overlay != null and is_instance_valid(_kitchen_prompt_overlay):
+		_kitchen_prompt_overlay.clear_all()
 	_kitchen_equipment_bubbles.clear()
 	_kitchen_equipment_progress.clear()
 	if _kitchen_equipment_panel != null:
@@ -8062,15 +13665,21 @@ func _open_kitchen_equipment_panel() -> bool:
 		return false
 	_close_warehouse_panel()
 	_close_kitchen_upgrade_panel()
+	_hide_kitchen_instance_selector()
 	_kitchen_equipment_panel_open = true
 	_kitchen_equipment_panel.visible = true
 	_kitchen_equipment_panel.move_to_front()
-	var upgrade_button := _kitchen_equipment_panel.find_child("KitchenUpgradeHeaderButton", true, false) as Button
-	if upgrade_button != null:
-		upgrade_button.visible = _is_kitchen_upgrade_entry_unlocked()
+	if _kitchen_upgrade_header_button != null and is_instance_valid(_kitchen_upgrade_header_button):
+		_kitchen_upgrade_header_button.visible = _is_kitchen_upgrade_entry_unlocked()
+	_refresh_kitchen_upgrade_attention()
+	if _is_kitchen_upgrade_entry_unlocked() and not _kitchen_upgrade_attention_acknowledged and not _kitchen_upgrade_confetti_played:
+		call_deferred("_play_kitchen_upgrade_button_confetti")
 	_rebuild_kitchen_equipment_grid()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	return true
+
+func _on_kitchen_upgrade_header_button_pressed() -> void:
+	_open_kitchen_upgrade_panel()
 
 func _on_kitchen_button_pressed() -> void:
 	if _is_kitchen_equipment_entry_unlocked():
@@ -8082,12 +13691,13 @@ func _update_kitchen_button() -> void:
 	if _kitchen_button == null:
 		return
 	var food_chest_open := _food_chest_overlay != null and _food_chest_overlay.visible
+	var research_open := _research_overlay != null and _research_overlay.visible
 	var shop_open := _shop_overlay != null and _shop_overlay.visible
 	var reward_open := _reward_overlay != null and _reward_overlay.visible
 	var package_reward_open := _opening_package_reward_panel != null and _opening_package_reward_panel.visible
 	var sign_status_open := _opening_sign_status_panel != null and _opening_sign_status_panel.visible
 	var business_prep_open := _business_prep_overlay != null and _business_prep_overlay.visible
-	var should_show := _should_show_kitchen_button() and _kitchen_placing_equipment == "" and _warehouse_placing_item == "" and not _dialogue_open and not _map_open and not _warehouse_panel_open and not _kitchen_upgrade_panel_open and not _kitchen_equipment_panel_open and not business_prep_open and not package_reward_open and not sign_status_open and not food_chest_open and not shop_open and not reward_open
+	var should_show := _should_show_kitchen_button() and _kitchen_placing_equipment == "" and _warehouse_placing_item == "" and not _dialogue_open and not _map_open and not _warehouse_panel_open and not _kitchen_upgrade_panel_open and not _kitchen_equipment_panel_open and not business_prep_open and not package_reward_open and not sign_status_open and not food_chest_open and not research_open and not shop_open and not reward_open
 	_kitchen_button.visible = should_show
 	if should_show:
 		_kitchen_button.move_to_front()
@@ -8110,18 +13720,18 @@ func _should_show_kitchen_button() -> bool:
 	return _is_kitchen_equipment_entry_unlocked() or _is_kitchen_upgrade_entry_unlocked()
 
 func _is_kitchen_equipment_entry_unlocked() -> bool:
-	if not _is_kitchen_phase_unlocked() or not _chest_lesson_completed or _inside_house:
+	if not _is_kitchen_phase_unlocked() or _inside_house:
 		return false
 	if _kitchen_first_day_completed or _post_tutorial_grand_reward_claimed or _opening_sign_placed:
 		return true
 	if _has_any_kitchen_equipment():
 		return true
-	return not _placed_food_chests.is_empty() and _has_stored_first_kitchen_carrots_once()
+	return _has_stored_first_kitchen_carrots_once()
 
 func _is_kitchen_upgrade_entry_unlocked() -> bool:
 	if not _is_business_prep_entry_unlocked() or _inside_house:
 		return false
-	if _post_tutorial_grand_reward_claimed or _opening_sign_placed:
+	if _kitchen_first_day_completed or _post_tutorial_grand_reward_claimed or _opening_sign_placed:
 		return true
 	if _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET) > 0:
 		return true
@@ -8154,17 +13764,23 @@ func _update_kitchen_entry_guides() -> void:
 	if _opening_sign_status_panel != null and _opening_sign_status_panel.visible:
 		return
 	if not _kitchen_equipment_entry_guide_completed and _is_kitchen_equipment_entry_unlocked():
+		if _notification_time > 0.0:
+			return
 		_kitchen_equipment_entry_guide_completed = true
 		_show_notification("设备按钮已开放，可以单独摆放和调整房车设备")
 		return
 	if not _kitchen_upgrade_entry_guide_completed and _is_kitchen_upgrade_entry_unlocked():
+		if _notification_time > 0.0:
+			return
 		_kitchen_upgrade_entry_guide_completed = true
-		_show_notification("新入口：右下角升级按钮已开放，可手动解锁料理台 Lv.2")
+		_show_notification("新功能已开放：打开【设备】，点击右上角【改造】升级设备")
 
 func _close_kitchen_equipment_panel() -> void:
+	_hide_kitchen_instance_selector()
 	_kitchen_equipment_panel_open = false
 	if _kitchen_equipment_panel != null:
 		_kitchen_equipment_panel.visible = false
+	_refresh_kitchen_upgrade_attention()
 
 func _open_kitchen_upgrade_panel() -> bool:
 	if _inside_house:
@@ -8174,20 +13790,104 @@ func _open_kitchen_upgrade_panel() -> bool:
 		return true
 	if _kitchen_upgrade_panel == null:
 		return false
+	_acknowledge_kitchen_upgrade_attention()
 	_close_warehouse_panel()
 	_close_kitchen_equipment_panel()
+	_kitchen_upgrade_preview_dragging = false
+	_kitchen_upgrade_preview_last_mouse = Vector2.ZERO
 	_kitchen_upgrade_panel_open = true
 	_kitchen_upgrade_panel.visible = true
 	_kitchen_upgrade_panel.move_to_front()
+	if _kitchen_upgrade_preview_viewport != null:
+		_kitchen_upgrade_preview_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	_chapter_one_checked_kitchen_upgrade_lv2 = true
 	_update_kitchen_upgrade_buttons()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	return true
 
+func _acknowledge_kitchen_upgrade_attention() -> void:
+	_kitchen_upgrade_attention_acknowledged = true
+	_kitchen_upgrade_entry_guide_completed = true
+	_refresh_kitchen_upgrade_attention()
+
+func _refresh_kitchen_upgrade_attention() -> void:
+	var should_show := (
+		_kitchen_equipment_panel_open
+		and _is_kitchen_upgrade_entry_unlocked()
+		and not _kitchen_upgrade_attention_acknowledged
+	)
+	if _kitchen_upgrade_new_badge != null and is_instance_valid(_kitchen_upgrade_new_badge):
+		_kitchen_upgrade_new_badge.visible = should_show
+	if should_show:
+		_start_kitchen_upgrade_badge_pulse()
+	else:
+		_stop_kitchen_upgrade_badge_pulse()
+
+func _start_kitchen_upgrade_badge_pulse() -> void:
+	if _kitchen_upgrade_new_badge == null or not is_instance_valid(_kitchen_upgrade_new_badge):
+		return
+	if _kitchen_upgrade_badge_tween != null and _kitchen_upgrade_badge_tween.is_valid():
+		return
+	_kitchen_upgrade_new_badge.modulate = Color.WHITE
+	_kitchen_upgrade_badge_tween = _kitchen_upgrade_new_badge.create_tween().set_loops()
+	_kitchen_upgrade_badge_tween.tween_property(_kitchen_upgrade_new_badge, "modulate:a", 0.62, 0.48).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_kitchen_upgrade_badge_tween.tween_property(_kitchen_upgrade_new_badge, "modulate:a", 1.0, 0.48).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+func _stop_kitchen_upgrade_badge_pulse() -> void:
+	if _kitchen_upgrade_badge_tween != null and _kitchen_upgrade_badge_tween.is_valid():
+		_kitchen_upgrade_badge_tween.kill()
+	_kitchen_upgrade_badge_tween = null
+	if _kitchen_upgrade_new_badge != null and is_instance_valid(_kitchen_upgrade_new_badge):
+		_kitchen_upgrade_new_badge.modulate = Color.WHITE
+
+func _play_kitchen_upgrade_button_confetti() -> void:
+	if _kitchen_upgrade_confetti_played or _kitchen_upgrade_attention_acknowledged:
+		return
+	if not _kitchen_equipment_panel_open or not _is_kitchen_upgrade_entry_unlocked():
+		return
+	if _hud_root == null or not is_instance_valid(_hud_root):
+		return
+	if _kitchen_upgrade_header_button == null or not is_instance_valid(_kitchen_upgrade_header_button) or not _kitchen_upgrade_header_button.visible:
+		return
+	_kitchen_upgrade_confetti_played = true
+	var root := Control.new()
+	root.name = "KitchenUpgradeAttentionConfetti"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.z_index = 120
+	_hud_root.add_child(root)
+	var origin := _kitchen_upgrade_header_button.get_global_rect().get_center()
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var colors := [Color(1.0, 0.78, 0.22, 1.0), Color(0.96, 0.48, 0.20, 1.0), Color(0.54, 0.72, 0.32, 1.0)]
+	for index in range(18):
+		var piece := ColorRect.new()
+		piece.name = "UpgradeConfetti"
+		piece.color = colors[index % colors.size()]
+		piece.size = Vector2(rng.randf_range(3.0, 6.0), rng.randf_range(6.0, 11.0))
+		piece.position = origin - piece.size * 0.5 + Vector2(rng.randf_range(-5.0, 5.0), rng.randf_range(-4.0, 4.0))
+		piece.rotation = rng.randf_range(-PI, PI)
+		piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(piece)
+		var angle := TAU * float(index) / 18.0 + rng.randf_range(-0.16, 0.16)
+		var distance := rng.randf_range(30.0, 58.0)
+		var target := piece.position + Vector2(cos(angle) * distance, sin(angle) * distance - rng.randf_range(8.0, 22.0))
+		var duration := rng.randf_range(0.48, 0.72)
+		var piece_tween := piece.create_tween()
+		piece_tween.set_parallel(true)
+		piece_tween.tween_property(piece, "position", target, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		piece_tween.tween_property(piece, "rotation", piece.rotation + rng.randf_range(-3.2, 3.2), duration)
+		piece_tween.tween_property(piece, "modulate:a", 0.0, 0.22).set_delay(duration * 0.62)
+	get_tree().create_timer(0.9).timeout.connect(root.queue_free)
+
 func _close_kitchen_upgrade_panel() -> void:
+	_kitchen_upgrade_preview_dragging = false
+	_kitchen_upgrade_preview_last_mouse = Vector2.ZERO
 	_kitchen_upgrade_panel_open = false
 	if _kitchen_upgrade_panel != null:
 		_kitchen_upgrade_panel.visible = false
+	if _kitchen_upgrade_preview_viewport != null:
+		_kitchen_upgrade_preview_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 
 func _update_warehouse_button() -> void:
 	if _warehouse_button == null:
@@ -8204,21 +13904,24 @@ func _update_warehouse_button() -> void:
 		_warehouse_button.move_to_front()
 
 func _open_warehouse_panel() -> void:
-	if _warehouse_panel == null:
+	if _warehouse_panel == null or _warehouse_modal_root == null:
 		return
 	_close_kitchen_upgrade_panel()
 	_close_kitchen_equipment_panel()
 	_close_opening_sign_status_panel()
 	_warehouse_panel_open = true
+	_warehouse_modal_root.visible = true
+	_warehouse_modal_root.move_to_front()
 	_warehouse_panel.visible = true
-	_warehouse_panel.move_to_front()
 	_rebuild_warehouse_panel()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _close_warehouse_panel() -> void:
+	if _warehouse_panel_open:
+		_clear_warehouse_new_items_for_tab(_warehouse_tab)
 	_warehouse_panel_open = false
-	if _warehouse_panel != null:
-		_warehouse_panel.visible = false
+	if _warehouse_modal_root != null:
+		_warehouse_modal_root.visible = false
 
 func _set_warehouse_tab(tab_id: String) -> void:
 	_warehouse_tab = tab_id
@@ -8235,11 +13938,13 @@ func _rebuild_warehouse_panel() -> void:
 	if items.is_empty():
 		var empty := Label.new()
 		empty.text = "这里暂时没有物品"
-		empty.custom_minimum_size = Vector2(250.0, 78.0)
+		empty.custom_minimum_size = Vector2(374.0, 190.0)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		empty.add_theme_font_size_override("font_size", 14)
-		empty.add_theme_color_override("font_color", Color(0.42, 0.28, 0.10, 0.74))
+		empty.add_theme_font_size_override("font_size", 16)
+		empty.add_theme_color_override("font_color", Color(0.94, 0.84, 0.62, 0.82))
+		empty.add_theme_color_override("font_outline_color", Color(0.18, 0.09, 0.03, 0.82))
+		empty.add_theme_constant_override("outline_size", 5)
 		_warehouse_grid.add_child(empty)
 		return
 	for item_id in items:
@@ -8249,13 +13954,16 @@ func _refresh_warehouse_tabs() -> void:
 	if _warehouse_panel == null:
 		return
 	for tab_id in ["decor", "ticket"]:
-		var tab := _warehouse_panel.get_node_or_null("WarehouseBox/Tabs/Tab_%s" % tab_id) as Button
+		var tab := _warehouse_tab_buttons.get(tab_id) as Button
 		if tab == null:
 			continue
 		var selected: bool = tab_id == _warehouse_tab
 		tab.add_theme_color_override("font_color", Color(0.24, 0.16, 0.06, 0.96))
-		tab.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.92, 0.68, 0.95) if selected else Color(0.91, 0.78, 0.52, 0.72), Color(0.72, 0.52, 0.25, 0.60), 12.0, 1))
-		tab.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.95, 0.76, 0.98), Color(0.72, 0.52, 0.25, 0.78), 12.0, 1))
+		tab.add_theme_stylebox_override("normal", _make_small_wood_command_style(Color(1.0, 1.0, 1.0, 1.0) if selected else Color(0.78, 0.74, 0.66, 0.88)))
+		tab.add_theme_stylebox_override("hover", _make_small_wood_command_style(Color(1.10, 1.08, 0.94, 1.0)))
+		var badge := _warehouse_tab_badges.get(tab_id) as Label
+		if badge != null:
+			badge.visible = _warehouse_category_has_new(tab_id)
 
 func _warehouse_visible_items(category: String) -> Array:
 	var result := []
@@ -8267,43 +13975,131 @@ func _warehouse_visible_items(category: String) -> Array:
 			result.append(str(item_id))
 	return result
 
-func _create_warehouse_item_card(item_id: String) -> Button:
+func _create_warehouse_item_card(item_id: String) -> PanelContainer:
 	var definition := _warehouse_item_definition(item_id)
 	var count := _warehouse_item_count(item_id)
 	var action_text := str(definition.get("action_text", "使用"))
-	var card := Button.new()
-	card.text = "%s\nx%d\n%s" % [str(definition.get("name", item_id)), count, action_text]
-	card.custom_minimum_size = Vector2(126.0, 78.0)
-	card.focus_mode = Control.FOCUS_NONE
-	card.add_theme_font_size_override("font_size", 12)
-	card.add_theme_color_override("font_color", Color(0.25, 0.16, 0.07, 0.96))
-	card.add_theme_stylebox_override("normal", _make_paper_info_card_style())
-	card.add_theme_stylebox_override("hover", _make_paper_info_card_style("hover"))
-	card.add_theme_stylebox_override("pressed", _make_paper_info_card_style("locked"))
-	card.pressed.connect(_use_warehouse_item.bind(item_id))
+	var is_new := bool(_warehouse_new_items.get(item_id, false))
+	var card := PanelContainer.new()
+	card.name = "WarehouseItem_%s" % item_id
+	card.custom_minimum_size = Vector2(182.0, 132.0)
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
+	card.add_theme_stylebox_override("panel", _make_paper_info_card_style("selected" if is_new else "normal"))
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 9)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 9)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	card.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 5)
+	margin.add_child(box)
+
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 7)
+	box.add_child(top)
+
+	var icon_holder := Control.new()
+	icon_holder.custom_minimum_size = Vector2(58.0, 58.0)
+	top.add_child(icon_holder)
+	var icon_texture := _load_ui_texture(str(definition.get("icon", "")))
+	if icon_texture != null:
+		var icon := TextureRect.new()
+		icon.texture = icon_texture
+		icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_holder.add_child(icon)
+	else:
+		var fallback := Label.new()
+		fallback.text = str(definition.get("fallback_icon", "◆"))
+		fallback.set_anchors_preset(Control.PRESET_FULL_RECT)
+		fallback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		fallback.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		fallback.add_theme_font_size_override("font_size", 30)
+		fallback.add_theme_color_override("font_color", Color(0.62, 0.42, 0.18, 0.92))
+		icon_holder.add_child(fallback)
+
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 1)
+	top.add_child(info)
+	var name_label := Label.new()
+	name_label.text = str(definition.get("name", item_id))
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_color_override("font_color", Color(0.25, 0.16, 0.07, 0.98))
+	info.add_child(name_label)
+	var count_label := Label.new()
+	count_label.text = "x%d" % count
+	count_label.add_theme_font_size_override("font_size", 12)
+	count_label.add_theme_color_override("font_color", Color(0.67, 0.39, 0.09, 0.96))
+	info.add_child(count_label)
+	if is_new:
+		var new_label := Label.new()
+		new_label.text = "新物品"
+		new_label.add_theme_font_size_override("font_size", 10)
+		new_label.add_theme_color_override("font_color", Color(0.86, 0.20, 0.08, 1.0))
+		info.add_child(new_label)
+
+	var description := Label.new()
+	description.text = str(definition.get("description", "保存在仓库中"))
+	description.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	description.add_theme_font_size_override("font_size", 10)
+	description.add_theme_color_override("font_color", Color(0.37, 0.25, 0.12, 0.78))
+	box.add_child(description)
+
+	var action := Button.new()
+	action.text = action_text
+	action.custom_minimum_size = Vector2(0.0, 28.0)
+	_apply_kitchen_parchment_button_style(action, 12)
+	action.pressed.connect(_use_warehouse_item.bind(item_id))
+	box.add_child(action)
 	return card
 
 func _warehouse_item_definition(item_id: String) -> Dictionary:
 	if item_id == WAREHOUSE_ITEM_SPARE_WOODEN_CRATE:
-		return {"name": "备用木箱", "category": "decor", "action_text": "查看"}
+		return {"name": "备用木箱", "category": "decor", "action_text": "查看", "description": "房车旅行用收纳箱", "icon": WAREHOUSE_ICON_SPARE_CRATE_PATH, "fallback_icon": "▣"}
 	if item_id == WAREHOUSE_ITEM_COOKING_TABLE_UPGRADE_MATERIAL:
-		return {"name": "料理台升级材料", "category": "ticket", "action_text": "保留"}
+		return {"name": "料理台升级材料", "category": "ticket", "action_text": "保留", "description": "升级料理设备所需", "icon": WAREHOUSE_ICON_UPGRADE_MATERIAL_PATH, "fallback_icon": "⚒"}
 	if item_id == WAREHOUSE_ITEM_MYSTERY_CROP_SAMPLE:
-		return {"name": "神秘作物样本", "category": "ticket", "action_text": "保留"}
+		return {"name": "神秘作物样本", "category": "ticket", "action_text": "保留", "description": "等待进一步研究", "icon": WAREHOUSE_ICON_MYSTERY_SAMPLE_PATH, "fallback_icon": "✦"}
 	if item_id == WAREHOUSE_ITEM_MOON_DEW_BERRY_SEED:
-		return {"name": "月露莓种子", "category": "ticket", "action_text": "保留"}
+		return {"name": "月露莓种子", "category": "ticket", "action_text": "保留", "description": "来自月露溪谷的种子", "icon": WAREHOUSE_ICON_MOON_DEW_SEED_PATH, "fallback_icon": "●"}
 	match item_id:
 		WAREHOUSE_ITEM_OPENING_SIGN:
-			return {"name": "房车开业小木牌", "category": "decor", "action_text": "摆放"}
+			return {"name": "房车开业小木牌", "category": "decor", "action_text": "摆放", "description": "摆在房车旁开启经营", "icon": WAREHOUSE_ICON_OPENING_SIGN_PATH, "fallback_icon": "★"}
 		WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET:
-			return {"name": "简易料理台 Lv2 解锁券", "category": "ticket", "action_text": "去升级"}
-	return {"name": item_id, "category": "ticket", "action_text": "使用"}
+			return {"name": "简易料理台 Lv2 解锁券", "category": "ticket", "action_text": "去升级", "description": "可免费解锁料理台 Lv2", "icon": WAREHOUSE_ICON_COOKING_TABLE_TICKET_PATH, "fallback_icon": "↑"}
+	return {"name": item_id, "category": "ticket", "action_text": "使用", "description": "仓库物品", "fallback_icon": "◆"}
 
-func _add_warehouse_item(item_id: String, amount: int) -> void:
+func _add_warehouse_item(item_id: String, amount: int, mark_new: bool = true) -> void:
 	if amount <= 0:
 		return
 	_warehouse_items[item_id] = _warehouse_item_count(item_id) + amount
+	if mark_new:
+		_warehouse_new_items[item_id] = true
 	_rebuild_warehouse_panel()
+
+func _warehouse_category_has_new(category: String) -> bool:
+	for raw_item_id in _warehouse_new_items.keys():
+		var item_id := str(raw_item_id)
+		if bool(_warehouse_new_items.get(item_id, false)) and str(_warehouse_item_definition(item_id).get("category", "")) == category:
+			return true
+	return false
+
+func _clear_warehouse_new_items_for_tab(category: String) -> void:
+	var to_clear: Array[String] = []
+	for raw_item_id in _warehouse_new_items.keys():
+		var item_id := str(raw_item_id)
+		if str(_warehouse_item_definition(item_id).get("category", "")) == category:
+			to_clear.append(item_id)
+	for item_id in to_clear:
+		_warehouse_new_items.erase(item_id)
+	_refresh_warehouse_tabs()
 
 func _consume_warehouse_item(item_id: String, amount: int) -> bool:
 	if amount <= 0:
@@ -8341,10 +14137,25 @@ func _use_warehouse_item(item_id: String) -> void:
 func _close_opening_package_reward_panel() -> void:
 	if _opening_package_reward_panel != null:
 		_opening_package_reward_panel.visible = false
+	if _should_show_wind_chase_unlock_guide():
+		_wind_chase_intro_pending = true
+		call_deferred("_show_wind_chase_guide_after_opening_package")
 
-func _show_opening_package_reward_panel() -> void:
+func _on_opening_package_view_warehouse_pressed() -> void:
+	var show_wind_guide := _should_show_wind_chase_unlock_guide()
+	if show_wind_guide:
+		_wind_chase_guide_resume_action = "warehouse"
+	_close_opening_package_reward_panel()
+	_warehouse_tab = "decor"
+	if show_wind_guide:
+		return
+	_open_warehouse_panel()
+
+func _show_opening_package_reward_panel(summary_text: String = "") -> void:
 	if _opening_package_reward_panel == null:
 		return
+	if _opening_package_reward_body != null and summary_text != "":
+		_opening_package_reward_body.text = summary_text
 	_opening_package_reward_panel.visible = true
 	_opening_package_reward_panel.move_to_front()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -8534,69 +14345,290 @@ func _placeable_footprint_samples(center: Vector2, yaw: float, half_extents: Vec
 	return samples
 
 func _update_kitchen_upgrade_buttons() -> void:
-	if _kitchen_upgrade_grid == null:
+	if _kitchen_upgrade_equipment_list == null or _kitchen_upgrade_cards == null:
 		return
-	for child in _kitchen_upgrade_grid.get_children():
-		_kitchen_upgrade_grid.remove_child(child)
+	for child in _kitchen_upgrade_equipment_list.get_children():
+		_kitchen_upgrade_equipment_list.remove_child(child)
 		child.queue_free()
-	for equipment in KITCHEN_EQUIPMENT_TYPES:
-		var equipment_id := str(equipment.get("id", ""))
-		var level := int(_kitchen_upgrade_levels.get(equipment_id, 1))
-		var cost := int(KITCHEN_UPGRADE_COSTS.get(equipment_id, 80)) * level
-		var unlocked := _is_kitchen_equipment_unlocked(equipment_id)
-		var upgrade_slot := Button.new()
-		upgrade_slot.name = "Upgrade_%s" % equipment_id
-		upgrade_slot.custom_minimum_size = Vector2(126.0, 58.0)
-		upgrade_slot.focus_mode = Control.FOCUS_NONE
-		upgrade_slot.add_theme_font_size_override("font_size", 13)
-		upgrade_slot.add_theme_color_override("font_color", Color(0.25, 0.16, 0.07, 0.96) if unlocked else Color(0.34, 0.25, 0.14, 0.48))
-		upgrade_slot.add_theme_color_override("font_disabled_color", Color(0.34, 0.25, 0.14, 0.58) if unlocked else Color(0.34, 0.25, 0.14, 0.42))
-		upgrade_slot.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.91, 0.66, 0.88) if unlocked else Color(0.70, 0.64, 0.52, 0.44), Color(0.70, 0.50, 0.24, 0.45), 10.0, 1))
-		upgrade_slot.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.95, 0.74, 0.98), Color(0.70, 0.50, 0.24, 0.68), 10.0, 1))
-		upgrade_slot.add_theme_stylebox_override("disabled", _make_round_style(Color(0.70, 0.64, 0.52, 0.44), Color(0.54, 0.43, 0.28, 0.24), 10.0, 1))
-		if unlocked:
-			var display_name := _equipment_upgrade_display_name(equipment_id)
-			if equipment_id == OPENING_PACKAGE_EQUIPMENT_ID and level < 2:
-				var has_ticket := _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET) > 0
-				upgrade_slot.text = "%s\nLv.1 → Lv.2\n%s" % [display_name, "解锁" if has_ticket else "缺少解锁券"]
-				upgrade_slot.disabled = not has_ticket
-				upgrade_slot.pressed.connect(_unlock_opening_package_cooking_table_lv2)
-			else:
-				upgrade_slot.text = "%s\nLv.%d  %d金币" % [display_name, level, cost]
-				upgrade_slot.disabled = _coins < cost
-				upgrade_slot.pressed.connect(_upgrade_kitchen_equipment.bind(equipment_id))
-		else:
-			upgrade_slot.text = "锁定\n%s" % str(equipment.get("name", "设备"))
-			upgrade_slot.disabled = true
-		_kitchen_upgrade_grid.add_child(upgrade_slot)
-func _upgrade_kitchen_equipment(equipment_id: String) -> void:
-	var level := int(_kitchen_upgrade_levels.get(equipment_id, 1))
-	if equipment_id == OPENING_PACKAGE_EQUIPMENT_ID and level < 2:
-		_unlock_opening_package_cooking_table_lv2()
-		return
-	var cost := int(KITCHEN_UPGRADE_COSTS.get(equipment_id, 80)) * level
-	if _coins < cost:
-		_show_side_toast("金币不足")
-		return
-	_coins -= cost
-	_kitchen_upgrade_levels[equipment_id] = level + 1
-	_show_side_toast("%s升级到 Lv.%d" % [_equipment_upgrade_display_name(equipment_id), level + 1])
-	_refresh_kitchen_equipment_level_label(equipment_id)
+	if _kitchen_upgrade_tab == "equipment":
+		for equipment in KITCHEN_EQUIPMENT_TYPES:
+			if not bool(equipment.get("upgradeable", true)):
+				continue
+			var equipment_id := str(equipment.get("id", ""))
+			var unlocked := _is_kitchen_equipment_unlocked(equipment_id)
+			var level := _kitchen_quantity_level(equipment_id)
+			var placed := _kitchen_placed_count(equipment_id)
+			var button := Button.new()
+			button.text = "%s\nLv.%d  已摆 %d/%d" % [_equipment_upgrade_display_name(equipment_id), level, placed, level]
+			button.custom_minimum_size = Vector2(154.0, 56.0)
+			button.focus_mode = Control.FOCUS_NONE
+			button.disabled = not unlocked
+			button.add_theme_font_size_override("font_size", 12)
+			button.add_theme_color_override("font_color", Color(0.28, 0.18, 0.07, 1.0))
+			button.add_theme_color_override("font_hover_color", Color(0.20, 0.12, 0.04, 1.0))
+			button.add_theme_color_override("font_disabled_color", Color(0.38, 0.31, 0.22, 0.58))
+			button.add_theme_stylebox_override("normal", _make_paper_info_card_style("selected" if equipment_id == _kitchen_upgrade_selected_equipment else "normal"))
+			button.add_theme_stylebox_override("hover", _make_paper_info_card_style("hover"))
+			button.add_theme_stylebox_override("disabled", _make_paper_info_card_style("locked"))
+			button.pressed.connect(_select_kitchen_upgrade_equipment.bind(equipment_id))
+			_kitchen_upgrade_equipment_list.add_child(button)
+	else:
+		for index in range(KitchenUpgradeCatalog.get_village_projects().size()):
+			var project: Dictionary = KitchenUpgradeCatalog.get_village_projects()[index]
+			var project_id := str(project.get("id", ""))
+			var button := Button.new()
+			var owned := bool(_village_upgrades.get(project_id, false))
+			button.text = "%d. %s%s" % [index + 1, str(project.get("display_name", "村落改造")), "  ✓" if owned else ""]
+			button.custom_minimum_size = Vector2(154.0, 42.0)
+			button.focus_mode = Control.FOCUS_NONE
+			button.add_theme_font_size_override("font_size", 12)
+			button.add_theme_color_override("font_color", Color(0.28, 0.18, 0.07, 1.0))
+			button.add_theme_color_override("font_hover_color", Color(0.20, 0.12, 0.04, 1.0))
+			button.add_theme_stylebox_override("normal", _make_paper_info_card_style("selected" if index == _kitchen_upgrade_selected_index else ("claimed" if owned else "normal")))
+			button.add_theme_stylebox_override("hover", _make_paper_info_card_style("hover"))
+			button.pressed.connect(_select_kitchen_upgrade_index.bind(index))
+			_kitchen_upgrade_equipment_list.add_child(button)
+	_rebuild_kitchen_upgrade_level_box()
+	_rebuild_kitchen_upgrade_cards()
+	_refresh_kitchen_upgrade_selection()
+
+func _switch_kitchen_upgrade_tab(tab: String) -> void:
+	_kitchen_upgrade_preview_dragging = false
+	_kitchen_upgrade_preview_last_mouse = Vector2.ZERO
+	_kitchen_upgrade_tab = "village" if tab == "village" else "equipment"
+	_kitchen_upgrade_selected_index = 0
+	if _kitchen_upgrade_slider != null:
+		_kitchen_upgrade_slider.set_value_no_signal(0.0)
 	_update_kitchen_upgrade_buttons()
 
+func _select_kitchen_upgrade_equipment(equipment_id: String) -> void:
+	_kitchen_upgrade_selected_equipment = equipment_id
+	_kitchen_upgrade_selected_index = 0
+	if _kitchen_upgrade_slider != null:
+		_kitchen_upgrade_slider.set_value_no_signal(0.0)
+	_update_kitchen_upgrade_buttons()
+
+func _select_kitchen_upgrade_index(index: int) -> void:
+	_kitchen_upgrade_selected_index = clampi(index, 0, 7)
+	if _kitchen_upgrade_slider != null:
+		_kitchen_upgrade_slider.set_value_no_signal(float(_kitchen_upgrade_selected_index))
+	_refresh_kitchen_upgrade_selection()
+	_update_kitchen_upgrade_buttons()
+
+func _on_kitchen_upgrade_slider_changed(value: float) -> void:
+	_kitchen_upgrade_selected_index = clampi(int(round(value)), 0, 7)
+	_refresh_kitchen_upgrade_selection()
+	_rebuild_kitchen_upgrade_cards()
+
+func _handle_kitchen_upgrade_preview_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_kitchen_upgrade_preview_dragging = event.pressed
+			_kitchen_upgrade_preview_last_mouse = event.position
+			_kitchen_upgrade_preview_container.accept_event()
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_select_kitchen_upgrade_index(_kitchen_upgrade_selected_index - 1)
+			_kitchen_upgrade_preview_container.accept_event()
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_select_kitchen_upgrade_index(_kitchen_upgrade_selected_index + 1)
+			_kitchen_upgrade_preview_container.accept_event()
+	elif event is InputEventMouseMotion and _kitchen_upgrade_preview_dragging:
+		_kitchen_upgrade_preview_yaw += event.relative.x * 0.012
+		if _kitchen_upgrade_preview_model != null and is_instance_valid(_kitchen_upgrade_preview_model):
+			_kitchen_upgrade_preview_model.rotation.y = _kitchen_upgrade_preview_yaw
+		_kitchen_upgrade_preview_container.accept_event()
+
+func _rebuild_kitchen_upgrade_level_box() -> void:
+	if _kitchen_upgrade_level_box == null:
+		return
+	for child in _kitchen_upgrade_level_box.get_children():
+		child.queue_free()
+	if _kitchen_upgrade_tab == "village":
+		var heading := Label.new()
+		heading.text = "村落长期改造 · 购买顺序自由"
+		heading.add_theme_font_size_override("font_size", 15)
+		heading.add_theme_color_override("font_color", Color(0.27, 0.17, 0.07))
+		_kitchen_upgrade_level_box.add_child(heading)
+		var owned_label := Label.new()
+		owned_label.text = "已完成 %d/8 项 · 所有加成永久生效" % _village_owned_count()
+		owned_label.add_theme_font_size_override("font_size", 12)
+		owned_label.add_theme_color_override("font_color", Color(0.34, 0.24, 0.12, 0.90))
+		_kitchen_upgrade_level_box.add_child(owned_label)
+		return
+	var equipment_id := _kitchen_upgrade_selected_equipment
+	var level := _kitchen_quantity_level(equipment_id)
+	var heading := Label.new()
+	heading.text = "数量等级 Lv.%d · 最多同时摆放 %d 台" % [level, level]
+	heading.add_theme_font_size_override("font_size", 15)
+	heading.add_theme_color_override("font_color", Color(0.27, 0.17, 0.07))
+	_kitchen_upgrade_level_box.add_child(heading)
+	var level_button := Button.new()
+	level_button.custom_minimum_size = Vector2(352.0, 42.0)
+	level_button.focus_mode = Control.FOCUS_NONE
+	_apply_kitchen_parchment_button_style(level_button)
+	if level >= KITCHEN_QUANTITY_MAX_LEVEL:
+		level_button.text = "数量已满级：5 台可并行使用"
+		level_button.disabled = true
+	else:
+		var cost := KitchenUpgradeCatalog.get_quantity_upgrade_cost(level)
+		var has_ticket := equipment_id == OPENING_PACKAGE_EQUIPMENT_ID and level == 1 and _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET) > 0
+		level_button.text = "升级 Lv.%d → Lv.%d（上限 +1） · %s" % [level, level + 1, "使用 Lv.2 券" if has_ticket else "%d 金币" % cost]
+		level_button.disabled = not has_ticket and _coins < cost
+		level_button.pressed.connect(_upgrade_kitchen_equipment.bind(equipment_id))
+	_kitchen_upgrade_level_box.add_child(level_button)
+
+func _rebuild_kitchen_upgrade_cards() -> void:
+	if _kitchen_upgrade_cards == null:
+		return
+	for child in _kitchen_upgrade_cards.get_children():
+		child.queue_free()
+	var entries: Array = KitchenUpgradeCatalog.get_village_projects() if _kitchen_upgrade_tab == "village" else KitchenUpgradeCatalog.get_equipment_upgrades(_kitchen_upgrade_selected_equipment)
+	for index in range(entries.size()):
+		var entry: Dictionary = entries[index]
+		var entry_id := str(entry.get("id", ""))
+		var owned := bool(_village_upgrades.get(entry_id, false)) if _kitchen_upgrade_tab == "village" else KitchenUpgradeCatalog.is_equipment_upgrade_owned(_kitchen_function_upgrades, _kitchen_upgrade_selected_equipment, entry_id)
+		var button := Button.new()
+		button.text = "%d  %s  ·  %d 金币%s" % [index + 1, str(entry.get("display_name", "改造")), int(entry.get("price", 0)), "  ✓ 已完成" if owned else ""]
+		button.custom_minimum_size = Vector2(326.0, 38.0)
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_size_override("font_size", 12)
+		button.add_theme_color_override("font_color", Color(0.28, 0.18, 0.07, 1.0))
+		button.add_theme_color_override("font_hover_color", Color(0.20, 0.12, 0.04, 1.0))
+		var state := "selected" if index == _kitchen_upgrade_selected_index else ("claimed" if owned else "normal")
+		button.add_theme_stylebox_override("normal", _make_paper_info_card_style(state))
+		button.add_theme_stylebox_override("hover", _make_paper_info_card_style("hover"))
+		button.pressed.connect(_select_kitchen_upgrade_index.bind(index))
+		_kitchen_upgrade_cards.add_child(button)
+
+func _refresh_kitchen_upgrade_selection() -> void:
+	if _kitchen_upgrade_detail_label == null or _kitchen_upgrade_purchase_button == null:
+		return
+	var entry := _selected_kitchen_upgrade_entry()
+	if entry.is_empty():
+		_kitchen_upgrade_detail_label.text = ""
+		_kitchen_upgrade_purchase_button.disabled = true
+		return
+	var entry_id := str(entry.get("id", ""))
+	var owned := bool(_village_upgrades.get(entry_id, false)) if _kitchen_upgrade_tab == "village" else KitchenUpgradeCatalog.is_equipment_upgrade_owned(_kitchen_function_upgrades, _kitchen_upgrade_selected_equipment, entry_id)
+	_kitchen_upgrade_detail_label.text = "%s\n%s" % [str(entry.get("display_name", "改造")), str(entry.get("description", ""))]
+	_kitchen_upgrade_purchase_button.text = "已完成" if owned else "购买改造 · %d 金币" % int(entry.get("price", 0))
+	var can_use_material := _kitchen_upgrade_tab == "equipment" and int(entry.get("price", 0)) <= 1200 and _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_UPGRADE_MATERIAL) > 0
+	if not owned and can_use_material:
+		_kitchen_upgrade_purchase_button.text = "使用升级材料免费改造（原价 %d）" % int(entry.get("price", 0))
+	_kitchen_upgrade_purchase_button.disabled = owned or (not can_use_material and _coins < int(entry.get("price", 0)))
+	_refresh_kitchen_upgrade_preview()
+
+func _selected_kitchen_upgrade_entry() -> Dictionary:
+	if _kitchen_upgrade_tab == "village":
+		var projects := KitchenUpgradeCatalog.get_village_projects()
+		return projects[_kitchen_upgrade_selected_index] if _kitchen_upgrade_selected_index < projects.size() else {}
+	return KitchenUpgradeCatalog.get_equipment_upgrade_at(_kitchen_upgrade_selected_equipment, _kitchen_upgrade_selected_index)
+
+func _refresh_kitchen_upgrade_preview() -> void:
+	if _kitchen_upgrade_preview_viewport == null:
+		return
+	if _kitchen_upgrade_preview_model != null and is_instance_valid(_kitchen_upgrade_preview_model):
+		_kitchen_upgrade_preview_model.queue_free()
+	_kitchen_upgrade_preview_model = null
+	var entry := _selected_kitchen_upgrade_entry()
+	var focused_id := str(entry.get("id", ""))
+	if _kitchen_upgrade_tab == "village":
+		_kitchen_upgrade_preview_model = KitchenUpgradeVisuals.create_village_diorama(KitchenUpgradeCatalog.get_village_projects(), _village_upgrades, focused_id)
+		_kitchen_upgrade_preview_viewport.add_child(_kitchen_upgrade_preview_model)
+		_kitchen_upgrade_preview_model.scale = Vector3.ONE * 0.72
+		_kitchen_upgrade_preview_model.position = Vector3(0.0, -0.35, 0.0)
+		_kitchen_upgrade_preview_camera.size = 7.6
+	else:
+		var definition := _equipment_definition(_kitchen_upgrade_selected_equipment)
+		var scene := load(str(definition.get("path", "")))
+		var preview_root := Node3D.new()
+		preview_root.name = "EquipmentUpgradePreviewRoot"
+		_kitchen_upgrade_preview_viewport.add_child(preview_root)
+		_kitchen_upgrade_preview_model = preview_root
+		if scene is PackedScene:
+			var model := scene.instantiate() as Node3D
+			if model != null:
+				model.name = "EquipmentModel"
+				preview_root.add_child(model)
+				_fit_model_to_max_dimension(model, 2.4)
+				_center_model_on_origin(model)
+		KitchenUpgradeVisuals.refresh_equipment_attachments(preview_root, _kitchen_upgrade_selected_equipment, KitchenUpgradeCatalog.get_equipment_upgrades(_kitchen_upgrade_selected_equipment), _kitchen_owned_upgrades_for(_kitchen_upgrade_selected_equipment), focused_id)
+		_kitchen_upgrade_preview_camera.size = 4.0
+	_kitchen_upgrade_preview_model.rotation.y = _kitchen_upgrade_preview_yaw
+
+func _upgrade_kitchen_equipment(equipment_id: String) -> void:
+	var level := _kitchen_quantity_level(equipment_id)
+	var has_ticket := equipment_id == OPENING_PACKAGE_EQUIPMENT_ID and level == 1 and _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET) > 0
+	var validation := KitchenUpgradeCatalog.validate_quantity_purchase(equipment_id, level, _coins, _is_kitchen_equipment_unlocked(equipment_id), has_ticket)
+	if not bool(validation.get("ok", false)):
+		_show_side_toast("金币不足")
+		return
+	var cost := int(validation.get("cost", 0))
+	if bool(validation.get("uses_free_item", false)):
+		_consume_warehouse_item(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET, 1)
+	else:
+		_coins -= cost
+	_kitchen_upgrade_levels[equipment_id] = level + 1
+	_update_coin_hud()
+	_show_side_toast("%s数量等级升至 Lv.%d，可同时摆放 %d 台" % [_equipment_upgrade_display_name(equipment_id), level + 1, level + 1])
+	_refresh_kitchen_equipment_level_label(equipment_id)
+	_update_kitchen_upgrade_buttons()
+	_rebuild_kitchen_equipment_grid()
+
 func _unlock_opening_package_cooking_table_lv2() -> void:
-	var level := int(_kitchen_upgrade_levels.get(OPENING_PACKAGE_EQUIPMENT_ID, 1))
+	var level := _kitchen_quantity_level(OPENING_PACKAGE_EQUIPMENT_ID)
 	if level >= 2:
 		_show_side_toast("%s已经是 Lv.%d" % [OPENING_PACKAGE_EQUIPMENT_DISPLAY_NAME, level])
 		return
-	if not _consume_warehouse_item(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET, 1):
-		_show_side_toast("缺少简易料理台 Lv2 解锁券")
-		_update_kitchen_upgrade_buttons()
+	_upgrade_kitchen_equipment(OPENING_PACKAGE_EQUIPMENT_ID)
+
+func _purchase_selected_kitchen_upgrade() -> void:
+	var entry := _selected_kitchen_upgrade_entry()
+	if entry.is_empty():
 		return
-	_kitchen_upgrade_levels[OPENING_PACKAGE_EQUIPMENT_ID] = 2
-	_show_side_toast("简易料理台已升级到 Lv.2")
-	_refresh_kitchen_equipment_level_label(OPENING_PACKAGE_EQUIPMENT_ID)
+	var entry_id := str(entry.get("id", ""))
+	if _kitchen_upgrade_tab == "village":
+		var validation := KitchenUpgradeCatalog.validate_village_project_purchase(entry_id, _village_upgrades, _coins)
+		if not bool(validation.get("ok", false)):
+			_show_side_toast("金币不足或该改造已完成")
+			return
+		_coins -= int(validation.get("cost", 0))
+		_village_upgrades[entry_id] = true
+		_refresh_village_upgrade_world_visuals()
+		if entry_id == "market_canopy":
+			_shop_daily_key = ""
+			_refresh_shop_stock_if_needed()
+		_refresh_food_chest_capacity_label()
+		_show_side_toast("村落改造完成：%s" % str(entry.get("display_name", "")))
+	else:
+		var equipment_id := _kitchen_upgrade_selected_equipment
+		var can_use_material := int(entry.get("price", 0)) <= 1200 and _warehouse_item_count(WAREHOUSE_ITEM_COOKING_TABLE_UPGRADE_MATERIAL) > 0
+		var validation := KitchenUpgradeCatalog.validate_equipment_upgrade_purchase(equipment_id, entry_id, _kitchen_function_upgrades, _coins, _is_kitchen_equipment_unlocked(equipment_id), can_use_material)
+		if not bool(validation.get("ok", false)):
+			_show_side_toast("金币不足或该改造已完成")
+			return
+		if bool(validation.get("uses_free_item", false)):
+			_consume_warehouse_item(WAREHOUSE_ITEM_COOKING_TABLE_UPGRADE_MATERIAL, 1)
+		else:
+			_coins -= int(validation.get("cost", 0))
+		var owned := _kitchen_owned_upgrades_for(equipment_id)
+		owned[entry_id] = true
+		_kitchen_function_upgrades[equipment_id] = owned
+		_refresh_kitchen_equipment_upgrade_visuals(equipment_id)
+		_show_side_toast("%s完成改造：%s" % [_equipment_upgrade_display_name(equipment_id), str(entry.get("display_name", ""))])
+	_update_coin_hud()
 	_update_kitchen_upgrade_buttons()
+
+func _kitchen_owned_upgrades_for(equipment_id: String) -> Dictionary:
+	var value = _kitchen_function_upgrades.get(equipment_id, {})
+	return (value as Dictionary).duplicate() if value is Dictionary else {}
+
+func _village_owned_count() -> int:
+	var count := 0
+	for project_id in KitchenUpgradeCatalog.get_village_project_ids():
+		if bool(_village_upgrades.get(project_id, false)):
+			count += 1
+	return count
 
 func _equipment_upgrade_display_name(equipment_id: String) -> String:
 	if equipment_id == OPENING_PACKAGE_EQUIPMENT_ID:
@@ -8604,20 +14636,113 @@ func _equipment_upgrade_display_name(equipment_id: String) -> String:
 	return _equipment_name(equipment_id)
 
 func _start_kitchen_equipment_placement(equipment_id: String) -> void:
+	_hide_kitchen_instance_selector()
 	if _equipment_definition(equipment_id).is_empty():
+		return
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能新增或调整设备")
 		return
 	if not _is_kitchen_equipment_unlocked(equipment_id):
 		_show_side_toast("这个设备会在后续经营中解锁")
 		return
+	if _kitchen_placed_count(equipment_id) >= _kitchen_quantity_level(equipment_id):
+		_show_side_toast("%s已达到 Lv.%d 的数量上限" % [_equipment_name(equipment_id), _kitchen_quantity_level(equipment_id)])
+		return
 	_kitchen_placing_equipment = equipment_id
-	_kitchen_placing_yaw = _get_player_visual_yaw() + PI
+	_kitchen_placing_instance_id = ""
+	_kitchen_placing_yaw = _snap_kitchen_equipment_yaw(_orbit.x + PI)
+	_kitchen_placing_position = _get_kitchen_equipment_player_front_position()
+	_kitchen_placing_cursor_valid = true
+	_notification_time = 0.0
+	_notification_text = ""
 	_close_kitchen_equipment_panel()
 	_mouse_released_by_escape = false
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	var initial_hit := _kitchen_equipment_cursor_ground_hit(get_viewport().get_mouse_position())
+	if bool(initial_hit.get("valid", false)):
+		_kitchen_placing_position = initial_hit.get("position", _kitchen_placing_position) as Vector3
+	else:
+		_kitchen_placing_cursor_valid = false
 	_update_kitchen_equipment_placement_preview()
-	_show_notification("F / 点击确认摆放，ESC 取消")
+
+func _start_kitchen_equipment_adjustment(equipment_id: String) -> void:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能新增或调整设备")
+		return
+	var instances := _kitchen_instance_ids_for_type(equipment_id)
+	if instances.is_empty():
+		_show_side_toast("还没有可调整的%s" % _equipment_name(equipment_id))
+		return
+	if instances.size() == 1:
+		_begin_kitchen_equipment_adjustment(str(instances[0]))
+		return
+	_show_kitchen_instance_selector(equipment_id, instances)
+
+func _show_kitchen_instance_selector(equipment_id: String, instances: Array[String]) -> void:
+	if _kitchen_instance_selector == null or not is_instance_valid(_kitchen_instance_selector):
+		return
+	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
+		return
+	_kitchen_instance_selector_equipment = equipment_id
+	if _kitchen_instance_selector_title != null and is_instance_valid(_kitchen_instance_selector_title):
+		_kitchen_instance_selector_title.text = "选择要调整的%s" % _equipment_name(equipment_id)
+	for child in _kitchen_instance_selector_buttons.get_children():
+		_kitchen_instance_selector_buttons.remove_child(child)
+		child.queue_free()
+	for instance_id in instances:
+		var button := Button.new()
+		button.text = "%d号" % _kitchen_instance_index(instance_id)
+		button.custom_minimum_size = Vector2(72.0, 34.0)
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_size_override("font_size", 14)
+		_apply_kitchen_parchment_button_style(button)
+		button.pressed.connect(_begin_kitchen_equipment_adjustment.bind(instance_id))
+		_kitchen_instance_selector_buttons.add_child(button)
+	_kitchen_instance_selector.visible = true
+	_kitchen_instance_selector.move_to_front()
+
+func _hide_kitchen_instance_selector() -> void:
+	_kitchen_instance_selector_equipment = ""
+	if _kitchen_instance_selector != null and is_instance_valid(_kitchen_instance_selector):
+		_kitchen_instance_selector.visible = false
+	if _kitchen_instance_selector_buttons == null or not is_instance_valid(_kitchen_instance_selector_buttons):
+		return
+	for child in _kitchen_instance_selector_buttons.get_children():
+		_kitchen_instance_selector_buttons.remove_child(child)
+		child.queue_free()
+
+func _is_kitchen_instance_selector_visible() -> bool:
+	return _kitchen_instance_selector != null and is_instance_valid(_kitchen_instance_selector) and _kitchen_instance_selector.visible
+
+func _begin_kitchen_equipment_adjustment(instance_id: String) -> void:
+	_hide_kitchen_instance_selector()
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能新增或调整设备")
+		return
+	if instance_id == "":
+		return
+	var root := _kitchen_root_for_instance(instance_id)
+	if root == null or not is_instance_valid(root):
+		_show_side_toast("这台设备已经不在当前布局中")
+		return
+	_kitchen_placing_equipment = _kitchen_instance_type(instance_id)
+	_kitchen_placing_instance_id = instance_id
+	_kitchen_placing_yaw = root.rotation.y
+	_kitchen_placing_position = root.global_position
+	_kitchen_placing_cursor_valid = true
+	_notification_time = 0.0
+	_notification_text = ""
+	_close_kitchen_equipment_panel()
+	_mouse_released_by_escape = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_update_kitchen_equipment_placement_preview()
 
 func _handle_kitchen_placement_input(event: InputEvent) -> bool:
+	if event is InputEventMouseMotion:
+		_update_kitchen_equipment_cursor_position((event as InputEventMouseMotion).position)
+		get_viewport().set_input_as_handled()
+		return true
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_cancel_kitchen_equipment_placement()
 		get_viewport().set_input_as_handled()
@@ -8626,29 +14751,62 @@ func _handle_kitchen_placement_input(event: InputEvent) -> bool:
 		_place_selected_kitchen_equipment()
 		get_viewport().set_input_as_handled()
 		return true
+	if event is InputEventKey and event.pressed:
+		var key_event := event as InputEventKey
+		if key_event.keycode == KEY_Q or key_event.keycode == KEY_E:
+			_rotate_kitchen_equipment(-1 if key_event.keycode == KEY_Q else 1)
+			get_viewport().set_input_as_handled()
+			return true
+		var nudge_direction := Vector2.ZERO
+		if key_event.keycode == KEY_A or key_event.keycode == KEY_LEFT:
+			nudge_direction.x -= 1.0
+		if key_event.keycode == KEY_D or key_event.keycode == KEY_RIGHT:
+			nudge_direction.x += 1.0
+		if key_event.keycode == KEY_W or key_event.keycode == KEY_UP:
+			nudge_direction.y += 1.0
+		if key_event.keycode == KEY_S or key_event.keycode == KEY_DOWN:
+			nudge_direction.y -= 1.0
+		if nudge_direction != Vector2.ZERO:
+			_nudge_kitchen_equipment(nudge_direction)
+			get_viewport().set_input_as_handled()
+			return true
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_kitchen_placing_yaw -= PI * 0.125
+			_rotate_kitchen_equipment(-1)
 			get_viewport().set_input_as_handled()
 			return true
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_kitchen_placing_yaw += PI * 0.125
+			_rotate_kitchen_equipment(1)
 			get_viewport().set_input_as_handled()
 			return true
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			_update_kitchen_equipment_cursor_position((event as InputEventMouseButton).position)
 			_place_selected_kitchen_equipment()
+			get_viewport().set_input_as_handled()
+			return true
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			_cancel_kitchen_equipment_placement()
 			get_viewport().set_input_as_handled()
 			return true
 	return false
 
 func _cancel_kitchen_equipment_placement() -> void:
 	_kitchen_placing_equipment = ""
+	_kitchen_placing_instance_id = ""
+	_kitchen_placing_position = Vector3.ZERO
+	_kitchen_placing_cursor_valid = false
 	if _kitchen_equipment_preview != null and is_instance_valid(_kitchen_equipment_preview):
 		_kitchen_equipment_preview.queue_free()
 	_kitchen_equipment_preview = null
+	_mouse_released_by_escape = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _update_kitchen_equipment_placement_preview() -> void:
 	if _kitchen_placing_equipment == "":
+		if _kitchen_equipment_preview != null and is_instance_valid(_kitchen_equipment_preview):
+			_kitchen_equipment_preview.visible = false
+		return
+	if not _kitchen_placing_cursor_valid:
 		if _kitchen_equipment_preview != null and is_instance_valid(_kitchen_equipment_preview):
 			_kitchen_equipment_preview.visible = false
 		return
@@ -8667,52 +14825,71 @@ func _update_kitchen_equipment_placement_preview() -> void:
 func _place_selected_kitchen_equipment() -> void:
 	if _kitchen_placing_equipment == "":
 		return
+	if not _kitchen_placing_cursor_valid:
+		_show_side_toast("请把鼠标移到可摆放的地面上")
+		return
 	var position := _get_kitchen_equipment_place_position()
 	if not _is_kitchen_equipment_place_position_valid(position):
-		_show_notification("设备只能放在陆地上，不能和已有物体重叠")
+		_show_side_toast("设备只能放在陆地上，不能和已有物体重叠")
 		return
-	var existing := _kitchen_equipment_roots.get(_kitchen_placing_equipment) as Node3D
-	_remove_kitchen_equipment_blocker(_kitchen_placing_equipment)
+	var instance_id := _kitchen_placing_instance_id
+	if instance_id == "":
+		instance_id = _next_kitchen_instance_id(_kitchen_placing_equipment)
+		if instance_id == "":
+			_show_notification("已达到当前数量等级上限")
+			return
+	var existing := _kitchen_root_for_instance(instance_id)
+	_remove_kitchen_equipment_instance_blocker(instance_id)
 	if existing != null and is_instance_valid(existing):
 		_snap_placeable_root_to_ground(existing, position)
 		existing.rotation.y = _kitchen_placing_yaw
-		_add_kitchen_equipment_blocker(existing, _kitchen_placing_equipment)
+		_add_kitchen_equipment_blocker(existing, _kitchen_placing_equipment, instance_id)
 		_clear_grass_under_kitchen_equipment(existing)
 	else:
-		var placed := _create_kitchen_equipment_model(self, _kitchen_placing_equipment, "Kitchen_%s" % _kitchen_placing_equipment, position, false)
+		var placed := _create_kitchen_equipment_model(self, _kitchen_placing_equipment, "Kitchen_%s" % instance_id.replace(":", "_"), position, false, instance_id)
 		placed.rotation.y = _kitchen_placing_yaw
-		_remove_kitchen_equipment_blocker(_kitchen_placing_equipment)
-		_add_kitchen_equipment_blocker(placed, _kitchen_placing_equipment)
+		_remove_kitchen_equipment_instance_blocker(instance_id)
+		_add_kitchen_equipment_blocker(placed, _kitchen_placing_equipment, instance_id)
 		_clear_grass_under_kitchen_equipment(placed)
 		_mark_generated(placed)
-		_kitchen_equipment_roots[_kitchen_placing_equipment] = placed
+		_kitchen_equipment_roots[instance_id] = placed
 	var placed_name := _equipment_name(_kitchen_placing_equipment)
 	_refresh_kitchen_equipment_level_label(_kitchen_placing_equipment)
+	AudioManager.play_sfx("cook_pot_place", 2.0, randf_range(0.84, 0.94))
 	_cancel_kitchen_equipment_placement()
-	_show_side_toast("%s 已摆好" % placed_name)
+	_show_side_toast("%s %d号 已摆好" % [placed_name, _kitchen_instance_index(instance_id)])
+	_rebuild_kitchen_equipment_grid()
 
 func _save_kitchen_layout_preset() -> void:
 	if _camper == null or not is_instance_valid(_camper):
 		_show_side_toast("先等房车停稳后再保存布局")
 		return
-	var layout := {}
+	var layout := _normalize_kitchen_layout_preset(_kitchen_saved_layout)
+	var total_count := 0
 	for equipment in KITCHEN_EQUIPMENT_TYPES:
 		var equipment_id := str(equipment.get("id", ""))
-		var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
-		if root == null or not is_instance_valid(root):
-			continue
-		var offset := Vector2(root.global_position.x - _camper.global_position.x, root.global_position.z - _camper.global_position.z).rotated(-_camper.rotation.y)
-		layout[equipment_id] = {
-			"x": offset.x,
-			"z": offset.y,
-			"yaw": wrapf(root.rotation.y - _camper.rotation.y, -PI, PI),
-		}
-	if layout.is_empty():
+		var entries: Array = []
+		for instance_id in _kitchen_instance_ids_for_type(equipment_id):
+			var root := _kitchen_root_for_instance(instance_id)
+			if root == null or not is_instance_valid(root):
+				continue
+			var offset := Vector2(root.global_position.x - _camper.global_position.x, root.global_position.z - _camper.global_position.z).rotated(-_camper.rotation.y)
+			entries.append({"instance_id": instance_id, "index": _kitchen_instance_index(instance_id), "x": offset.x, "z": offset.y, "yaw": wrapf(root.rotation.y - _camper.rotation.y, -PI, PI)})
+		# Preserve saved records that are above the current quantity cap. They can
+		# become active again if the level is restored by a future save migration.
+		for old_entry in layout.get(equipment_id, []):
+			if int(old_entry.get("index", 1)) > _kitchen_quantity_level(equipment_id):
+				entries.append(old_entry)
+		if not entries.is_empty():
+			entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("index", 1)) < int(b.get("index", 1)))
+			layout[equipment_id] = entries
+			total_count += entries.size()
+	if total_count <= 0:
 		_show_side_toast("先摆好厨具，再保存布局")
 		return
 	_kitchen_saved_layout = layout
 	if _write_kitchen_layout_preset():
-		_show_side_toast("厨房布局已保存：%d 件厨具" % layout.size())
+		_show_side_toast("厨房布局已保存：%d 件厨具" % total_count)
 	else:
 		_show_side_toast("布局已暂存，但写入本地失败")
 
@@ -8725,47 +14902,50 @@ func _apply_kitchen_layout_preset() -> void:
 	if _camper == null or not is_instance_valid(_camper):
 		_show_side_toast("先等房车停稳后再套用布局")
 		return
-	var layout_ids: Array[String] = []
-	for equipment in KITCHEN_EQUIPMENT_TYPES:
-		var equipment_id := str(equipment.get("id", ""))
-		if _kitchen_saved_layout.has(equipment_id):
-			layout_ids.append(equipment_id)
-			_remove_kitchen_equipment_blocker(equipment_id)
+	if _kitchen_business_active:
+		_show_side_toast("营业中不能套用布局")
+		return
+	_kitchen_saved_layout = _normalize_kitchen_layout_preset(_kitchen_saved_layout)
 	var placed_count := 0
 	var skipped_count := 0
-	for equipment_id in layout_ids:
+	for equipment in KITCHEN_EQUIPMENT_TYPES:
+		var equipment_id := str(equipment.get("id", ""))
+		if not _kitchen_saved_layout.has(equipment_id):
+			continue
 		if not _is_kitchen_equipment_unlocked(equipment_id):
 			skipped_count += 1
 			continue
-		var raw_entry = _kitchen_saved_layout.get(equipment_id, {})
-		if not raw_entry is Dictionary:
-			skipped_count += 1
-			continue
-		var entry: Dictionary = raw_entry
-		var position := _kitchen_layout_world_position(entry)
-		var yaw := _camper.rotation.y + float(entry.get("yaw", 0.0))
-		if not _is_kitchen_equipment_layout_position_valid(equipment_id, position, yaw):
-			var old_root := _kitchen_equipment_roots.get(equipment_id) as Node3D
-			if old_root != null and is_instance_valid(old_root):
-				_add_kitchen_equipment_blocker(old_root, equipment_id)
-			skipped_count += 1
-			continue
-		var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
-		if root != null and is_instance_valid(root):
-			_snap_placeable_root_to_ground(root, position)
+		var entries: Array = _kitchen_saved_layout.get(equipment_id, [])
+		for entry_variant in entries:
+			if not entry_variant is Dictionary:
+				skipped_count += 1
+				continue
+			var entry: Dictionary = entry_variant
+			var index := clampi(int(entry.get("index", 1)), 1, KITCHEN_QUANTITY_MAX_LEVEL)
+			if index > _kitchen_quantity_level(equipment_id):
+				continue
+			var instance_id := _kitchen_instance_id(equipment_id, index)
+			var root := _kitchen_root_for_instance(instance_id)
+			_remove_kitchen_equipment_instance_blocker(instance_id)
+			var position := _kitchen_layout_world_position(entry)
+			var yaw := _camper.rotation.y + float(entry.get("yaw", 0.0))
+			if not _is_kitchen_equipment_layout_position_valid(instance_id, position, yaw):
+				if root != null and is_instance_valid(root):
+					_add_kitchen_equipment_blocker(root, equipment_id, instance_id)
+				skipped_count += 1
+				continue
+			if root != null and is_instance_valid(root):
+				_snap_placeable_root_to_ground(root, position)
+				root.rotation.y = yaw
+			else:
+				root = _create_kitchen_equipment_model(self, equipment_id, "Kitchen_%s" % instance_id.replace(":", "_"), position, false, instance_id)
+				_mark_generated(root)
+				_kitchen_equipment_roots[instance_id] = root
 			root.rotation.y = yaw
-			_add_kitchen_equipment_blocker(root, equipment_id)
+			_add_kitchen_equipment_blocker(root, equipment_id, instance_id)
 			_clear_grass_under_kitchen_equipment(root)
-		else:
-			root = _create_kitchen_equipment_model(self, equipment_id, "Kitchen_%s" % equipment_id, position, false)
-			root.rotation.y = yaw
-			_remove_kitchen_equipment_blocker(equipment_id)
-			_add_kitchen_equipment_blocker(root, equipment_id)
-			_clear_grass_under_kitchen_equipment(root)
-			_mark_generated(root)
-			_kitchen_equipment_roots[equipment_id] = root
+			placed_count += 1
 		_refresh_kitchen_equipment_level_label(equipment_id)
-		placed_count += 1
 	if placed_count > 0:
 		_show_side_toast("已套用厨房布局：%d 件厨具" % placed_count)
 		_update_post_tutorial_objective()
@@ -8777,13 +14957,13 @@ func _kitchen_layout_world_position(entry: Dictionary) -> Vector3:
 	var position := _camper.global_position + local.rotated(Vector3.UP, _camper.rotation.y)
 	return _placeable_ground_position(position)
 
-func _is_kitchen_equipment_layout_position_valid(equipment_id: String, position: Vector3, yaw: float) -> bool:
+func _is_kitchen_equipment_layout_position_valid(instance_id: String, position: Vector3, yaw: float) -> bool:
 	if _inside_house:
 		return false
 	var point := Vector2(position.x, position.z)
 	if _is_kitchen_equipment_footprint_over_pond(point, yaw):
 		return false
-	if _is_kitchen_equipment_footprint_blocked(point, yaw, equipment_id):
+	if _is_kitchen_equipment_footprint_blocked(point, yaw, instance_id):
 		return false
 	return true
 
@@ -8805,10 +14985,100 @@ func _load_kitchen_layout_preset() -> Dictionary:
 	file.close()
 	var parsed = JSON.parse_string(text)
 	if parsed is Dictionary:
-		return parsed
+		return _normalize_kitchen_layout_preset(parsed)
 	return {}
 
-func _get_kitchen_equipment_place_position() -> Vector3:
+func _normalize_kitchen_layout_preset(raw_layout: Dictionary) -> Dictionary:
+	var normalized := {}
+	for equipment in KITCHEN_EQUIPMENT_TYPES:
+		var equipment_id := str(equipment.get("id", ""))
+		if not raw_layout.has(equipment_id):
+			continue
+		var raw_value = raw_layout.get(equipment_id)
+		var source_entries: Array = raw_value if raw_value is Array else ([raw_value] if raw_value is Dictionary else [])
+		var entries: Array = []
+		var seen: Dictionary = {}
+		for entry_variant in source_entries:
+			if not entry_variant is Dictionary:
+				continue
+			var entry: Dictionary = entry_variant
+			var index := clampi(int(entry.get("index", _kitchen_instance_index(str(entry.get("instance_id", ""))))), 1, KITCHEN_QUANTITY_MAX_LEVEL)
+			if seen.has(index):
+				continue
+			seen[index] = true
+			entries.append({"instance_id": _kitchen_instance_id(equipment_id, index), "index": index, "x": float(entry.get("x", 0.0)), "z": float(entry.get("z", 0.0)), "yaw": float(entry.get("yaw", 0.0))})
+		if not entries.is_empty():
+			entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("index", 1)) < int(b.get("index", 1)))
+			normalized[equipment_id] = entries
+	return normalized
+
+func _snap_kitchen_equipment_yaw(yaw: float) -> float:
+	return wrapf(snappedf(yaw, KITCHEN_EQUIPMENT_ROTATION_STEP), -PI, PI)
+
+func _rotate_kitchen_equipment(direction: int) -> void:
+	if _kitchen_placing_equipment == "" or direction == 0:
+		return
+	_kitchen_placing_yaw = _snap_kitchen_equipment_yaw(_kitchen_placing_yaw + float(signi(direction)) * KITCHEN_EQUIPMENT_ROTATION_STEP)
+	_update_kitchen_equipment_placement_preview()
+
+func _nudge_kitchen_equipment(direction: Vector2) -> void:
+	if _kitchen_placing_equipment == "" or not _kitchen_placing_cursor_valid or direction == Vector2.ZERO:
+		return
+	var camera := _camera if _camera != null and is_instance_valid(_camera) else get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var right := camera.global_transform.basis.x
+	var forward := -camera.global_transform.basis.z
+	right.y = 0.0
+	forward.y = 0.0
+	if right.length_squared() <= 0.0001 or forward.length_squared() <= 0.0001:
+		return
+	right = right.normalized()
+	forward = forward.normalized()
+	var offset := (right * direction.x + forward * direction.y).normalized() * KITCHEN_EQUIPMENT_NUDGE_STEP
+	var next_position := _kitchen_placing_position + offset
+	_kitchen_placing_position = _placeable_ground_position(next_position)
+	_kitchen_placing_cursor_valid = _is_kitchen_equipment_inside_place_bounds(_kitchen_placing_position)
+	_update_kitchen_equipment_placement_preview()
+
+func _update_kitchen_equipment_cursor_position(screen_position: Vector2) -> void:
+	if _kitchen_placing_equipment == "":
+		return
+	var hit := _kitchen_equipment_cursor_ground_hit(screen_position)
+	_kitchen_placing_cursor_valid = bool(hit.get("valid", false))
+	if _kitchen_placing_cursor_valid:
+		_kitchen_placing_position = hit.get("position", _kitchen_placing_position) as Vector3
+	_update_kitchen_equipment_placement_preview()
+
+func _kitchen_equipment_cursor_ground_hit(screen_position: Vector2) -> Dictionary:
+	var camera := _camera if _camera != null and is_instance_valid(_camera) else get_viewport().get_camera_3d()
+	if camera == null:
+		return {"valid": false, "position": Vector3.ZERO}
+	var ray_origin := camera.project_ray_origin(screen_position)
+	var ray_direction := camera.project_ray_normal(screen_position).normalized()
+	var near_distance := maxf(camera.near, 0.01)
+	var far_distance := KITCHEN_EQUIPMENT_RAY_DISTANCE
+	var near_point := ray_origin + ray_direction * near_distance
+	var far_point := ray_origin + ray_direction * far_distance
+	var near_height_delta := near_point.y - _height_at(near_point.x, near_point.z)
+	var far_height_delta := far_point.y - _height_at(far_point.x, far_point.z)
+	if near_height_delta < 0.0 or far_height_delta > 0.0:
+		return {"valid": false, "position": Vector3.ZERO}
+	for _iteration in range(20):
+		var middle_distance := (near_distance + far_distance) * 0.5
+		var middle_point := ray_origin + ray_direction * middle_distance
+		var middle_height_delta := middle_point.y - _height_at(middle_point.x, middle_point.z)
+		if middle_height_delta > 0.0:
+			near_distance = middle_distance
+		else:
+			far_distance = middle_distance
+	var position := _placeable_ground_position(ray_origin + ray_direction * far_distance)
+	return {"valid": _is_kitchen_equipment_inside_place_bounds(position), "position": position}
+
+func _is_kitchen_equipment_inside_place_bounds(position: Vector3) -> bool:
+	return absf(position.x) <= KITCHEN_EQUIPMENT_PLACE_LIMIT and absf(position.z) <= KITCHEN_EQUIPMENT_PLACE_LIMIT
+
+func _get_kitchen_equipment_player_front_position() -> Vector3:
 	if _player == null:
 		return Vector3.ZERO
 	var yaw := _get_player_visual_yaw()
@@ -8816,13 +15086,18 @@ func _get_kitchen_equipment_place_position() -> Vector3:
 	var position := _player.global_position + forward * KITCHEN_EQUIPMENT_PREVIEW_DISTANCE
 	return _placeable_ground_position(position)
 
+func _get_kitchen_equipment_place_position() -> Vector3:
+	if _kitchen_placing_equipment != "":
+		return _kitchen_placing_position
+	return _get_kitchen_equipment_player_front_position()
+
 func _is_kitchen_equipment_place_position_valid(position: Vector3) -> bool:
-	if _inside_house:
+	if _inside_house or not _kitchen_placing_cursor_valid or not _is_kitchen_equipment_inside_place_bounds(position):
 		return false
 	var point := Vector2(position.x, position.z)
 	if _is_kitchen_equipment_footprint_over_pond(point, _kitchen_placing_yaw):
 		return false
-	if _is_kitchen_equipment_footprint_blocked(point, _kitchen_placing_yaw, _kitchen_placing_equipment):
+	if _is_kitchen_equipment_footprint_blocked(point, _kitchen_placing_yaw, _kitchen_placing_instance_id):
 		return false
 	return true
 
@@ -8832,9 +15107,9 @@ func _is_kitchen_equipment_footprint_over_pond(center: Vector2, yaw: float) -> b
 			return true
 	return false
 
-func _is_kitchen_equipment_footprint_blocked(center: Vector2, yaw: float, equipment_id: String) -> bool:
+func _is_kitchen_equipment_footprint_blocked(center: Vector2, yaw: float, ignore_instance_id: String = "") -> bool:
 	for blocker in _solid_blockers:
-		if str(blocker.get("kitchen_equipment_id", "")) == equipment_id:
+		if ignore_instance_id != "" and str(blocker.get("kitchen_equipment_instance_id", "")) == ignore_instance_id:
 			continue
 		if _does_kitchen_equipment_footprint_overlap_blocker(center, yaw, blocker):
 			return true
@@ -8891,11 +15166,13 @@ func _oriented_boxes_overlap(center_a: Vector2, yaw_a: float, half_a: Vector2, c
 			return false
 	return true
 
-func _create_kitchen_equipment_model(parent: Node3D, equipment_id: String, root_name: String, position: Vector3, preview: bool = false) -> Node3D:
+func _create_kitchen_equipment_model(parent: Node3D, equipment_id: String, root_name: String, position: Vector3, preview: bool = false, instance_id: String = "") -> Node3D:
 	var root := Node3D.new()
 	root.name = root_name
 	root.position = position
 	root.set_meta("equipment_id", equipment_id)
+	root.set_meta("equipment_instance_id", instance_id)
+	root.set_meta("equipment_instance_index", _kitchen_instance_index(instance_id) if instance_id != "" else 0)
 	root.set_meta("kitchen_equipment_preview", preview)
 	_setup_placeable_root(root)
 	parent.add_child(root)
@@ -8914,8 +15191,9 @@ func _create_kitchen_equipment_model(parent: Node3D, equipment_id: String, root_
 			if preview:
 				_apply_preview_material(model, Color(0.78, 0.72, 0.56, 0.42))
 			else:
-				_add_kitchen_equipment_blocker(root, equipment_id)
-				_create_kitchen_equipment_bubble(root, equipment_id)
+				_add_kitchen_equipment_blocker(root, equipment_id, instance_id)
+				_create_kitchen_equipment_bubble(root, equipment_id, instance_id)
+				KitchenUpgradeVisuals.refresh_equipment_attachments(root, equipment_id, KitchenUpgradeCatalog.get_equipment_upgrades(equipment_id), _kitchen_owned_upgrades_for(equipment_id))
 			return root
 	var fallback_alpha := 0.42 if preview else 1.0
 	var fallback := _make_material(Color(0.62, 0.46, 0.26, fallback_alpha), 0.82)
@@ -8925,8 +15203,9 @@ func _create_kitchen_equipment_model(parent: Node3D, equipment_id: String, root_
 	_create_box_mesh(root, "EquipmentFallback", Vector3(0.0, 0.35, 0.0), Vector3(1.35, 0.70, 0.85), fallback)
 	_align_placeable_contents_to_ground(root, _kitchen_equipment_placement_y_offset(equipment_id))
 	if not preview:
-		_add_kitchen_equipment_blocker(root, equipment_id)
-		_create_kitchen_equipment_bubble(root, equipment_id)
+		_add_kitchen_equipment_blocker(root, equipment_id, instance_id)
+		_create_kitchen_equipment_bubble(root, equipment_id, instance_id)
+		KitchenUpgradeVisuals.refresh_equipment_attachments(root, equipment_id, KitchenUpgradeCatalog.get_equipment_upgrades(equipment_id), _kitchen_owned_upgrades_for(equipment_id))
 	return root
 
 func _remove_kitchen_equipment_blocker(equipment_id: String) -> void:
@@ -8934,13 +15213,23 @@ func _remove_kitchen_equipment_blocker(equipment_id: String) -> void:
 		if str(_solid_blockers[index].get("kitchen_equipment_id", "")) == equipment_id:
 			_solid_blockers.remove_at(index)
 
-func _add_kitchen_equipment_blocker(root: Node3D, equipment_id: String) -> void:
+func _remove_kitchen_equipment_instance_blocker(instance_id: String) -> void:
+	for index in range(_solid_blockers.size() - 1, -1, -1):
+		if str(_solid_blockers[index].get("kitchen_equipment_instance_id", "")) == instance_id:
+			_solid_blockers.remove_at(index)
+
+func _add_kitchen_equipment_blocker(root: Node3D, equipment_id: String, instance_id: String = "") -> void:
+	var resolved_instance_id := instance_id
+	if resolved_instance_id == "":
+		resolved_instance_id = str(root.get_meta("equipment_instance_id", ""))
+	_remove_kitchen_equipment_instance_blocker(resolved_instance_id)
 	_solid_blockers.append({
 		"shape": "box",
 		"center": root.global_position,
 		"yaw": root.rotation.y,
 		"half_extents": KITCHEN_EQUIPMENT_FOOTPRINT_HALF_EXTENTS,
 		"kitchen_equipment_id": equipment_id,
+		"kitchen_equipment_instance_id": resolved_instance_id,
 	})
 
 func _kitchen_equipment_placement_y_offset(equipment_id: String) -> float:
@@ -8955,6 +15244,8 @@ func _kitchen_equipment_placement_y_offset(equipment_id: String) -> float:
 			return 0.34
 		"prep_shelf":
 			return 0.56
+		"research_table":
+			return 0.08
 	return 0.0
 
 func _kitchen_equipment_no_grass_half_extents() -> Vector2:
@@ -9004,45 +15295,114 @@ func _equipment_definition(equipment_id: String) -> Dictionary:
 func _equipment_name(equipment_id: String) -> String:
 	return str(_equipment_definition(equipment_id).get("name", equipment_id))
 
-func _refresh_kitchen_equipment_level_label(equipment_id: String) -> void:
-	var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
-	if root == null or not is_instance_valid(root):
-		return
-	var level := int(_kitchen_upgrade_levels.get(equipment_id, 1))
-	var label := root.get_node_or_null("EquipmentLevelLabel") as Label3D
-	if level < 2:
-		if label != null:
-			label.visible = false
-		return
-	if label == null:
-		label = Label3D.new()
-		label.name = "EquipmentLevelLabel"
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.no_depth_test = true
-		label.font_size = 34
-		label.outline_size = 8
-		label.modulate = Color(0.24, 0.15, 0.06, 1.0)
-		label.outline_modulate = Color(1.0, 0.88, 0.52, 0.92)
-		label.position = Vector3(0.0, 1.45, 0.0)
-		root.add_child(label)
-	label.text = "Lv.%d" % level
-	label.visible = true
+func _kitchen_instance_id(equipment_id: String, index: int) -> String:
+	return "%s:%d" % [equipment_id, clampi(index, 1, KITCHEN_QUANTITY_MAX_LEVEL)]
 
-func _nearest_kitchen_equipment_id() -> String:
+func _kitchen_instance_type(instance_id: String) -> String:
+	var separator := instance_id.rfind(":")
+	return instance_id.substr(0, separator) if separator > 0 else instance_id
+
+func _kitchen_instance_index(instance_id: String) -> int:
+	var separator := instance_id.rfind(":")
+	return maxi(int(instance_id.substr(separator + 1)), 1) if separator > 0 else 1
+
+func _kitchen_instance_ids_for_type(equipment_id: String) -> Array[String]:
+	var result: Array[String] = []
+	for raw_id in _kitchen_equipment_roots.keys():
+		var instance_id := str(raw_id)
+		if _kitchen_instance_type(instance_id) == equipment_id:
+			var root := _kitchen_equipment_roots.get(instance_id) as Node3D
+			if root != null and is_instance_valid(root):
+				result.append(instance_id)
+	result.sort_custom(func(a: String, b: String) -> bool: return _kitchen_instance_index(a) < _kitchen_instance_index(b))
+	return result
+
+func _kitchen_placed_count(equipment_id: String) -> int:
+	return _kitchen_instance_ids_for_type(equipment_id).size()
+
+func _kitchen_quantity_level(equipment_id: String) -> int:
+	if int(_equipment_definition(equipment_id).get("max_quantity", 0)) == 1:
+		return 1
+	var level := KitchenUpgradeCatalog.clamp_quantity_level(int(_kitchen_upgrade_levels.get(equipment_id, 1)))
+	_kitchen_upgrade_levels[equipment_id] = level
+	return level
+
+func _next_kitchen_instance_id(equipment_id: String) -> String:
+	var used: Dictionary = {}
+	for instance_id in _kitchen_instance_ids_for_type(equipment_id):
+		used[_kitchen_instance_index(instance_id)] = true
+	for index in range(1, _kitchen_quantity_level(equipment_id) + 1):
+		if not used.has(index):
+			return _kitchen_instance_id(equipment_id, index)
+	return ""
+
+func _primary_kitchen_instance_id(equipment_id: String) -> String:
+	var instances := _kitchen_instance_ids_for_type(equipment_id)
+	return instances[0] if not instances.is_empty() else ""
+
+func _kitchen_root_for_instance(instance_id: String) -> Node3D:
+	return _kitchen_equipment_roots.get(instance_id) as Node3D
+
+func _refresh_kitchen_equipment_upgrade_visuals(equipment_id: String) -> void:
+	for instance_id in _kitchen_instance_ids_for_type(equipment_id):
+		var root := _kitchen_root_for_instance(instance_id)
+		if root != null and is_instance_valid(root):
+			KitchenUpgradeVisuals.refresh_equipment_attachments(root, equipment_id, KitchenUpgradeCatalog.get_equipment_upgrades(equipment_id), _kitchen_owned_upgrades_for(equipment_id))
+
+func _refresh_village_upgrade_world_visuals() -> void:
+	if _village_upgrade_visual_root != null and is_instance_valid(_village_upgrade_visual_root):
+		_village_upgrade_visual_root.queue_free()
+	_village_upgrade_visual_root = KitchenUpgradeVisuals.create_world_village_visual(KitchenUpgradeCatalog.get_village_projects(), _village_upgrades)
+	_village_upgrade_visual_root.name = "VillageUpgradeVisualRoot"
+	_village_upgrade_visual_root.position = Vector3(CHAPTER_ONE_HOUSE_POSITION.x + 15.0, _height_at(CHAPTER_ONE_HOUSE_POSITION.x + 15.0, CHAPTER_ONE_HOUSE_POSITION.z + 4.0), CHAPTER_ONE_HOUSE_POSITION.z + 4.0)
+	_village_upgrade_visual_root.scale = Vector3.ONE * 1.45
+	_mark_generated(_village_upgrade_visual_root)
+	add_child(_village_upgrade_visual_root)
+	if _player != null and is_instance_valid(_player):
+		var move_multiplier := KitchenUpgradeCatalog.get_village_effect_multiplier(_village_upgrades, "player_move_speed")
+		_player.set("walk_speed", 5.2 * move_multiplier)
+		_player.set("run_speed", 8.0 * move_multiplier)
+
+func _refresh_kitchen_equipment_level_label(equipment_id: String) -> void:
+	for instance_id in _kitchen_instance_ids_for_type(equipment_id):
+		var root := _kitchen_root_for_instance(instance_id)
+		if root == null or not is_instance_valid(root):
+			continue
+		var label := root.get_node_or_null("EquipmentLevelLabel") as Label3D
+		if label == null:
+			label = Label3D.new()
+			label.name = "EquipmentLevelLabel"
+			label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			label.no_depth_test = true
+			label.font_size = 28
+			label.outline_size = 7
+			label.modulate = Color(0.24, 0.15, 0.06, 1.0)
+			label.outline_modulate = Color(1.0, 0.88, 0.52, 0.92)
+			label.position = Vector3(0.0, 1.45, 0.0)
+			root.add_child(label)
+		label.text = "%d号" % _kitchen_instance_index(instance_id)
+		label.visible = _kitchen_instance_ids_for_type(equipment_id).size() > 1
+
+func _nearest_kitchen_equipment_id(required_type: String = "") -> String:
 	if _player == null:
 		return ""
 	var player_point := Vector2(_player.global_position.x, _player.global_position.z)
 	var best_id := ""
 	var best_distance := INF
 	for raw_id in _kitchen_equipment_roots.keys():
-		var equipment_id := str(raw_id)
-		var root := _kitchen_equipment_roots[equipment_id] as Node3D
+		var instance_id := str(raw_id)
+		var equipment_type := _kitchen_instance_type(instance_id)
+		if required_type != "" and equipment_type != required_type:
+			continue
+		if _kitchen_business_active and equipment_type == "research_table":
+			continue
+		var root := _kitchen_equipment_roots[instance_id] as Node3D
 		if root == null or not is_instance_valid(root):
 			continue
 		var distance := player_point.distance_squared_to(Vector2(root.global_position.x, root.global_position.z))
 		if distance <= KITCHEN_EQUIPMENT_INTERACT_RADIUS * KITCHEN_EQUIPMENT_INTERACT_RADIUS and distance < best_distance:
 			best_distance = distance
-			best_id = equipment_id
+			best_id = instance_id
 	return best_id
 
 func _should_show_kitchen_equipment_use_prompt() -> bool:
@@ -9051,79 +15411,113 @@ func _should_show_kitchen_equipment_use_prompt() -> bool:
 func _use_nearest_kitchen_equipment() -> bool:
 	if not _should_show_kitchen_equipment_use_prompt():
 		return false
-	var equipment_id := _nearest_kitchen_equipment_id()
-	if equipment_id == "":
+	var instance_id := _nearest_kitchen_equipment_id()
+	if instance_id == "":
 		return false
+	return _use_kitchen_equipment_instance(instance_id)
+
+func _use_kitchen_equipment_instance(instance_id: String) -> bool:
+	if instance_id == "" or not _kitchen_equipment_roots.has(instance_id):
+		return false
+	if _kitchen_held_item == "" and _held_crop_item != "":
+		var crop_handled := _try_prepare_held_crop_for_orders()
+		if _kitchen_held_item == "":
+			return crop_handled
+	var equipment_id := _kitchen_instance_type(instance_id)
 	match equipment_id:
 		"sink":
-			return _use_kitchen_sink()
+			return _use_kitchen_sink(instance_id)
 		"cutting_table":
-			return _use_kitchen_cutting_table()
+			return _use_kitchen_cutting_table(instance_id)
 		"pot":
-			return _use_kitchen_pot()
+			return _use_kitchen_pot(instance_id)
 		"grill":
-			return _use_kitchen_grill()
+			return _use_kitchen_grill(instance_id)
 		"prep_shelf":
-			return _use_kitchen_prep_shelf()
+			return _use_kitchen_prep_shelf(instance_id)
 	return false
 
-func _use_kitchen_sink() -> bool:
-	if _finish_kitchen_progress("sink"):
+func _use_kitchen_sink(instance_id: String) -> bool:
+	if _finish_kitchen_progress(instance_id):
 		return true
-	if not _kitchen_item_is_raw_crop(_kitchen_held_item) or not _recipe_needs_wash(_kitchen_held_recipe):
-		_show_notification("先从食材箱取订单需要的胡萝卜")
-		return true
-	var crop_type := _kitchen_item_crop_type(_kitchen_held_item)
-	_start_kitchen_progress("sink", "washing", _kitchen_prep_duration("sink"), _kitchen_item_id("washed", crop_type), _kitchen_held_recipe, _kitchen_held_quality)
-	_clear_kitchen_held_item()
-	_show_side_toast("胡萝卜放进洗菜池")
-	return true
-
-func _use_kitchen_cutting_table() -> bool:
-	if _finish_kitchen_progress("cutting_table"):
-		return true
-	if not _kitchen_item_is_stage(_kitchen_held_item, "washed") or not _recipe_needs_cut(_kitchen_held_recipe):
-		_show_notification("先把洗好的胡萝卜拿到切菜桌")
+	if not _kitchen_item_is_raw_crop(_kitchen_held_item):
+		_show_notification("请拿着待清洗的订单食材使用洗菜池")
 		return true
 	var crop_type := _kitchen_item_crop_type(_kitchen_held_item)
-	_start_kitchen_progress("cutting_table", "cutting", _kitchen_prep_duration("cutting_table"), _kitchen_item_id("chopped", crop_type), _kitchen_held_recipe, _kitchen_held_quality)
+	if not _pending_kitchen_crop_needs_wash(crop_type):
+		_show_notification("当前待完成订单不需要清洗%s" % _crop_display_name(crop_type))
+		return true
+	_start_kitchen_progress(instance_id, "washing", _kitchen_prep_duration("sink"), _kitchen_item_id("washed", crop_type), "", _kitchen_held_quality, _kitchen_held_fresh_time)
 	_clear_kitchen_held_item()
-	_show_side_toast("开始切胡萝卜")
+	_show_side_toast("%s放进洗菜池" % _crop_display_name(crop_type))
 	return true
 
-func _use_kitchen_pot() -> bool:
-	if _kitchen_pot_state.is_empty():
-		if not _recipe_uses_station(_kitchen_held_recipe, "pot") or not _recipe_accepts_cook_item(_kitchen_held_recipe, _kitchen_held_item):
-			_show_notification("按订单步骤准备好胡萝卜后再下锅")
-			return true
-		_kitchen_pot_state = _create_kitchen_cook_state("pot", _kitchen_held_recipe, _kitchen_held_item, KITCHEN_COOK_SOUP_SECONDS, _kitchen_held_quality)
-		_clear_kitchen_held_item()
-		_show_side_toast("胡萝卜清汤下锅了")
+func _use_kitchen_cutting_table(instance_id: String) -> bool:
+	if _finish_kitchen_progress(instance_id):
 		return true
-	return _finish_kitchen_cook_state(_kitchen_pot_state, "pot")
-
-func _use_kitchen_grill() -> bool:
-	if _kitchen_grill_state.is_empty():
-		if not _recipe_uses_station(_kitchen_held_recipe, "grill") or not _recipe_accepts_cook_item(_kitchen_held_recipe, _kitchen_held_item):
-			_show_notification("烤胡萝卜需要从食材箱拿胡萝卜")
-			return true
-		_kitchen_grill_state = _create_kitchen_cook_state("grill", _kitchen_held_recipe, _kitchen_held_item, KITCHEN_COOK_GRILL_SECONDS, _kitchen_held_quality)
-		_clear_kitchen_held_item()
-		_show_side_toast("胡萝卜放上烤架了")
+	var held_is_raw := _kitchen_item_is_raw_crop(_kitchen_held_item)
+	var held_is_washed := _kitchen_item_is_stage(_kitchen_held_item, "washed")
+	if not held_is_raw and not held_is_washed:
+		_show_notification("请拿着待切配的订单食材使用料理台")
 		return true
-	return _finish_kitchen_cook_state(_kitchen_grill_state, "grill")
+	var crop_type := _kitchen_item_crop_type(_kitchen_held_item)
+	if not _pending_kitchen_crop_needs_cut(crop_type):
+		_show_notification("当前待完成订单不需要切配%s" % _crop_display_name(crop_type))
+		return true
+	if held_is_raw and _pending_kitchen_crop_needs_wash(crop_type):
+		_show_notification("先去洗菜池洗净%s，再拿来切配" % _crop_display_name(crop_type))
+		return true
+	_start_kitchen_progress(instance_id, "cutting", _kitchen_prep_duration("cutting_table"), _kitchen_item_id("chopped", crop_type), "", _kitchen_held_quality, _kitchen_held_fresh_time)
+	_clear_kitchen_held_item()
+	_show_side_toast("开始切配%s" % _crop_display_name(crop_type))
+	return true
 
-func _use_kitchen_prep_shelf() -> bool:
+func _use_kitchen_pot(instance_id: String) -> bool:
+	var state := _kitchen_cook_states.get(instance_id, {}) as Dictionary
+	if state.is_empty():
+		var recipe := _pending_kitchen_recipe_for_item_and_station(_kitchen_held_item, "pot")
+		if recipe == "":
+			_show_notification(_kitchen_cook_requirement_hint(_kitchen_held_item, "pot", "煮锅"))
+			return true
+		_kitchen_cook_states[instance_id] = _create_kitchen_cook_state(instance_id, recipe, _kitchen_held_item, _kitchen_cook_duration("pot"), _kitchen_held_quality)
+		_clear_kitchen_held_item()
+		_show_side_toast("%s下锅了" % _recipe_name(recipe))
+		return true
+	return _finish_kitchen_cook_state(state, instance_id)
+
+func _use_kitchen_grill(instance_id: String) -> bool:
+	var state := _kitchen_cook_states.get(instance_id, {}) as Dictionary
+	if state.is_empty():
+		var recipe := _pending_kitchen_recipe_for_item_and_station(_kitchen_held_item, "grill")
+		if recipe == "":
+			_show_notification(_kitchen_cook_requirement_hint(_kitchen_held_item, "grill", "烧烤架"))
+			return true
+		_kitchen_cook_states[instance_id] = _create_kitchen_cook_state(instance_id, recipe, _kitchen_held_item, _kitchen_cook_duration("grill"), _kitchen_held_quality)
+		_clear_kitchen_held_item()
+		_show_side_toast("%s放上烤架了" % _recipe_name(recipe))
+		return true
+	return _finish_kitchen_cook_state(state, instance_id)
+
+func _use_kitchen_prep_shelf(_instance_id: String) -> bool:
 	if not _kitchen_business_active:
 		_show_notification("备菜架也是出餐台，营业时把菜端到这里")
 		return true
+	# 焦糊食物不允许低价出餐；旧存档中残留的废菜队列也直接清空。
+	if not _kitchen_scrap_dishes.is_empty():
+		_kitchen_scrap_dishes.clear()
 	if _serve_ready_kitchen_dish():
 		return true
 	_show_notification("备菜架暂无可出的菜：" + _kitchen_order_summary())
 	return true
 
-func _create_kitchen_cook_state(station: String, recipe: String, item_id: String, cook_duration: float, quality: int = 0) -> Dictionary:
+func _create_kitchen_cook_state(instance_id: String, recipe: String, item_id: String, cook_duration: float, quality: int = 0) -> Dictionary:
+	var station := _kitchen_instance_type(instance_id)
+	if station == "pot":
+		AudioManager.play_sfx("cook_pot_place")
+	elif station == "grill":
+		AudioManager.play_sfx("cook_grill_place")
 	return {
+		"instance_id": instance_id,
 		"station_type": station,
 		"current_item_id": item_id,
 		"target_recipe_id": recipe,
@@ -9143,26 +15537,37 @@ func _create_kitchen_cook_state(station: String, recipe: String, item_id: String
 		"is_interactable": true,
 	}
 
-func _lock_kitchen_heat(state: Dictionary, station: String) -> void:
+func _lock_kitchen_heat(state: Dictionary, instance_id: String) -> void:
+	var station := _kitchen_instance_type(instance_id)
 	var cursor := clampf(float(state.get("heat_cursor", 0.5)), 0.0, 1.0)
-	var heat := _kitchen_heat_level_for_cursor(cursor)
+	var heat := _kitchen_heat_level_for_cursor(cursor, station)
 	state["heat_level"] = heat
 	state["state"] = "Cooking"
 	state["stage"] = "cooking"
-	state["done_hold_duration"] = _kitchen_done_hold_duration_for_heat(heat)
-	state["burn_duration"] = _kitchen_burn_duration_for_heat(heat)
+	state["done_hold_duration"] = _kitchen_done_hold_duration_for_heat(heat) + KitchenUpgradeCatalog.get_equipment_effect_addition(station, _kitchen_function_upgrades, "%s_ready_hold_seconds" % station)
+	state["burn_duration"] = _kitchen_burn_duration_for_heat(heat) + KitchenUpgradeCatalog.get_equipment_effect_addition(station, _kitchen_function_upgrades, "%s_burn_grace_seconds" % station)
+	_kitchen_cook_states[instance_id] = state
 	if station == "pot":
-		_kitchen_pot_state = state
-	else:
-		_kitchen_grill_state = state
-	_show_side_toast("%s：%s" % [_equipment_name(station), _kitchen_heat_label(heat)])
+		AudioManager.start_kitchen_loop(instance_id, "cook_boil_loop")
+	elif station == "grill":
+		AudioManager.start_kitchen_loop(instance_id, "cook_grill_loop")
+	_show_side_toast("%s %d号：%s" % [_equipment_name(station), _kitchen_instance_index(instance_id), _kitchen_heat_label(heat)])
 
-func _kitchen_heat_level_for_cursor(cursor: float) -> String:
-	if cursor < 0.32:
+func _kitchen_heat_level_for_cursor(cursor: float, station: String = "") -> String:
+	var bounds := _kitchen_heat_bounds(station)
+	var lower := bounds.x
+	var upper := bounds.y
+	if cursor < lower:
 		return "blue"
-	if cursor <= 0.68:
+	if cursor <= upper:
 		return "green"
 	return "red"
+
+func _kitchen_heat_bounds(station: String = "") -> Vector2:
+	var extra_width := KitchenUpgradeCatalog.get_equipment_effect_addition(station, _kitchen_function_upgrades, "%s_green_zone_width" % station) if station != "" else 0.0
+	var lower := clampf(0.32 - extra_width * 0.5, 0.12, 0.45)
+	var upper := clampf(0.68 + extra_width * 0.5, 0.55, 0.88)
+	return Vector2(lower, upper)
 
 func _kitchen_heat_label(heat: String) -> String:
 	match heat:
@@ -9182,13 +15587,19 @@ func _kitchen_heat_speed(heat: String) -> float:
 			return KITCHEN_HEAT_RED_SPEED
 	return KITCHEN_HEAT_GREEN_SPEED
 
+func _kitchen_cook_duration(station: String) -> float:
+	var base_duration := KITCHEN_COOK_GRILL_SECONDS if station == "grill" else KITCHEN_COOK_SOUP_SECONDS
+	var multiplier := KitchenUpgradeCatalog.get_equipment_effect_multiplier(station, _kitchen_function_upgrades, "%s_cook_duration" % station)
+	return maxf(base_duration * multiplier, 0.1)
+
 func _kitchen_done_hold_duration_for_heat(heat: String) -> float:
+	var perk_bonus := 2.0 if bool(_local_event_perks.get("ember_warmth", false)) else 0.0
 	match heat:
 		"blue":
-			return KITCHEN_HEAT_BLUE_DONE_HOLD_SECONDS
+			return KITCHEN_HEAT_BLUE_DONE_HOLD_SECONDS + perk_bonus
 		"red":
-			return KITCHEN_HEAT_RED_DONE_HOLD_SECONDS
-	return KITCHEN_HEAT_GREEN_DONE_HOLD_SECONDS
+			return KITCHEN_HEAT_RED_DONE_HOLD_SECONDS + perk_bonus
+	return KITCHEN_HEAT_GREEN_DONE_HOLD_SECONDS + perk_bonus
 
 func _kitchen_burn_duration_for_heat(heat: String) -> float:
 	match heat:
@@ -9198,8 +15609,8 @@ func _kitchen_burn_duration_for_heat(heat: String) -> float:
 			return KITCHEN_HEAT_RED_BURN_SECONDS
 	return KITCHEN_HEAT_GREEN_BURN_SECONDS
 
-func _create_kitchen_burnt_waste(station: String, recipe: String) -> void:
-	var station_root := _kitchen_equipment_roots.get(station) as Node3D
+func _create_kitchen_burnt_waste(instance_id: String, recipe: String) -> void:
+	var station_root := _kitchen_root_for_instance(instance_id)
 	if station_root == null or not is_instance_valid(station_root):
 		return
 	var waste := Node3D.new()
@@ -9234,56 +15645,73 @@ func _create_kitchen_burnt_waste(station: String, recipe: String) -> void:
 	tween.tween_property(waste, "scale", Vector3.ZERO, 0.35)
 	tween.finished.connect(waste.queue_free)
 
-func _finish_kitchen_cook_state(state: Dictionary, station: String) -> bool:
+func _finish_kitchen_cook_state(state: Dictionary, instance_id: String) -> bool:
+	var station := _kitchen_instance_type(instance_id)
 	var stage := str(state.get("stage", "cooking"))
 	var recipe := str(state.get("recipe", ""))
 	var quality := clampi(int(state.get("quality", 0)), 0, 3)
 	if stage == "heat_selecting":
-		_lock_kitchen_heat(state, station)
+		_lock_kitchen_heat(state, instance_id)
 		return true
 	if stage == "cooking":
 		_show_notification("还没熟，先去忙别的")
 		return true
 	if stage == "burnt":
-		if station == "pot":
-			_kitchen_pot_state.clear()
+		AudioManager.stop_kitchen_loop(instance_id)
+		_kitchen_cook_states.erase(instance_id)
+		_set_kitchen_held_item(_kitchen_item_id("burnt", _recipe_crop_type(recipe)), recipe, quality)
+		if not _kitchen_burnt_food_disposal_guide_completed:
+			_show_notification("第一次烧焦：手里拿着焦糊食物，按右键蓄力后扔到地上清理")
+			_show_side_toast("不要端去备菜架；扔到地上才算清理完成")
 		else:
-			_kitchen_grill_state.clear()
-		_kitchen_failed_count += 1
-		_create_kitchen_burnt_waste(station, recipe)
-		var scrap_key := _kitchen_dish_key(recipe, quality)
-		_kitchen_scrap_dishes[scrap_key] = int(_kitchen_scrap_dishes.get(scrap_key, 0)) + 1
-		_show_notification("糊掉了，端到备菜架低价处理")
+			_show_side_toast("烧焦了，按右键把焦糊食物扔到地上")
 		return true
+	if str(state.get("heat_level", "")) == "green":
+		quality = clampi(quality + int(round(KitchenUpgradeCatalog.get_equipment_effect_addition(station, _kitchen_function_upgrades, "%s_green_heat_quality" % station))), 0, 3)
 	var ready_key := _kitchen_dish_key(recipe, quality)
 	_kitchen_ready_dishes[ready_key] = int(_kitchen_ready_dishes.get(ready_key, 0)) + 1
 	_show_side_toast("%s%s 已装盘，去备菜架出餐" % [_recipe_name(recipe), _kitchen_quality_suffix(quality)])
-	if station == "pot":
-		_kitchen_pot_state.clear()
-	else:
-		_kitchen_grill_state.clear()
+	AudioManager.stop_kitchen_loop(instance_id)
+	_kitchen_cook_states.erase(instance_id)
 	return true
 
-func _try_take_kitchen_order_ingredient() -> bool:
+func _try_take_kitchen_order_ingredient(requested_crop_type: String = "") -> bool:
 	if not _kitchen_business_active:
 		return false
-	if _held_crop_item != "":
-		_show_notification("先把手里的食材放下、放入箱子或抛出去")
-		return true
 	if _kitchen_held_item != "":
 		_show_notification("手上已经拿着%s" % _kitchen_item_name(_kitchen_held_item))
 		return true
-	var recipe := _next_kitchen_recipe_needing_ingredient()
-	if recipe == "":
+	if _held_crop_item != "":
+		return _try_prepare_held_crop_for_orders()
+	var crop_type := requested_crop_type
+	var pending_crop_types := _pending_kitchen_crop_types()
+	if crop_type == "" and not pending_crop_types.is_empty():
+		crop_type = pending_crop_types[0]
+	if crop_type == "" or not pending_crop_types.has(crop_type):
 		_show_notification("现在没有待做订单")
 		return true
-	var crop_type := _recipe_crop_type(recipe)
-	var quality := _take_any_stored_crop_quality(crop_type, 1)
-	if quality < 0:
-		_show_notification("食材箱里没有胡萝卜")
+	var stored_entry := _take_any_stored_crop_entry(crop_type)
+	if stored_entry.is_empty():
+		_show_notification("食材箱里没有%s，可收获后直接拿到厨房处理" % _crop_display_name(crop_type))
 		return true
-	_set_kitchen_held_item(_kitchen_item_id("raw", crop_type), recipe, quality)
-	_show_side_toast("取出%s需要的%s胡萝卜" % [_recipe_name(recipe), _kitchen_quality_prefix(quality)])
+	var quality := int(stored_entry.get("quality", 0))
+	var fresh_time := float(stored_entry.get("fresh_time", CROP_ROT_SECONDS))
+	_set_kitchen_held_item(_kitchen_item_id("raw", crop_type), "", quality, fresh_time)
+	_show_side_toast("取出%s%s，可自行选择制作顺序" % [_kitchen_quality_prefix(quality), _crop_display_name(crop_type)])
+	return true
+
+func _try_prepare_held_crop_for_orders() -> bool:
+	if _held_crop_item == "" or _kitchen_held_item != "":
+		return false
+	var crop_type := _held_crop_item
+	if not _pending_kitchen_crop_types().has(crop_type):
+		_show_notification("当前待完成订单不需要%s" % _crop_display_name(crop_type))
+		return true
+	var quality := _held_crop_quality
+	var fresh_time := _held_crop_fresh_time
+	_clear_held_crop()
+	_set_kitchen_held_item(_kitchen_item_id("raw", crop_type), "", quality, fresh_time)
+	_show_side_toast("%s已进入备料流程，可自行选择制作顺序" % _crop_display_name(crop_type))
 	return true
 
 func _try_return_kitchen_held_item_to_food_chest() -> bool:
@@ -9291,14 +15719,16 @@ func _try_return_kitchen_held_item_to_food_chest() -> bool:
 		return false
 	if not _is_player_near_placed_food_chest():
 		return false
-	if not _kitchen_item_is_raw_crop(_kitchen_held_item):
-		_show_notification("处理过的食材不能放回食材箱")
+	if not _kitchen_item_can_return_to_food_chest(_kitchen_held_item):
+		_show_notification("切配或烹饪后的食材不能放回食材箱")
 		return true
+	var was_washed := _kitchen_item_is_stage(_kitchen_held_item, "washed")
 	var quality := _kitchen_held_quality
-	if not _store_crop_in_food_chest(_kitchen_item_crop_type(_kitchen_held_item), quality):
+	var fresh_time := _kitchen_held_fresh_time
+	if not _store_crop_in_food_chest(_kitchen_item_crop_type(_kitchen_held_item), quality, fresh_time):
 		return true
 	_clear_kitchen_held_item()
-	_show_side_toast("胡萝卜已放回食材箱")
+	_show_side_toast("洗净食材已放回食材箱（清洗状态已重置）" if was_washed else "食材已放回食材箱")
 	return true
 
 func _try_pickup_dropped_kitchen_item() -> bool:
@@ -9314,8 +15744,10 @@ func _try_pickup_dropped_kitchen_item() -> bool:
 	_dropped_kitchen_item_roots.erase(item)
 	var kitchen_item := str(item.get_meta("kitchen_item", "raw_carrot"))
 	var recipe := str(item.get_meta("recipe", ""))
+	if _kitchen_item_is_spoilable(kitchen_item):
+		recipe = ""
 	var quality := int(item.get_meta("quality", 0))
-	var fresh_time := float(item.get_meta("fresh_time", HELD_CROP_ROT_SECONDS))
+	var fresh_time := float(item.get_meta("fresh_time", CROP_ROT_SECONDS))
 	item.queue_free()
 	_set_kitchen_held_item(kitchen_item, recipe, quality, fresh_time)
 	_show_side_toast("捡起%s" % _kitchen_item_name(kitchen_item))
@@ -9352,16 +15784,96 @@ func _next_kitchen_recipe_needing_ingredient() -> String:
 			best_recipe = recipe
 	return best_recipe
 
-func _start_kitchen_progress(station: String, action: String, duration: float, result_item: String, recipe: String, quality: int = 0) -> void:
+func _pending_kitchen_crop_types() -> Array[String]:
+	var crop_types: Array[String] = []
+	for order in _kitchen_orders:
+		var crop_type := _recipe_crop_type(str(order.get("recipe", "")))
+		if crop_type != "" and not crop_types.has(crop_type):
+			crop_types.append(crop_type)
+	return crop_types
+
+func _has_pending_kitchen_order_for_recipe(recipe: String) -> bool:
+	if recipe == "":
+		return false
+	for order in _kitchen_orders:
+		if str(order.get("recipe", "")) == recipe:
+			return true
+	return false
+
+func _pending_kitchen_crop_needs_wash(crop_type: String) -> bool:
+	for order in _kitchen_orders:
+		var recipe := str(order.get("recipe", ""))
+		if _recipe_crop_type(recipe) == crop_type and _recipe_needs_wash(recipe):
+			return true
+	return false
+
+func _pending_kitchen_crop_needs_cut(crop_type: String) -> bool:
+	for order in _kitchen_orders:
+		var recipe := str(order.get("recipe", ""))
+		if _recipe_crop_type(recipe) == crop_type and _recipe_needs_cut(recipe):
+			return true
+	return false
+
+func _pending_kitchen_recipe_for_crop_and_station(crop_type: String, station: String) -> String:
+	for order in _kitchen_orders:
+		var recipe := str(order.get("recipe", ""))
+		if _recipe_crop_type(recipe) == crop_type and _recipe_uses_station(recipe, station):
+			return recipe
+	return ""
+
+func _pending_kitchen_recipe_for_item_and_station(item: String, station: String) -> String:
+	for order in _kitchen_orders:
+		var recipe := str(order.get("recipe", ""))
+		if _recipe_uses_station(recipe, station) and _recipe_accepts_cook_item(recipe, item):
+			return recipe
+	return ""
+
+func _kitchen_next_station_hint(item: String) -> String:
+	var options: Array[String] = []
+	var crop_type := _kitchen_item_crop_type(item)
+	if _kitchen_item_is_stage(item, "washed") and _pending_kitchen_crop_needs_cut(crop_type):
+		options.append("料理台")
+	elif _kitchen_item_is_raw_crop(item) and _pending_kitchen_crop_needs_cut(crop_type) and not _pending_kitchen_crop_needs_wash(crop_type):
+		options.append("料理台")
+	if _pending_kitchen_recipe_for_item_and_station(item, "pot") != "":
+		options.append("煮锅")
+	if _pending_kitchen_recipe_for_item_and_station(item, "grill") != "":
+		options.append("烧烤架")
+	return " / ".join(options)
+
+func _start_kitchen_progress(station: String, action: String, duration: float, result_item: String, recipe: String, quality: int = 0, fresh_time: float = -1.0) -> void:
+	var equipment_id := _kitchen_instance_type(station)
+	var result_quality := clampi(quality, 0, 3)
+	var result_fresh_time := CROP_ROT_SECONDS if fresh_time < 0.0 else maxf(fresh_time, 0.0)
+	var freshness_bonus := 0.0
+	if action == "washing":
+		result_quality += int(round(KitchenUpgradeCatalog.get_equipment_effect_addition("sink", _kitchen_function_upgrades, "washed_quality")))
+		if randf() < KitchenUpgradeCatalog.get_equipment_effect_chance("sink", _kitchen_function_upgrades, "washed_quality_up"):
+			result_quality += 1
+		freshness_bonus = KitchenUpgradeCatalog.get_equipment_effect_addition("sink", _kitchen_function_upgrades, "washed_freshness_seconds")
+	elif action == "cutting":
+		result_quality += int(round(KitchenUpgradeCatalog.get_equipment_effect_addition("cutting_table", _kitchen_function_upgrades, "cut_quality")))
+		if randf() < KitchenUpgradeCatalog.get_equipment_effect_chance("cutting_table", _kitchen_function_upgrades, "cut_quality_up"):
+			result_quality += 1
+		freshness_bonus = KitchenUpgradeCatalog.get_equipment_effect_addition("cutting_table", _kitchen_function_upgrades, "cut_freshness_seconds")
 	_kitchen_equipment_progress[station] = {
+		"instance_id": station,
+		"equipment_id": equipment_id,
 		"action": action,
 		"time": duration,
 		"duration": duration,
 		"result": result_item,
 		"recipe": recipe,
-		"quality": clampi(quality, 0, 3),
+		"quality": clampi(result_quality, 0, 3),
+		"fresh_time": result_fresh_time,
+		"freshness_bonus": maxf(freshness_bonus, 0.0),
+		"freshness_bonus_applied": false,
 		"done": false,
 	}
+	if action == "washing":
+		AudioManager.play_sfx("cook_wash")
+	elif action == "cutting":
+		AudioManager.play_sfx("cook_chop")
 
 func _finish_kitchen_progress(station: String) -> bool:
 	if not _kitchen_equipment_progress.has(station):
@@ -9373,27 +15885,61 @@ func _finish_kitchen_progress(station: String) -> bool:
 	if _kitchen_held_item != "":
 		_show_notification("先把手上的%s送去下一台设备" % _kitchen_item_name(_kitchen_held_item))
 		return true
-	_set_kitchen_held_item(str(progress.get("result", "")), str(progress.get("recipe", "")), int(progress.get("quality", 0)))
+	_set_kitchen_held_item(str(progress.get("result", "")), "", int(progress.get("quality", 0)), float(progress.get("fresh_time", -1.0)))
 	_kitchen_equipment_progress.erase(station)
 	_show_side_toast("拿起%s" % _kitchen_item_name(_kitchen_held_item))
 	return true
 
-func _update_kitchen_equipment_progress(delta: float) -> void:
+func _update_kitchen_equipment_progress(delta: float, freshness_delta: float = -1.0) -> void:
+	if freshness_delta < 0.0:
+		freshness_delta = delta
 	var completed_stations: Array[String] = []
+	var expired_stations: Array[String] = []
 	for raw_station in _kitchen_equipment_progress.keys():
 		var station := str(raw_station)
 		var progress := _kitchen_equipment_progress[station] as Dictionary
+		var fresh_time := maxf(float(progress.get("fresh_time", CROP_ROT_SECONDS)) - freshness_delta, 0.0)
+		progress["fresh_time"] = fresh_time
+		if fresh_time <= 0.0:
+			_kitchen_equipment_progress[station] = progress
+			expired_stations.append(station)
+			continue
 		if bool(progress.get("done", false)):
+			_kitchen_equipment_progress[station] = progress
 			continue
 		var time := maxf(float(progress.get("time", 0.0)) - delta, 0.0)
 		progress["time"] = time
 		if time <= 0.0:
+			if not bool(progress.get("freshness_bonus_applied", false)):
+				progress["fresh_time"] = fresh_time + maxf(float(progress.get("freshness_bonus", 0.0)), 0.0)
+				progress["freshness_bonus_applied"] = true
 			progress["done"] = true
 		_kitchen_equipment_progress[station] = progress
 		if time <= 0.0:
 			completed_stations.append(station)
+	for station in expired_stations:
+		_spoil_kitchen_equipment_progress(station)
 	for station in completed_stations:
-		_auto_collect_kitchen_progress(station)
+		if not _kitchen_equipment_progress.has(station):
+			continue
+		var progress := _kitchen_equipment_progress.get(station, {}) as Dictionary
+		if str(progress.get("action", "")) == "washing":
+			if KitchenUpgradeCatalog.has_equipment_effect_flag("sink", _kitchen_function_upgrades, "auto_collect_if_hands_empty") and _kitchen_held_item == "":
+				_auto_collect_kitchen_progress(station)
+			else:
+				_show_side_toast("%s洗好了，去洗菜池按 F 领取" % _kitchen_item_name(str(progress.get("result", ""))))
+		else:
+			_auto_collect_kitchen_progress(station)
+
+func _spoil_kitchen_equipment_progress(station: String) -> void:
+	if not _kitchen_equipment_progress.has(station):
+		return
+	var progress := _kitchen_equipment_progress[station] as Dictionary
+	_kitchen_equipment_progress.erase(station)
+	var item_name := _kitchen_item_name(str(progress.get("result", "")))
+	var root := _kitchen_root_for_instance(station)
+	var spoil_position := root.global_position if root != null and is_instance_valid(root) else (_player.global_position if _player != null and is_instance_valid(_player) else Vector3.ZERO)
+	_create_temporary_rotten_crop_at(spoil_position, item_name)
 
 func _auto_collect_kitchen_progress(station: String) -> void:
 	if _kitchen_held_item != "" or not _kitchen_equipment_progress.has(station):
@@ -9401,21 +15947,22 @@ func _auto_collect_kitchen_progress(station: String) -> void:
 	var progress := _kitchen_equipment_progress[station] as Dictionary
 	if not bool(progress.get("done", false)):
 		return
-	_set_kitchen_held_item(str(progress.get("result", "")), str(progress.get("recipe", "")), int(progress.get("quality", 0)))
+	_set_kitchen_held_item(str(progress.get("result", "")), "", int(progress.get("quality", 0)), float(progress.get("fresh_time", -1.0)))
 	_kitchen_equipment_progress.erase(station)
-	var recipe := _kitchen_held_recipe
-	var next_station := "料理台" if _kitchen_item_is_stage(_kitchen_held_item, "washed") and _recipe_needs_cut(recipe) else ("煮锅" if _recipe_uses_station(recipe, "pot") else "烧烤架")
-	_show_side_toast("%s完成，已拿在手上 → 去%s" % [_kitchen_item_name(_kitchen_held_item), next_station])
+	var next_station := _kitchen_next_station_hint(_kitchen_held_item)
+	var suffix := " → 可去%s" % next_station if next_station != "" else ""
+	_show_side_toast("%s完成，已拿在手上%s" % [_kitchen_item_name(_kitchen_held_item), suffix])
 
 func _set_kitchen_held_item(item: String, recipe: String, quality: int = 0, fresh_time: float = -1.0) -> void:
 	_kitchen_held_item = item
 	_kitchen_held_recipe = recipe
 	_kitchen_held_quality = clampi(quality, 0, 3)
 	if _kitchen_item_is_spoilable(item):
-		_kitchen_held_fresh_time = HELD_CROP_ROT_SECONDS if fresh_time < 0.0 else maxf(fresh_time, 0.0)
+		_kitchen_held_fresh_time = CROP_ROT_SECONDS if fresh_time < 0.0 else maxf(fresh_time, 0.0)
 	else:
 		_kitchen_held_fresh_time = 0.0
 	_update_kitchen_held_visual(true)
+	_update_held_crop_quality_panel()
 
 func _clear_kitchen_held_item() -> void:
 	_kitchen_held_item = ""
@@ -9427,6 +15974,7 @@ func _clear_kitchen_held_item() -> void:
 	_kitchen_held_visual = null
 	if _held_crop_item == "" and _kitchen_held_item == "":
 		_clear_crop_throw_charge_state()
+	_update_held_crop_quality_panel()
 
 func _update_kitchen_held_visual(force_rebuild: bool = false) -> void:
 	if _player == null:
@@ -9453,71 +16001,177 @@ func _create_kitchen_held_item_model(item: String) -> Node3D:
 	var crop_model := _create_crop_model(crop_type if crop_type != "" else CROP_CARROT, 0, "KitchenCrop")
 	root.add_child(crop_model)
 	if stage == "washed":
-		crop_model.modulate = Color(1.0, 1.0, 0.92, 1.0)
+		# crop_model is a Node3D, so it cannot be modulated directly. Brighten
+		# the actual mesh materials instead to retain a distinct washed look.
+		for mesh in _collect_mesh_instances(crop_model):
+			var source_material := mesh.material_override as StandardMaterial3D
+			if source_material == null:
+				continue
+			var washed_material := source_material.duplicate() as StandardMaterial3D
+			washed_material.albedo_color = source_material.albedo_color.lerp(Color(1.0, 1.0, 0.92, 1.0), 0.16)
+			washed_material.roughness = minf(source_material.roughness, 0.66)
+			mesh.material_override = washed_material
 	elif stage == "chopped":
 		crop_model.scale *= 0.74
+	elif stage == "burnt":
+		crop_model.scale *= 0.78
+		for mesh in _collect_mesh_instances(crop_model):
+			var source_material := mesh.material_override as StandardMaterial3D
+			if source_material == null:
+				continue
+			var burnt_material := source_material.duplicate() as StandardMaterial3D
+			burnt_material.albedo_color = Color(0.08, 0.055, 0.035, 1.0)
+			burnt_material.roughness = 1.0
+			mesh.material_override = burnt_material
 	return root
 
-func _create_kitchen_equipment_bubble(root: Node3D, equipment_id: String) -> void:
-	var bubble := Label3D.new()
-	bubble.name = "KitchenBubble"
-	bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	bubble.no_depth_test = true
-	bubble.font_size = KITCHEN_EQUIPMENT_BUBBLE_FONT_SIZE
-	bubble.modulate = Color(0.25, 0.17, 0.08, 1.0)
-	bubble.outline_size = 12
-	bubble.outline_modulate = Color(0.98, 0.86, 0.55, 0.92)
-	bubble.position = Vector3(0.0, 2.58, 0.0)
-	root.add_child(bubble)
-	var panel_mat := _make_material(Color(0.98, 0.91, 0.70, 0.82), 0.72)
-	panel_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_create_box_mesh(root, "KitchenBubblePanel", Vector3(0.0, 2.46, -0.015), Vector3(2.75, 1.34, 0.055), panel_mat).visible = false
-	var icon_mat := _make_material(Color(1.0, 0.72, 0.30, 0.96), 0.68)
-	var icon := MeshInstance3D.new()
-	icon.name = "KitchenBubbleIcon"
-	var icon_mesh := SphereMesh.new()
-	icon_mesh.radius = 0.18
-	icon_mesh.height = 0.14
-	icon.mesh = icon_mesh
-	icon.material_override = icon_mat
-	icon.position = Vector3(-1.08, 2.78, 0.0)
-	icon.visible = false
-	root.add_child(icon)
-	var bar_back_mat := _make_material(Color(0.30, 0.21, 0.11, 0.72), 0.8)
-	var bar_fill_mat := _make_material(Color(0.98, 0.72, 0.26, 0.95), 0.65)
-	var bar_back := _create_box_mesh(root, "KitchenProgressBack", Vector3(0.0, 2.06, 0.0), Vector3(1.95, 0.12, 0.065), bar_back_mat)
-	var bar_fill := _create_box_mesh(root, "KitchenProgressFill", Vector3(0.0, 2.067, 0.0), Vector3(1.80, 0.105, 0.075), bar_fill_mat)
-	bar_back.visible = false
-	bar_fill.visible = false
-	var heat_blue := _create_box_mesh(root, "KitchenHeatBlue", Vector3(-0.61, 2.18, 0.0), Vector3(0.60, 0.10, 0.07), _make_material(Color(0.38, 0.70, 1.0, 0.88), 0.6))
-	var heat_green := _create_box_mesh(root, "KitchenHeatGreen", Vector3(0.0, 2.18, 0.0), Vector3(0.64, 0.10, 0.07), _make_material(Color(0.50, 0.92, 0.48, 0.88), 0.6))
-	var heat_red := _create_box_mesh(root, "KitchenHeatRed", Vector3(0.64, 2.18, 0.0), Vector3(0.64, 0.10, 0.07), _make_material(Color(1.0, 0.36, 0.24, 0.88), 0.6))
-	var heat_pointer := _create_box_mesh(root, "KitchenHeatPointer", Vector3(0.0, 2.29, 0.0), Vector3(0.06, 0.32, 0.085), _make_material(Color(0.26, 0.15, 0.06, 1.0), 0.5))
-	for node in [heat_blue, heat_green, heat_red, heat_pointer]:
-		node.visible = false
-	_kitchen_equipment_bubbles[equipment_id] = bubble
+func _create_kitchen_equipment_bubble(root: Node3D, equipment_id: String, instance_id: String = "") -> void:
+	var resolved_instance_id := instance_id if instance_id != "" else str(root.get_meta("equipment_instance_id", _kitchen_instance_id(equipment_id, 1)))
+	# The previous implementation built text, panels, bars, and heat zones from
+	# Label3D/MeshInstance3D nodes. Keep only the equipment root here; a single
+	# screen-space overlay now renders every active station without perspective
+	# stretching or per-frame 3D material work.
+	_kitchen_equipment_bubbles[resolved_instance_id] = root
 
-func _update_kitchen_equipment_bubbles() -> void:
+
+func _update_kitchen_equipment_bubbles(delta: float) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if _kitchen_prompt_overlay != null and is_instance_valid(_kitchen_prompt_overlay):
+		_kitchen_prompt_overlay.begin_frame(delta, viewport_size)
+	var nearest_instance := _nearest_kitchen_equipment_id()
 	for raw_id in _kitchen_equipment_bubbles.keys():
-		var equipment_id := str(raw_id)
-		var bubble := _kitchen_equipment_bubbles[equipment_id] as Label3D
-		if bubble == null or not is_instance_valid(bubble):
+		var instance_id := str(raw_id)
+		var root := _kitchen_equipment_bubbles[instance_id] as Node3D
+		if root == null or not is_instance_valid(root):
+			_kitchen_equipment_bubbles.erase(instance_id)
 			continue
-		var text := _kitchen_equipment_bubble_text(equipment_id)
-		bubble.text = text
-		bubble.visible = text != ""
-		_update_kitchen_equipment_progress_bar(equipment_id)
-		_update_kitchen_station_visual(equipment_id)
+		_update_kitchen_station_visual(instance_id)
+		if _kitchen_prompt_overlay == null or not is_instance_valid(_kitchen_prompt_overlay):
+			continue
+		var cook_state := _kitchen_state_for_station(instance_id)
+		var expanded := instance_id == nearest_instance and not cook_state.is_empty() and str(cook_state.get("state", "")) == "HeatSelecting"
+		var data := _kitchen_equipment_prompt_data(instance_id, expanded)
+		if data.is_empty() or _camera == null or not is_instance_valid(_camera):
+			continue
+		var world_position := root.global_position + Vector3(0.0, _kitchen_prompt_world_height(_kitchen_instance_type(instance_id)), 0.0)
+		if _camera.is_position_behind(world_position):
+			continue
+		var screen_position := _camera.unproject_position(world_position)
+		if screen_position.x < -90.0 or screen_position.y < -90.0 or screen_position.x > viewport_size.x + 90.0 or screen_position.y > viewport_size.y + 90.0:
+			continue
+		_kitchen_prompt_overlay.update_station(instance_id, data, screen_position)
+	if _kitchen_prompt_overlay != null and is_instance_valid(_kitchen_prompt_overlay):
+		_kitchen_prompt_overlay.end_frame()
 	_update_food_chest_order_bubble()
 	_update_first_kitchen_guide_highlights()
 
-func _update_kitchen_station_visual(equipment_id: String) -> void:
+
+func _kitchen_equipment_prompt_data(instance_id: String, expanded: bool) -> Dictionary:
+	if not _kitchen_business_active:
+		return {}
+	var equipment_id := _kitchen_instance_type(instance_id)
+	var icon_key := _kitchen_prompt_icon_key(equipment_id)
+	if _kitchen_equipment_progress.has(instance_id):
+		var progress := _kitchen_equipment_progress[instance_id] as Dictionary
+		var action := str(progress.get("action", ""))
+		var done := bool(progress.get("done", false))
+		var remaining := maxf(float(progress.get("time", 0.0)), 0.0)
+		var duration := maxf(float(progress.get("duration", 1.0)), 0.01)
+		var result_item := str(progress.get("result", ""))
+		var crop_name := _crop_display_name(_kitchen_item_crop_type(result_item))
+		var action_title := ""
+		if done:
+			action_title = ("%s洗净" if action == "washing" else "%s切好") % crop_name
+		else:
+			action_title = ("清洗%s" if action == "washing" else "切配%s") % crop_name
+		return {
+			"title": action_title,
+			"subtitle": "F 取走" if done else "剩余 %ds" % ceili(remaining),
+			"icon": icon_key,
+			"visual_state": "ready" if done else "working",
+			"ratio": 1.0 if done else 1.0 - remaining / duration,
+			"show_progress": true,
+			"expanded": false,
+		}
+	var cook_state := _kitchen_state_for_station(instance_id)
+	if not cook_state.is_empty():
+		var station_state := str(cook_state.get("state", "Cooking"))
+		var recipe_name := _recipe_name(str(cook_state.get("recipe", "")))
+		if station_state == "HeatSelecting":
+			var bounds := _kitchen_heat_bounds(equipment_id)
+			return {
+				"title": recipe_name,
+				"subtitle": "靠近后按 F 定火",
+				"icon": icon_key,
+				"visual_state": "heat",
+				"ratio": 0.0,
+				"show_progress": false,
+				"expanded": expanded,
+				"heat_cursor": float(cook_state.get("heat_cursor", 0.5)),
+				"heat_lower": bounds.x,
+				"heat_upper": bounds.y,
+			}
+		if station_state == "Cooking":
+			var heat := str(cook_state.get("heat_level", "green"))
+			var progress_ratio := clampf(float(cook_state.get("cook_progress", 0.0)), 0.0, 1.0)
+			var duration := maxf(float(cook_state.get("cook_duration", 1.0)), 0.01)
+			var remaining := maxf((1.0 - progress_ratio) * duration / _kitchen_heat_speed(heat), 0.0)
+			return {"title": recipe_name, "subtitle": "%s · %ds" % [_kitchen_heat_short_label(heat), ceili(remaining)], "icon": icon_key, "visual_state": "cooking", "ratio": progress_ratio, "show_progress": true, "expanded": false}
+		if station_state == "Done":
+			var hold_progress := clampf(float(cook_state.get("done_hold_progress", 0.0)), 0.0, 1.0)
+			var safe_seconds := maxf((1.0 - hold_progress) * float(cook_state.get("done_hold_duration", KITCHEN_READY_SECONDS)), 0.0)
+			return {"title": recipe_name, "subtitle": "完成 · F取下 · %ds" % ceili(safe_seconds), "icon": icon_key, "visual_state": "ready", "ratio": 1.0 - hold_progress, "show_progress": true, "expanded": false}
+		if station_state == "Burning":
+			var burn_progress := clampf(float(cook_state.get("burn_progress", 0.0)), 0.0, 1.0)
+			var burn_seconds := maxf((1.0 - burn_progress) * float(cook_state.get("burn_duration", KITCHEN_BURN_SECONDS)), 0.0)
+			return {"title": recipe_name, "subtitle": "将烧焦 · F取下 · %ds" % ceili(burn_seconds), "icon": icon_key, "visual_state": "burning", "ratio": 1.0 - burn_progress, "show_progress": true, "expanded": false}
+		if station_state == "Burnt":
+			return {"title": "已烧焦", "subtitle": "F 清理丢弃", "icon": icon_key, "visual_state": "burnt", "ratio": 1.0, "show_progress": true, "expanded": false}
+	if equipment_id == "prep_shelf":
+		var ready_count := _kitchen_ready_dish_total()
+		if ready_count > 0:
+			return {"title": "可出餐 ×%d" % ready_count, "subtitle": "F 出餐", "icon": "serve", "visual_state": "ready", "ratio": 1.0, "show_progress": false, "expanded": false}
+	return {}
+
+
+func _kitchen_prompt_icon_key(equipment_id: String) -> String:
+	match equipment_id:
+		"sink": return "wash"
+		"cutting_table": return "cut"
+		"pot": return "pot"
+		"grill": return "grill"
+		"prep_shelf": return "serve"
+	return "pot"
+
+
+func _kitchen_prompt_world_height(equipment_id: String) -> float:
+	match equipment_id:
+		"sink", "cutting_table": return 2.35
+		"prep_shelf": return 2.50
+	return 2.30
+
+
+func _kitchen_ready_dish_total() -> int:
+	var total := 0
+	for raw_count in _kitchen_ready_dishes.values():
+		total += maxi(int(raw_count), 0)
+	return total
+
+
+func _kitchen_heat_short_label(heat: String) -> String:
+	match heat:
+		"blue": return "小火"
+		"red": return "旺火"
+	return "刚好"
+
+func _update_kitchen_station_visual(instance_id: String) -> void:
+	var equipment_id := _kitchen_instance_type(instance_id)
 	if equipment_id != "pot" and equipment_id != "grill":
 		return
-	var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
+	var root := _kitchen_root_for_instance(instance_id)
 	if root == null or not is_instance_valid(root):
 		return
-	var state := _kitchen_state_for_station(equipment_id)
+	var state := _kitchen_state_for_station(instance_id)
 	var visual := root.get_node_or_null("KitchenStationFoodVisual") as Node3D
 	if state.is_empty():
 		if visual != null:
@@ -9570,73 +16224,8 @@ func _update_kitchen_station_visual(equipment_id: String) -> void:
 		steam_mesh_instance.position.y = 0.34 + sin(Time.get_ticks_msec() * 0.006) * 0.045
 		steam_mesh_instance.scale = Vector3.ONE * (1.0 + sin(Time.get_ticks_msec() * 0.004) * 0.15)
 
-func _update_kitchen_equipment_progress_bar(equipment_id: String) -> void:
-	var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
-	if root == null or not is_instance_valid(root):
-		return
-	var panel := root.get_node_or_null("KitchenBubblePanel") as MeshInstance3D
-	var icon := root.get_node_or_null("KitchenBubbleIcon") as MeshInstance3D
-	var back := root.get_node_or_null("KitchenProgressBack") as MeshInstance3D
-	var fill := root.get_node_or_null("KitchenProgressFill") as MeshInstance3D
-	var heat_blue := root.get_node_or_null("KitchenHeatBlue") as MeshInstance3D
-	var heat_green := root.get_node_or_null("KitchenHeatGreen") as MeshInstance3D
-	var heat_red := root.get_node_or_null("KitchenHeatRed") as MeshInstance3D
-	var heat_pointer := root.get_node_or_null("KitchenHeatPointer") as MeshInstance3D
-	if back == null or fill == null:
-		return
-	var cook_state := _kitchen_state_for_station(equipment_id)
-	var has_cook_state := not cook_state.is_empty()
-	var show_bar := _kitchen_equipment_progress.has(equipment_id) or has_cook_state
-	if panel != null:
-		panel.visible = show_bar
-	if icon != null:
-		icon.visible = show_bar
-	back.visible = show_bar
-	fill.visible = show_bar
-	var show_heat := has_cook_state and str(cook_state.get("state", "")) == "HeatSelecting"
-	for node in [heat_blue, heat_green, heat_red, heat_pointer]:
-		if node != null:
-			node.visible = show_heat
-	if not show_bar:
-		return
-	var ratio := 0.0
-	var fill_color := Color(0.98, 0.72, 0.26, 0.95)
-	if has_cook_state:
-		var station_state := str(cook_state.get("state", "Cooking"))
-		if station_state == "HeatSelecting":
-			ratio = 0.0
-			var cursor := clampf(float(cook_state.get("heat_cursor", 0.5)), 0.0, 1.0)
-			if heat_pointer != null:
-				heat_pointer.position.x = lerpf(-0.94, 0.94, cursor)
-		elif station_state == "Cooking":
-			ratio = clampf(float(cook_state.get("cook_progress", 0.0)), 0.0, 1.0)
-			fill_color = Color(0.88, 1.0, 0.66, 0.96)
-		elif station_state == "Done":
-			ratio = 1.0
-			fill_color = Color(0.48, 0.94, 0.48, 1.0)
-		elif station_state == "Burning":
-			ratio = clampf(float(cook_state.get("burn_progress", 0.0)), 0.0, 1.0)
-			fill_color = Color(1.0, 0.25, 0.16, 1.0)
-		elif station_state == "Burnt":
-			ratio = 1.0
-			fill_color = Color(0.18, 0.08, 0.04, 1.0)
-	else:
-		var progress := _kitchen_equipment_progress[equipment_id] as Dictionary
-		var duration := maxf(float(progress.get("duration", 1.0)), 0.01)
-		ratio = 1.0 - clampf(float(progress.get("time", 0.0)) / duration, 0.0, 1.0)
-		if bool(progress.get("done", false)):
-			ratio = 1.0
-	_update_mesh_color(fill, fill_color)
-	fill.scale.x = maxf(ratio, 0.04)
-	fill.position.x = -0.90 + 0.90 * ratio
-
-func _kitchen_state_for_station(equipment_id: String) -> Dictionary:
-	match equipment_id:
-		"pot":
-			return _kitchen_pot_state
-		"grill":
-			return _kitchen_grill_state
-	return {}
+func _kitchen_state_for_station(instance_id: String) -> Dictionary:
+	return _kitchen_cook_states.get(instance_id, {}) as Dictionary
 
 func _update_mesh_color(mesh: MeshInstance3D, color: Color) -> void:
 	var mat := mesh.material_override as StandardMaterial3D
@@ -9647,26 +16236,29 @@ func _update_mesh_color(mesh: MeshInstance3D, color: Color) -> void:
 	if color.a < 1.0:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
-func _kitchen_equipment_bubble_text(equipment_id: String) -> String:
+func _kitchen_equipment_bubble_text(instance_id: String) -> String:
 	if not _kitchen_business_active:
 		return ""
-	if _kitchen_equipment_progress.has(equipment_id):
-		var progress := _kitchen_equipment_progress[equipment_id] as Dictionary
+	if _kitchen_equipment_progress.has(instance_id):
+		var progress := _kitchen_equipment_progress[instance_id] as Dictionary
 		if bool(progress.get("done", false)):
 			return "完成：%s\nF 取走" % _kitchen_item_name(str(progress.get("result", "")))
 		return "%s %.0fs" % [_kitchen_progress_action_name(str(progress.get("action", ""))), float(progress.get("time", 0.0))]
+	var equipment_id := _kitchen_instance_type(instance_id)
 	match equipment_id:
 		"sink":
 			return ""
 		"cutting_table":
 			return ""
 		"pot":
-			if not _kitchen_pot_state.is_empty():
-				return _cook_state_text(_kitchen_pot_state, KITCHEN_COOK_SOUP_SECONDS)
+			var pot_state := _kitchen_state_for_station(instance_id)
+			if not pot_state.is_empty():
+				return _cook_state_text(pot_state, _kitchen_cook_duration("pot"))
 			return ""
 		"grill":
-			if not _kitchen_grill_state.is_empty():
-				return _cook_state_text(_kitchen_grill_state, KITCHEN_COOK_GRILL_SECONDS)
+			var grill_state := _kitchen_state_for_station(instance_id)
+			if not grill_state.is_empty():
+				return _cook_state_text(grill_state, _kitchen_cook_duration("grill"))
 			return ""
 		"prep_shelf":
 			var ready := _kitchen_ready_dish_summary()
@@ -9704,9 +16296,10 @@ func _update_food_chest_order_bubble() -> void:
 func _update_first_kitchen_guide_highlights() -> void:
 	var target := _first_kitchen_guide_target()
 	for raw_id in _kitchen_equipment_roots.keys():
-		var equipment_id := str(raw_id)
-		var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
-		_set_kitchen_guide_highlight(root, target == equipment_id)
+		var instance_id := str(raw_id)
+		var root := _kitchen_equipment_roots.get(instance_id) as Node3D
+		var target_matches := target == instance_id or (target == _kitchen_instance_type(instance_id) and instance_id == _primary_kitchen_instance_id(target))
+		_set_kitchen_guide_highlight(root, target_matches)
 	for raw_chest in _placed_food_chests:
 		var chest := raw_chest as Node3D
 		_set_kitchen_guide_highlight(chest, target == "food_chest")
@@ -9719,15 +16312,25 @@ func _first_kitchen_guide_target() -> String:
 	if _kitchen_held_item == "raw_carrot":
 		return "sink"
 	if _kitchen_item_is_stage(_kitchen_held_item, "washed"):
-		if _recipe_needs_cut(_kitchen_held_recipe):
+		if _pending_kitchen_crop_needs_cut(_kitchen_item_crop_type(_kitchen_held_item)):
 			return "cutting_table"
-		return "pot" if _recipe_uses_station(_kitchen_held_recipe, "pot") else "grill"
+		if _pending_kitchen_recipe_for_item_and_station(_kitchen_held_item, "pot") != "":
+			return "pot"
+		if _pending_kitchen_recipe_for_item_and_station(_kitchen_held_item, "grill") != "":
+			return "grill"
 	if _kitchen_item_is_stage(_kitchen_held_item, "chopped"):
-		return "pot" if _recipe_uses_station(_kitchen_held_recipe, "pot") else "grill"
-	if _kitchen_equipment_progress.has("sink"):
-		return "sink"
-	if not _kitchen_pot_state.is_empty():
-		return "pot"
+		if _pending_kitchen_recipe_for_item_and_station(_kitchen_held_item, "pot") != "":
+			return "pot"
+		if _pending_kitchen_recipe_for_item_and_station(_kitchen_held_item, "grill") != "":
+			return "grill"
+	for raw_instance_id in _kitchen_equipment_progress.keys():
+		var progress_instance_id := str(raw_instance_id)
+		if _kitchen_instance_type(progress_instance_id) == "sink":
+			return progress_instance_id
+	for raw_instance_id in _kitchen_cook_states.keys():
+		var cook_instance_id := str(raw_instance_id)
+		if _kitchen_instance_type(cook_instance_id) == "pot":
+			return cook_instance_id
 	if _next_kitchen_recipe_needing_ingredient() != "":
 		return "food_chest"
 	return ""
@@ -9789,6 +16392,9 @@ func _kitchen_item_is_stage(item: String, stage: String) -> bool:
 func _kitchen_item_is_raw_crop(item: String) -> bool:
 	return _kitchen_item_is_stage(item, "raw")
 
+func _kitchen_item_can_return_to_food_chest(item: String) -> bool:
+	return _kitchen_item_is_raw_crop(item) or _kitchen_item_is_stage(item, "washed")
+
 func _kitchen_item_name(item: String) -> String:
 	var crop_type := _kitchen_item_crop_type(item)
 	if crop_type == "":
@@ -9799,10 +16405,13 @@ func _kitchen_item_name(item: String) -> String:
 			prefix = "洗净"
 		"chopped":
 			prefix = "切配"
+		"burnt":
+			prefix = "烧焦"
 	return prefix + _crop_display_name(crop_type)
 
 func _kitchen_item_is_spoilable(item: String) -> bool:
-	return _kitchen_item_is_raw_crop(item)
+	var stage := _kitchen_item_stage(item)
+	return stage == "raw" or stage == "washed" or stage == "chopped"
 
 func _recipe_crop_type(recipe: String) -> String:
 	return str(_recipe_data(recipe).get("crop", CROP_CARROT))
@@ -9823,6 +16432,20 @@ func _recipe_required_cook_item(recipe: String) -> String:
 func _recipe_accepts_cook_item(recipe: String, item: String) -> bool:
 	return item == _recipe_required_cook_item(recipe)
 
+func _kitchen_cook_requirement_hint(item: String, station: String, station_name: String) -> String:
+	if item == "":
+		return "先准备待完成订单的食材，再放入%s" % station_name
+	var crop_type := _kitchen_item_crop_type(item)
+	var recipe := _pending_kitchen_recipe_for_crop_and_station(crop_type, station)
+	if recipe == "":
+		return "当前待完成订单不需要在%s处理%s" % [station_name, _crop_display_name(crop_type)]
+	var expected := _recipe_required_cook_item(recipe)
+	if _kitchen_item_is_raw_crop(item) and _recipe_needs_wash(recipe):
+		return "先去洗菜池洗净%s" % _crop_display_name(crop_type)
+	if _kitchen_item_is_stage(item, "washed") and _recipe_needs_cut(recipe):
+		return "洗净后还要去料理台切配，再放入%s" % station_name
+	return "当前需要%s，才能放入%s" % [_kitchen_item_name(expected), station_name]
+
 func _kitchen_progress_action_name(action: String) -> String:
 	match action:
 		"washing":
@@ -9831,18 +16454,51 @@ func _kitchen_progress_action_name(action: String) -> String:
 			return "切菜中"
 	return "处理中"
 
-func _take_stored_crop(crop_type: String, quality: int, amount: int) -> bool:
-	var key := _stored_crop_key(crop_type, quality)
+func _sync_stored_crop_fresh_times(key: String) -> Array:
+	var count := maxi(int(_stored_crop_counts.get(key, 0)), 0)
+	var times: Array = []
+	var stored_times: Variant = _stored_crop_fresh_times.get(key, [])
+	if stored_times is Array:
+		for value in stored_times:
+			times.append(maxf(float(value), 0.0))
+	while times.size() < count:
+		times.append(CROP_ROT_SECONDS)
+	while times.size() > count:
+		times.pop_back()
+	times.sort()
+	if count <= 0:
+		_stored_crop_fresh_times.erase(key)
+	else:
+		_stored_crop_fresh_times[key] = times
+	return times
+
+func _remove_stored_crop_units(key: String, amount: int) -> Array:
+	amount = maxi(amount, 0)
 	var current := int(_stored_crop_counts.get(key, 0))
-	if current < amount:
-		return false
+	if amount <= 0 or current < amount:
+		return []
+	var times := _sync_stored_crop_fresh_times(key)
+	var removed: Array = []
+	for _index in range(amount):
+		removed.append(float(times.pop_front()) if not times.is_empty() else CROP_ROT_SECONDS)
 	current -= amount
 	if current <= 0:
 		_stored_crop_counts.erase(key)
+		_stored_crop_fresh_times.erase(key)
 	else:
 		_stored_crop_counts[key] = current
+		_stored_crop_fresh_times[key] = times
 	_refresh_food_chest_capacity_label()
-	return true
+	return removed
+
+func _take_stored_crop(crop_type: String, quality: int, amount: int) -> bool:
+	return _remove_stored_crop_units(_stored_crop_key(crop_type, quality), amount).size() == amount
+
+func _take_stored_crop_entry(crop_type: String, quality: int) -> Dictionary:
+	var removed := _remove_stored_crop_units(_stored_crop_key(crop_type, quality), 1)
+	if removed.is_empty():
+		return {}
+	return {"quality": clampi(quality, 0, 3), "fresh_time": maxf(float(removed[0]), 0.0)}
 
 func _take_any_stored_crop(crop_type: String, amount: int) -> bool:
 	return _take_any_stored_crop_quality(crop_type, amount) >= 0
@@ -9852,6 +16508,13 @@ func _take_any_stored_crop_quality(crop_type: String, amount: int) -> int:
 		if _take_stored_crop(crop_type, quality, amount):
 			return quality
 	return -1
+
+func _take_any_stored_crop_entry(crop_type: String) -> Dictionary:
+	for quality in range(3, -1, -1):
+		var entry := _take_stored_crop_entry(crop_type, quality)
+		if not entry.is_empty():
+			return entry
+	return {}
 
 func _stored_crop_total(crop_type: String) -> int:
 	var total := 0
@@ -9869,19 +16532,22 @@ func _first_kitchen_stored_carrot_count() -> int:
 	return _stored_crop_total(CROP_CARROT)
 
 func _first_kitchen_stored_carrot_progress() -> int:
+	# 已进入厨房接单教学或完成第一天的旧进度不回退到入箱步骤。
+	if _kitchen_intro_completed or _kitchen_first_day_completed:
+		return FIRST_KITCHEN_REQUIRED_CARROTS
 	return mini(maxi(_tutorial_stored_carrot_count, _first_kitchen_stored_carrot_count()), FIRST_KITCHEN_REQUIRED_CARROTS)
 
 func _has_stored_first_kitchen_carrots_once() -> bool:
 	return _first_kitchen_stored_carrot_progress() >= FIRST_KITCHEN_REQUIRED_CARROTS
 
 func _can_start_first_kitchen_business() -> bool:
-	return _kitchen_intro_completed and not _kitchen_first_day_completed and not _kitchen_business_active and _has_all_first_day_kitchen_equipment() and not _placed_food_chests.is_empty() and _prepared_crop_total(CROP_CARROT) >= FIRST_KITCHEN_REQUIRED_CARROTS
+	return _kitchen_intro_completed and not _kitchen_first_day_completed and not _kitchen_business_active and _has_all_first_day_kitchen_equipment() and _first_kitchen_stored_carrot_count() >= FIRST_KITCHEN_REQUIRED_CARROTS
 
 func _can_start_formal_kitchen_business() -> bool:
-	return _opening_sign_placed and _kitchen_first_day_completed and not _kitchen_business_active and _has_all_formal_kitchen_equipment() and not _placed_food_chests.is_empty() and _prepared_crop_total(CROP_CARROT) >= 3
+	return _kitchen_first_day_completed and not _kitchen_business_active and _has_all_formal_kitchen_equipment() and _business_requirement_total(CROP_CARROT) >= 3
 
 func _is_kitchen_intro_talk_pending() -> bool:
-	return _chapter_one_active and _chest_lesson_completed and _has_all_first_day_kitchen_equipment() and not _placed_food_chests.is_empty() and _prepared_crop_total(CROP_CARROT) >= FIRST_KITCHEN_REQUIRED_CARROTS and not _kitchen_intro_completed
+	return _chapter_one_active and _chest_lesson_completed and _has_all_first_day_kitchen_equipment() and _first_kitchen_stored_carrot_count() >= FIRST_KITCHEN_REQUIRED_CARROTS and not _kitchen_intro_completed
 
 func _has_all_first_day_kitchen_equipment() -> bool:
 	return _has_kitchen_equipment_set(FIRST_DAY_KITCHEN_EQUIPMENT_IDS)
@@ -9896,68 +16562,111 @@ func _has_kitchen_equipment_set(equipment_ids: Array) -> bool:
 	return true
 
 func _has_kitchen_equipment(equipment_id: String) -> bool:
-	var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
-	return root != null and is_instance_valid(root)
+	return not _kitchen_instance_ids_for_type(equipment_id).is_empty()
+
+func _settle_kitchen_held_item_after_business() -> void:
+	for dropped_item in _dropped_kitchen_item_roots:
+		if dropped_item != null and is_instance_valid(dropped_item):
+			var dropped_item_id := str(dropped_item.get_meta("kitchen_item", ""))
+			if _kitchen_item_is_spoilable(dropped_item_id):
+				dropped_item.set_meta("recipe", "")
+	if _kitchen_held_item == "":
+		_kitchen_held_recipe = ""
+		return
+	if _kitchen_item_is_spoilable(_kitchen_held_item):
+		var crop_type := _kitchen_item_crop_type(_kitchen_held_item)
+		var quality := _kitchen_held_quality
+		var fresh_time := _kitchen_held_fresh_time
+		if _stored_crop_total_all() < _food_chest_capacity():
+			_store_crop_in_food_chest(crop_type, quality, fresh_time)
+		else:
+			_drop_returned_kitchen_crop(crop_type, quality, fresh_time)
+	_clear_kitchen_held_item()
+
+func _drop_returned_kitchen_crop(crop_type: String, quality: int, fresh_time: float) -> void:
+	var dropped := _create_crop_model(crop_type, quality, "ReturnedKitchenCrop")
+	var drop_position := _player.global_position if _player != null and is_instance_valid(_player) else Vector3.ZERO
+	dropped.global_position = drop_position + Vector3(0.46, 0.0, 0.24)
+	dropped.set_meta("crop_type", crop_type)
+	dropped.set_meta("crop_quality", quality)
+	_mark_generated(dropped)
+	add_child(dropped)
+	_register_dropped_crop(dropped, maxf(fresh_time, 0.0))
 
 func _start_first_kitchen_business(spend_stamina: bool = true) -> bool:
-	if _has_all_first_day_kitchen_equipment() and not _placed_food_chests.is_empty() and _prepared_crop_total(CROP_CARROT) < FIRST_KITCHEN_REQUIRED_CARROTS:
-		_show_notification("胡萝卜准备不足：食材箱 + 种子需要达到 %d 个（当前 %d/%d，箱子容量 %d）" % [FIRST_KITCHEN_REQUIRED_CARROTS, _prepared_crop_total(CROP_CARROT), FIRST_KITCHEN_REQUIRED_CARROTS, _food_chest_capacity()])
+	if not _kitchen_business_active:
+		_settle_kitchen_held_item_after_business()
+	if _has_all_first_day_kitchen_equipment() and _first_kitchen_stored_carrot_count() < FIRST_KITCHEN_REQUIRED_CARROTS:
+		_show_notification("第一天经营需要食材箱里有 %d 个胡萝卜（当前 %d/%d），请先把胡萝卜放回食材箱" % [FIRST_KITCHEN_REQUIRED_CARROTS, _first_kitchen_stored_carrot_count(), FIRST_KITCHEN_REQUIRED_CARROTS])
 		return true
 	if _is_kitchen_intro_talk_pending():
 		_kitchen_intro_requested = true
 		_show_notification("先回去和%s聊聊接订单的事" % MOM_NAME)
 		return true
 	if not _can_start_first_kitchen_business():
-		_show_notification("先摆好食材箱、洗菜池、煮锅和备菜架")
+		_show_notification("先摆好洗菜池、煮锅和备菜架")
 		return true
 	if spend_stamina and not _try_spend_business_stamina():
 		return true
 	_kitchen_business_active = true
+	AudioManager.set_business_mode(true)
+	AudioManager.stop_all_kitchen_loops()
 	_kitchen_business_time = KITCHEN_FIRST_DAY_DURATION
 	_kitchen_served_count = 0
 	_kitchen_failed_count = 0
+	_kitchen_service_combo_count = 0
+	_kitchen_service_combo_count = 0
+	_lock_active_business_location_bonus()
+	_begin_flower_gift_for_business()
 	var first_level := _business_level_by_id(1)
 	_kitchen_orders = _build_business_level_orders(first_level) if not first_level.is_empty() else [
 		_make_kitchen_order(KITCHEN_RECIPE_SOUP, KITCHEN_FIRST_ORDER_LIMIT, 0.0),
 		_make_kitchen_order(KITCHEN_RECIPE_SOUP, KITCHEN_FIRST_ORDER_LIMIT - 2.0, KITCHEN_BUSINESS_ORDER_STAGGER),
 		_make_kitchen_order(KITCHEN_RECIPE_SOUP, KITCHEN_FIRST_ORDER_LIMIT - 4.0, KITCHEN_BUSINESS_ORDER_STAGGER * 2.0),
 	]
-	_kitchen_pot_state.clear()
-	_kitchen_grill_state.clear()
+	_kitchen_cook_states.clear()
+	_kitchen_equipment_progress.clear()
 	_kitchen_ready_dishes.clear()
 	_kitchen_scrap_dishes.clear()
 	_kitchen_scrap_income = 0
 	_business_active_level_id = 1
 	_business_active_level_duration = KITCHEN_FIRST_DAY_DURATION
 	_collapse_task_bar_for_business()
-	_show_notification("第一次营业开始：完成 3 单胡萝卜清汤")
+	_show_notification("第一次营业开始：完成 1/3 单可获 1 星，继续出餐可提升星级")
 	return true
 
 func _start_formal_kitchen_business() -> bool:
-	if not _opening_sign_placed:
-		_show_notification("先把房车开业小木牌摆在房车旁边")
+	if not _kitchen_business_active:
+		_settle_kitchen_held_item_after_business()
+	if not _kitchen_first_day_completed:
+		_show_notification("第1关至少获得1星后，才能开始正式营业")
 		return true
-	if _prepared_crop_total(CROP_CARROT) < 3:
-		_show_notification("正式营业至少需要 3 个胡萝卜准备量：食材箱成品 + 胡萝卜种子")
+	if _business_requirement_total(CROP_CARROT) < 3:
+		_show_notification("正式营业至少需要 3 个胡萝卜：种子、田间作物或食材箱库存均可计入")
 		return true
-	if not _has_all_formal_kitchen_equipment() or _placed_food_chests.is_empty():
-		_show_notification("正式营业前先摆好食材箱、洗菜池、煮锅、烧烤架和备菜架")
+	if not _has_all_formal_kitchen_equipment():
+		_show_notification("正式营业前先摆好洗菜池、煮锅、烧烤架和备菜架")
 		return true
 	if _kitchen_business_active:
 		return true
 	if not _try_spend_business_stamina():
 		return true
 	_kitchen_business_active = true
+	AudioManager.set_business_mode(true)
+	AudioManager.stop_all_kitchen_loops()
 	_kitchen_business_time = 90.0
 	_kitchen_served_count = 0
 	_kitchen_failed_count = 0
+	_kitchen_service_combo_count = 0
+	_lock_active_business_location_bonus()
+	_begin_flower_gift_for_business()
 	_kitchen_orders = [
 		_make_kitchen_order(KITCHEN_RECIPE_GRILLED, KITCHEN_BUSINESS_ORDER_LIMIT, 0.0),
 		_make_kitchen_order(KITCHEN_RECIPE_SOUP, KITCHEN_BUSINESS_ORDER_LIMIT, KITCHEN_BUSINESS_ORDER_STAGGER),
 		_make_kitchen_order(KITCHEN_RECIPE_GRILLED, KITCHEN_BUSINESS_ORDER_LIMIT - 4.0, KITCHEN_BUSINESS_ORDER_STAGGER * 2.0),
 	]
-	_kitchen_pot_state.clear()
-	_kitchen_grill_state.clear()
+	_kitchen_cook_states.clear()
+	_kitchen_equipment_progress.clear()
 	_kitchen_ready_dishes.clear()
 	_kitchen_scrap_dishes.clear()
 	_kitchen_scrap_income = 0
@@ -9968,8 +16677,14 @@ func _start_formal_kitchen_business() -> bool:
 	return true
 
 func _update_kitchen_business(delta: float) -> void:
-	_update_kitchen_cook_state(_kitchen_pot_state, KITCHEN_COOK_SOUP_SECONDS, delta)
-	_update_kitchen_cook_state(_kitchen_grill_state, KITCHEN_COOK_GRILL_SECONDS, delta)
+	for raw_instance_id in _kitchen_cook_states.keys():
+		var instance_id := str(raw_instance_id)
+		var state := _kitchen_cook_states.get(instance_id, {}) as Dictionary
+		if state.is_empty():
+			continue
+		var station := _kitchen_instance_type(instance_id)
+		_update_kitchen_cook_state(state, _kitchen_cook_duration(station), delta)
+		_kitchen_cook_states[instance_id] = state
 	if not _kitchen_business_active:
 		return
 	_kitchen_business_time = maxf(_kitchen_business_time - delta, 0.0)
@@ -9980,11 +16695,20 @@ func _update_kitchen_business(delta: float) -> void:
 			order["delay"] = maxf(delay - delta, 0.0)
 			_kitchen_orders[index] = order
 			continue
-		order["time"] = maxf(float(order.get("time", 0.0)) - delta, 0.0)
+		if not bool(order.get("audio_announced", false)):
+			order["audio_announced"] = true
+			AudioManager.play_sfx("order_new")
+		var remaining_time := maxf(float(order.get("time", 0.0)) - delta, 0.0)
+		order["time"] = remaining_time
+		if remaining_time <= KITCHEN_ORDER_URGENT_SECONDS and not bool(order.get("audio_warning_played", false)):
+			order["audio_warning_played"] = true
+			AudioManager.play_sfx("order_warning")
 		_kitchen_orders[index] = order
-		if float(order.get("time", 0.0)) <= 0.0:
+		if remaining_time <= 0.0:
 			_kitchen_orders.remove_at(index)
 			_kitchen_failed_count += 1
+			if KitchenUpgradeCatalog.has_equipment_effect_flag("prep_shelf", _kitchen_function_upgrades, "reset_service_combo_on_miss"):
+				_kitchen_service_combo_count = 0
 	if _kitchen_business_time <= 0.0 or _kitchen_orders.is_empty():
 		_finish_kitchen_business()
 
@@ -9995,7 +16719,9 @@ func _update_kitchen_cook_state(state: Dictionary, cook_seconds: float, delta: f
 	if station_state == "HeatSelecting":
 		var cursor := float(state.get("heat_cursor", 0.5))
 		var direction := float(state.get("heat_dir", 1.0))
-		cursor += direction * KITCHEN_HEAT_CURSOR_SPEED * delta
+		var station := str(state.get("station_type", ""))
+		var cursor_speed := KitchenUpgradeCatalog.get_equipment_effect_multiplier(station, _kitchen_function_upgrades, "%s_heat_cursor_speed" % station, KITCHEN_HEAT_CURSOR_SPEED)
+		cursor += direction * cursor_speed * delta
 		if cursor >= 1.0:
 			cursor = 1.0
 			direction = -1.0
@@ -10016,6 +16742,8 @@ func _update_kitchen_cook_state(state: Dictionary, cook_seconds: float, delta: f
 			state["state"] = "Done"
 			state["stage"] = "ready"
 			state["done_hold_progress"] = 0.0
+			AudioManager.stop_kitchen_loop(str(state.get("instance_id", "")))
+			AudioManager.play_sfx("cook_ready")
 			_show_side_toast("%s 完成，快取下" % _recipe_name(str(state.get("recipe", ""))))
 		else:
 			state["stage"] = "cooking"
@@ -10039,6 +16767,8 @@ func _update_kitchen_cook_state(state: Dictionary, cook_seconds: float, delta: f
 		if burn_progress >= 1.0:
 			state["state"] = "Burnt"
 			state["stage"] = "burnt"
+			AudioManager.stop_kitchen_loop(str(state.get("instance_id", "")))
+			AudioManager.play_sfx("cook_burnt")
 			_show_notification("已经烧焦，无法使用。请按 F 清理")
 		return
 	if station_state == "Burnt":
@@ -10049,18 +16779,84 @@ func _complete_kitchen_order(recipe: String, quality: int = 0) -> void:
 		if not _is_kitchen_order_active(_kitchen_orders[index]):
 			continue
 		if str(_kitchen_orders[index].get("recipe", "")) == recipe:
+			var was_urgent := float(_kitchen_orders[index].get("time", 0.0)) <= KITCHEN_ORDER_URGENT_SECONDS
 			_kitchen_orders.remove_at(index)
 			_kitchen_served_count += 1
 			_kitchen_total_orders_served += 1
-			var price := _recipe_quality_price(recipe, quality)
+			var flower_quality_boosted := FlowerGardenManager.try_apply_active_quality_bonus()
+			if flower_quality_boosted:
+				quality = clampi(quality + 1, 0, 3)
+			if randf() < KitchenUpgradeCatalog.get_equipment_effect_chance("prep_shelf", _kitchen_function_upgrades, "served_quality_up"):
+				quality = clampi(quality + 1, 0, 3)
+			var base_price := _recipe_quality_price(recipe, quality)
+			var location_bonus := _business_location_order_bonus(recipe, base_price)
+			var flower_bonus := FlowerGardenManager.active_order_coin_bonus(base_price)
+			FlowerGardenManager.record_active_bonus_coins(flower_bonus)
+			var price := base_price + location_bonus + flower_bonus
 			var bonus := _opening_sign_order_bonus()
 			price += bonus
+			var bird_bonus := 0
+			var bird_day_key := str(TimeManager.day)
+			if bool(_local_event_perks.get("migratory_reputation", false)) and _local_event_daily_first_order_key != bird_day_key:
+				_local_event_daily_first_order_key = bird_day_key
+				bird_bonus = 5
+				price += bird_bonus
+			price += int(round(KitchenUpgradeCatalog.get_equipment_effect_addition("prep_shelf", _kitchen_function_upgrades, "completed_order_coins")))
+			if was_urgent:
+				price += int(round(KitchenUpgradeCatalog.get_equipment_effect_addition("prep_shelf", _kitchen_function_upgrades, "urgent_order_coins")))
+			if KitchenUpgradeCatalog.has_equipment_effect_flag("prep_shelf", _kitchen_function_upgrades, "reset_service_combo_on_miss"):
+				_kitchen_service_combo_count += 1
+				var combo_step := int(round(KitchenUpgradeCatalog.get_equipment_effect_addition("prep_shelf", _kitchen_function_upgrades, "service_combo_coins_per_order")))
+				var combo_cap := int(round(KitchenUpgradeCatalog.get_equipment_effect_addition("prep_shelf", _kitchen_function_upgrades, "service_combo_coins_cap")))
+				price += mini(_kitchen_service_combo_count * combo_step, combo_cap)
+			_business_location_bonus_coins += location_bonus
 			_coins += price
-			_codex_discovered_cooking[recipe] = true
-			_show_side_toast("%s%s 出餐 +%d" % [_recipe_name(recipe), _kitchen_quality_suffix(quality), price])
+			_update_coin_hud()
+			_play_kitchen_order_completion_animation(index, price)
+			AudioManager.play_sfx("order_complete")
+			_record_completed_recipe(recipe)
+			var location_name := str(_active_business_location_bonus.get("name", "地点偏好"))
+			var bonus_text := "（%s +%d）" % [location_name, location_bonus] if location_bonus > 0 else ""
+			if bird_bonus > 0:
+				bonus_text += "（候鸟口碑 +5）"
+			if flower_bonus > 0:
+				bonus_text += "（花礼 +%d）" % flower_bonus
+			elif flower_quality_boosted:
+				bonus_text += "（星蓝餐花 品质+1）"
+			_show_side_toast("%s%s 出餐 +%d%s" % [_recipe_name(recipe), _kitchen_quality_suffix(quality), price, bonus_text])
 			_update_kitchen_upgrade_buttons()
 			return
 	_show_notification("现在没有客人点这道菜")
+
+func _record_completed_recipe(recipe: String) -> void:
+	if not ResearchRecipeCatalog.has(recipe):
+		_codex_discovered_cooking[recipe] = true
+		return
+	var first_service := not bool(_special_recipe_first_served.get(recipe, false))
+	_special_recipe_first_served[recipe] = true
+	var event_id := ResearchRecipeCatalog.event_for_recipe(recipe)
+	if event_id != "":
+		var record := (_local_event_atlas.get(event_id, {}) as Dictionary).duplicate(true)
+		var config := LocalEventCatalog.get_event(event_id)
+		record["name"] = str(config.get("name", event_id))
+		record["preferred_crop"] = str(config.get("preferred_crop", ""))
+		record["special_recipe"] = recipe
+		record["special_recipe_researched"] = true
+		record["special_recipe_served"] = true
+		_local_event_atlas[event_id] = record
+	if first_service:
+		_show_side_toast("地方风味图谱完成：%s" % _recipe_name(recipe))
+	_update_map_codex_panel()
+
+func _begin_flower_gift_for_business() -> void:
+	var selected_before := FlowerGardenManager.selected_gift
+	var active_gift := FlowerGardenManager.begin_business_gift()
+	if active_gift == "":
+		if selected_before != "":
+			_show_side_toast("默认花礼库存已耗尽，本场未携带")
+		return
+	var definition := FlowerGardenManager.gift_definition(active_gift)
+	_show_side_toast("已携带花礼：%s" % str(definition.get("gift_name", "花礼")))
 
 func _serve_ready_kitchen_dish() -> bool:
 	for order in _kitchen_orders:
@@ -10085,13 +16881,24 @@ func _serve_ready_kitchen_dish() -> bool:
 		var ready_count := int(_kitchen_ready_dishes.get(dish_key, 0))
 		if ready_count <= 0:
 			continue
+		var dish_recipe := _kitchen_dish_recipe(dish_key)
+		if _has_pending_kitchen_order_for_recipe(dish_recipe):
+			continue
 		ready_count -= 1
 		if ready_count <= 0:
 			_kitchen_ready_dishes.erase(dish_key)
 		else:
 			_kitchen_ready_dishes[dish_key] = ready_count
-		_sell_kitchen_scrap_dish(_kitchen_dish_recipe(dish_key), "多余菜低价卖出", _kitchen_dish_quality(dish_key))
+		_sell_kitchen_scrap_dish(dish_recipe, "多余菜低价卖出", _kitchen_dish_quality(dish_key))
 		return true
+	for raw_key in _kitchen_ready_dishes.keys():
+		var waiting_key := str(raw_key)
+		if int(_kitchen_ready_dishes.get(waiting_key, 0)) <= 0:
+			continue
+		var waiting_recipe := _kitchen_dish_recipe(waiting_key)
+		if _has_pending_kitchen_order_for_recipe(waiting_recipe):
+			_show_notification("%s已经备好，对应订单尚未到达" % _recipe_name(waiting_recipe))
+			return true
 	for raw_key in _kitchen_scrap_dishes.keys():
 		var dish_key := str(raw_key)
 		var scrap_count := int(_kitchen_scrap_dishes.get(dish_key, 0))
@@ -10124,40 +16931,109 @@ func _opening_sign_order_bonus() -> int:
 func _finish_kitchen_business() -> void:
 	if not _kitchen_business_active:
 		return
+	if _local_event_business_id != "":
+		_finish_local_event_business()
+		return
 	var level_id := _business_active_level_id
 	var level := _business_level_by_id(level_id)
 	var elapsed := maxf(_business_active_level_duration - _kitchen_business_time, 0.0)
 	var order_total := int(level.get("orders", _kitchen_served_count + _kitchen_failed_count)) if not level.is_empty() else _kitchen_served_count + _kitchen_failed_count
+	var missed_orders := maxi(order_total - _kitchen_served_count, 0)
+	_kitchen_failed_count = missed_orders
 	var previous_stars := _business_level_star_count(level_id)
 	var old_total_stars := _business_total_stars()
 	var stars := 0
 	if not level.is_empty():
-		stars = _calculate_business_level_stars(level, elapsed, _kitchen_served_count)
+		stars = _calculate_business_level_stars(level, _kitchen_served_count)
 	var gained_stars := maxi(stars - previous_stars, 0)
 	if level_id > 0:
 		_business_level_stars[str(level_id)] = maxi(previous_stars, stars)
 	var coin_reward := _business_result_reward_coin_amount(stars, _kitchen_served_count)
 	if coin_reward > 0:
 		_coins += coin_reward
-	var popularity_result := _grant_business_popularity_reward(level_id, level, order_total)
+	var popularity_result := _grant_business_popularity_reward(level_id, level, stars)
+	var flower_gift_result := FlowerGardenManager.finish_business_gift()
 	var new_total_stars := _business_total_stars()
 	_kitchen_business_active = false
-	var level_completed := _kitchen_served_count >= order_total
-	if level_id == 1 and level_completed:
+	AudioManager.set_business_mode(false)
+	AudioManager.stop_all_kitchen_loops()
+	var level_passed := stars >= 1
+	var camper_drive_unlocked_now := false
+	var became_regular_now := false
+	var new_clue_level := 0
+	var traveler_unlocked_now := false
+	var flower_garden_unlocked_now := false
+	var duel_unlocked_now := level_id == 5 and level_passed and previous_stars < 1
+	if level_id == 1 and level_passed:
+		var first_level_unlocked_now := not _kitchen_first_day_completed
 		_kitchen_first_day_completed = true
-		_create_seed_sifter()
-	if level_id == 4 and level_completed:
+		if not _camper_drive_unlocked:
+			camper_drive_unlocked_now = true
+			_camper_drive_unlocked = true
+		if not _camper_drive_note_seen:
+			_camper_drive_note_pending = true
+		if not _wind_chase_unlocked:
+			_wind_chase_intro_pending = true
+			_wind_chase_unlocked = true
+			_create_wind_chase_beacon()
+		if not _sifter_unlocked:
+			_sifter_unlocked = true
+			_sifter_intro_pending = true
+			_create_seed_sifter()
+		if _activate_next_business_clue(1):
+			new_clue_level = 2
+		if first_level_unlocked_now:
+			_show_side_toast("第1关通过：地图发生了些许变化，新的经营传闻已开启")
+	elif level_id == 1:
+		if previous_stars >= 1 or _kitchen_first_day_completed:
+			_show_side_toast("本次未达 1 星，历史最高星级与已有解锁均保留")
+		else:
+			var star_orders := _business_level_star_orders(level)
+			_show_side_toast("第1关至少完成 %d/%d 单获得 1 星，才能开启后续内容" % [star_orders[0], order_total])
+	if level_id == 3 and level_passed and not bool(_unlocked_crops.get(CROP_TOMATO, false)):
+		_unlock_crop_for_shop(CROP_TOMATO, 3)
+		_add_seed_to_inventory(CROP_TOMATO, 0, 2, true)
+		_show_notification("第3关通过：获得番茄试种包 x2；商店已加入番茄种子")
+	if level_id == 4 and level_passed:
+		traveler_unlocked_now = _young_traveler == null or not is_instance_valid(_young_traveler)
 		_create_young_traveler()
+		if not bool(_unlocked_crops.get(CROP_BELL_PEPPER, false)):
+			_unlock_crop_for_shop(CROP_BELL_PEPPER, 2)
+			_pending_marked_tree_pepper_seeds = 2
+		if not bool(_unlocked_crops.get(CROP_PUMPKIN, false)):
+			_unlock_crop_for_shop(CROP_PUMPKIN, 3)
+			_add_seed_to_inventory(CROP_PUMPKIN, 0, 2, true)
+		if traveler_unlocked_now:
+			_show_notification("旅人诺亚带来南瓜种子 x2；标记树上还藏着甜椒种子")
+	if level_id == 5 and level_passed:
+		flower_garden_unlocked_now = FlowerGardenManager.unlock()
+		if flower_garden_unlocked_now:
+			_show_notification("地图发生了些许变化：晨露花圃已经开放，去找找看吧。获得金盏花种包 x3、花材 x4")
+	if level_id >= 2 and level_passed and _business_active_first_commission_level == level_id:
+		became_regular_now = _set_business_discovery_state(level_id, BusinessDiscoveryCatalog.STATE_REGULAR, false)
+		if _activate_next_business_clue(level_id):
+			new_clue_level = level_id + 1
+		if became_regular_now:
+			var completed_site := BusinessDiscoveryCatalog.get_site(level_id)
+			_show_side_toast("%s成为老主顾：本关现可随时重玩" % str(completed_site.get("customer_name", "这批顾客")))
+	if level_id == 3 and level_passed:
+		var wardrobe_manager := get_node_or_null("/root/WardrobeManager")
+		if wardrobe_manager != null:
+			wardrobe_manager.call("mark_event_pending")
 	if level_id >= 2 and _kitchen_served_count >= order_total:
-		if _kitchen_failed_count == 0:
+		if missed_orders == 0:
 			_chapter_one_no_miss_business_done = true
-		if stars >= 2:
+		var challenge_time := float(level.get("challenge_time", -1.0))
+		if challenge_time > 0.0 and elapsed <= challenge_time:
 			_chapter_one_target_time_business_done = true
 	_business_active_level_id = 0
 	_business_active_level_duration = 0.0
-	_kitchen_pot_state.clear()
-	_kitchen_grill_state.clear()
+	_business_active_first_commission_level = 0
+	_kitchen_cook_states.clear()
 	_kitchen_equipment_progress.clear()
+	_settle_kitchen_held_item_after_business()
+	_kitchen_ready_dishes.clear()
+	_kitchen_scrap_dishes.clear()
 	_restore_task_bar_after_business()
 	if level_id == 1:
 		_post_tutorial_objective_expanded = false
@@ -10181,8 +17057,18 @@ func _finish_kitchen_business() -> void:
 		"popularity_after_xp": int(popularity_result.get("after_xp", _kitchen_popularity_xp)),
 		"popularity_before_level": int(popularity_result.get("before_level", _kitchen_popularity_level)),
 		"popularity_after_level": int(popularity_result.get("after_level", _kitchen_popularity_level)),
+		"camper_drive_unlocked_now": camper_drive_unlocked_now,
+		"became_regular_now": became_regular_now,
+		"new_clue_level": new_clue_level,
+		"traveler_unlocked_now": traveler_unlocked_now,
+		"flower_garden_unlocked_now": flower_garden_unlocked_now,
+		"duel_unlocked_now": duel_unlocked_now,
+		"flower_gift_result": flower_gift_result,
+		"location_bonus": _active_business_location_bonus.duplicate(true),
+		"location_bonus_coins": _business_location_bonus_coins,
 	}
 	_update_coin_hud()
+	_sync_progression_world_state()
 	_show_business_result_after_delay(result)
 
 func _update_kitchen_status_panel(delta: float) -> void:
@@ -10200,6 +17086,12 @@ func _update_kitchen_status_panel(delta: float) -> void:
 	_kitchen_status_timer_label.add_theme_color_override("font_color", Color(0.40, 0.06, 0.03) if urgent else Color(0.23, 0.13, 0.05))
 	_kitchen_status_timer_label.text = "关卡倒计时 %s" % _format_kitchen_time(_kitchen_business_time)
 	_kitchen_status_label.text = "出餐 %d  漏单 %d" % [_kitchen_served_count, _kitchen_failed_count]
+	var location_description := _active_business_location_description()
+	if location_description != "":
+		_kitchen_status_label.text += "\n地点偏好：%s" % location_description
+	var flower_gift_status := FlowerGardenManager.active_status_text()
+	if flower_gift_status != "":
+		_kitchen_status_label.text += "\n✿ 花礼：%s" % flower_gift_status
 	_kitchen_order_ui_refresh_remaining -= maxf(delta, 0.0)
 	if _kitchen_order_ui_refresh_remaining <= 0.0:
 		_rebuild_kitchen_order_cards()
@@ -10243,17 +17135,17 @@ func _create_kitchen_order_card(order: Dictionary, index: int) -> Control:
 	var urgent := active and remaining <= KITCHEN_ORDER_URGENT_SECONDS
 	var card := PanelContainer.new()
 	card.name = "Order_%d" % index
-	card.custom_minimum_size = Vector2(0.0, 72.0)
+	card.custom_minimum_size = Vector2(0.0, 84.0)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_theme_stylebox_override("panel", _make_paper_info_card_style("locked" if not active else ("urgent" if urgent else "normal")))
+	card.add_theme_stylebox_override("panel", _make_kitchen_order_card_style("locked" if not active else ("urgent" if urgent else "normal")))
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = 10.0
-	box.offset_top = 5.0
-	box.offset_right = -10.0
-	box.offset_bottom = -5.0
+	box.offset_left = 0.0
+	box.offset_top = 0.0
+	box.offset_right = 0.0
+	box.offset_bottom = 0.0
 	box.add_theme_constant_override("separation", 1)
 	card.add_child(box)
 	var title := Label.new()
@@ -10266,7 +17158,10 @@ func _create_kitchen_order_card(order: Dictionary, index: int) -> Control:
 	var step := Label.new()
 	step.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	step.text = "步骤：%s" % _recipe_step_text(recipe)
-	step.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	step.custom_minimum_size = Vector2(0.0, 30.0)
+	step.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	step.max_lines_visible = 2
+	step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	step.add_theme_font_size_override("font_size", _business_ui_font_size(11))
 	step.add_theme_color_override("font_color", Color(0.32, 0.21, 0.09, 0.92) if active else Color(0.32, 0.21, 0.09, 0.55))
 	box.add_child(step)
@@ -10277,6 +17172,238 @@ func _create_kitchen_order_card(order: Dictionary, index: int) -> Control:
 	limit_label.add_theme_color_override("font_color", Color(0.44, 0.26, 0.10, 0.78))
 	box.add_child(limit_label)
 	return card
+
+func _play_kitchen_order_completion_animation(order_index: int, coin_reward: int) -> void:
+	if _hud_root == null or not is_instance_valid(_hud_root):
+		return
+	var origin := _kitchen_order_completion_origin(order_index)
+	if _kitchen_order_list != null:
+		var source := _kitchen_order_list.get_node_or_null("Order_%d" % order_index) as Control
+		if source != null and is_instance_valid(source):
+			var departing_card := source.duplicate() as Control
+			if departing_card != null:
+				_hud_root.add_child(departing_card)
+				departing_card.global_position = source.global_position
+				departing_card.size = source.size
+				departing_card.z_index = 80
+				departing_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				var card_tween := departing_card.create_tween()
+				card_tween.set_parallel(true)
+				card_tween.tween_property(departing_card, "position", departing_card.position + Vector2(190.0, -8.0), 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+				card_tween.tween_property(departing_card, "modulate:a", 0.0, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+				card_tween.tween_property(departing_card, "scale", Vector2(0.94, 0.94), 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+				card_tween.chain().tween_callback(departing_card.queue_free)
+	_spawn_kitchen_order_confetti(origin)
+	_spawn_kitchen_order_reward_feedback(origin, coin_reward)
+	_start_camera_shake(0.12, 0.022)
+
+func _kitchen_order_completion_origin(order_index: int) -> Vector2:
+	var viewport_size := get_viewport().get_visible_rect().size
+	var origin := viewport_size * Vector2(0.5, 0.46)
+	var source: Control = null
+	if _kitchen_order_list != null and is_instance_valid(_kitchen_order_list):
+		source = _kitchen_order_list.get_node_or_null("Order_%d" % order_index) as Control
+	if source != null and is_instance_valid(source):
+		origin = source.get_global_rect().get_center()
+	elif _camera != null and is_instance_valid(_camera) and _player != null and is_instance_valid(_player):
+		var world_origin := _player.global_position + Vector3(0.0, 2.35, 0.0)
+		if not _camera.is_position_behind(world_origin):
+			origin = _camera.unproject_position(world_origin)
+	origin.x = clampf(origin.x, 90.0, maxf(90.0, viewport_size.x - 90.0))
+	origin.y = clampf(origin.y, 110.0, maxf(110.0, viewport_size.y - 100.0))
+	return origin
+
+func _spawn_kitchen_order_confetti(origin: Vector2) -> void:
+	if _hud_root == null or not is_instance_valid(_hud_root):
+		return
+	var root := Control.new()
+	root.name = "KitchenOrderCelebration"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.z_index = 90
+	_hud_root.add_child(root)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var colors := [Color(1.0, 0.79, 0.22, 1.0), Color(0.96, 0.48, 0.21, 1.0), Color(0.55, 0.72, 0.34, 1.0), Color(0.94, 0.90, 0.62, 1.0), Color(0.42, 0.66, 0.66, 1.0)]
+	for index in range(34):
+		var confetti := ColorRect.new()
+		confetti.name = "OrderConfetti"
+		confetti.color = colors[index % colors.size()]
+		confetti.position = origin + Vector2(rng.randf_range(-16.0, 16.0), rng.randf_range(-12.0, 12.0))
+		confetti.size = Vector2(rng.randf_range(5.0, 10.0), rng.randf_range(9.0, 17.0))
+		confetti.rotation = rng.randf_range(-PI, PI)
+		confetti.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(confetti)
+		var angle := TAU * float(index) / 34.0 + rng.randf_range(-0.16, 0.16)
+		var distance := rng.randf_range(72.0, 148.0)
+		var target := confetti.position + Vector2(cos(angle) * distance, sin(angle) * distance - rng.randf_range(18.0, 52.0))
+		var duration := rng.randf_range(0.58, 0.86)
+		var piece_tween := confetti.create_tween()
+		piece_tween.set_parallel(true)
+		piece_tween.tween_property(confetti, "position", target, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		piece_tween.tween_property(confetti, "rotation", confetti.rotation + rng.randf_range(-4.8, 4.8), duration)
+		piece_tween.tween_property(confetti, "modulate:a", 0.0, 0.26).set_delay(duration * 0.62)
+	for index in range(12):
+		var ray := ColorRect.new()
+		ray.name = "OrderGoldRay"
+		ray.color = Color(1.0, 0.88, 0.38, 0.92)
+		ray.size = Vector2(4.0, 24.0)
+		ray.pivot_offset = Vector2(2.0, 22.0)
+		ray.position = origin - ray.pivot_offset
+		ray.rotation = TAU * float(index) / 12.0
+		ray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(ray)
+		var outward := Vector2(sin(ray.rotation), -cos(ray.rotation)) * 62.0
+		var ray_tween := ray.create_tween()
+		ray_tween.set_parallel(true)
+		ray_tween.tween_property(ray, "position", ray.position + outward, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		ray_tween.tween_property(ray, "scale:y", 0.20, 0.34)
+		ray_tween.tween_property(ray, "modulate:a", 0.0, 0.24).set_delay(0.22)
+	get_tree().create_timer(1.05).timeout.connect(root.queue_free)
+
+func _spawn_kitchen_order_reward_feedback(origin: Vector2, coin_reward: int) -> void:
+	if _hud_root == null or not is_instance_valid(_hud_root):
+		return
+	var root := Control.new()
+	root.name = "KitchenOrderCoinFeedback"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.z_index = 94
+	_hud_root.add_child(root)
+
+	var complete_label := Label.new()
+	complete_label.text = "订单完成  +%d 金币" % coin_reward
+	complete_label.size = Vector2(300.0, 52.0)
+	complete_label.global_position = origin - Vector2(150.0, 82.0)
+	complete_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	complete_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	complete_label.add_theme_font_size_override("font_size", 27)
+	complete_label.add_theme_color_override("font_color", Color(1.0, 0.83, 0.27, 1.0))
+	complete_label.add_theme_color_override("font_outline_color", Color(0.25, 0.13, 0.04, 0.96))
+	complete_label.add_theme_constant_override("outline_size", 8)
+	complete_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	complete_label.pivot_offset = complete_label.size * 0.5
+	complete_label.scale = Vector2(0.58, 0.58)
+	complete_label.modulate.a = 0.0
+	root.add_child(complete_label)
+	var label_target := complete_label.global_position + Vector2(0.0, -42.0)
+	var label_tween := complete_label.create_tween()
+	label_tween.tween_property(complete_label, "modulate:a", 1.0, 0.08)
+	label_tween.parallel().tween_property(complete_label, "scale", Vector2(1.12, 1.12), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	label_tween.tween_property(complete_label, "scale", Vector2.ONE, 0.10)
+	label_tween.tween_interval(0.20)
+	label_tween.tween_property(complete_label, "global_position", label_target, 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	label_tween.parallel().tween_property(complete_label, "modulate:a", 0.0, 0.30)
+
+	var personal_holder := _personal_coin_label.get_parent() as Control if _personal_coin_label != null and is_instance_valid(_personal_coin_label) else null
+	if personal_holder != null and is_instance_valid(personal_holder):
+		var target := personal_holder.get_global_rect().get_center()
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var coin_count := 7
+		for index in range(coin_count):
+			var coin := _create_kitchen_reward_coin(root, 18.0 + float(index % 3) * 2.0)
+			coin.global_position = origin - coin.size * 0.5 + Vector2(rng.randf_range(-12.0, 12.0), rng.randf_range(-8.0, 8.0))
+			coin.scale = Vector2(0.58, 0.58)
+			coin.modulate.a = 0.0
+			var scatter := coin.global_position + Vector2(rng.randf_range(-70.0, 70.0), rng.randf_range(-70.0, -26.0))
+			var target_position := target - coin.size * 0.5 + Vector2(rng.randf_range(-4.0, 4.0), rng.randf_range(-3.0, 3.0))
+			var coin_tween := coin.create_tween()
+			coin_tween.tween_property(coin, "modulate:a", 1.0, 0.07)
+			coin_tween.parallel().tween_property(coin, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			coin_tween.tween_property(coin, "global_position", scatter, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			coin_tween.parallel().tween_property(coin, "rotation", rng.randf_range(-1.6, 1.6), 0.15)
+			coin_tween.tween_interval(float(index) * 0.022)
+			coin_tween.tween_property(coin, "global_position", target_position, 0.38).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+			coin_tween.parallel().tween_property(coin, "rotation", coin.rotation + rng.randf_range(2.2, 4.6), 0.38)
+			coin_tween.tween_property(coin, "scale", Vector2(0.34, 0.34), 0.07)
+			coin_tween.parallel().tween_property(coin, "modulate:a", 0.0, 0.07)
+			if index == coin_count - 1:
+				coin_tween.tween_callback(_pulse_personal_coin_bar.bind(coin_reward))
+			coin_tween.tween_callback(coin.queue_free)
+	get_tree().create_timer(1.30).timeout.connect(root.queue_free)
+
+func _create_kitchen_reward_coin(parent: Control, diameter: float) -> Control:
+	var coin := Control.new()
+	coin.name = "FlyingOrderCoin"
+	coin.size = Vector2(diameter, diameter)
+	coin.pivot_offset = coin.size * 0.5
+	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(coin)
+	var outer := Panel.new()
+	outer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	outer.add_theme_stylebox_override("panel", _make_round_style(Color(0.98, 0.68, 0.13, 1.0), Color(0.48, 0.25, 0.05, 0.96), diameter * 0.5, 2))
+	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin.add_child(outer)
+	var inner := Panel.new()
+	inner.position = Vector2(diameter * 0.22, diameter * 0.22)
+	inner.size = Vector2(diameter * 0.56, diameter * 0.56)
+	inner.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.83, 0.28, 1.0), Color(0.78, 0.45, 0.08, 0.94), diameter * 0.28, 1))
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin.add_child(inner)
+	var shine := ColorRect.new()
+	shine.color = Color(1.0, 0.97, 0.70, 0.94)
+	shine.position = Vector2(diameter * 0.28, diameter * 0.19)
+	shine.size = Vector2(diameter * 0.18, diameter * 0.08)
+	shine.rotation = -0.45
+	shine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin.add_child(shine)
+	return coin
+
+func _pulse_personal_coin_bar(coin_reward: int) -> void:
+	if _hud_root == null or not is_instance_valid(_hud_root) or _personal_coin_label == null or not is_instance_valid(_personal_coin_label):
+		return
+	var holder := _personal_coin_label.get_parent() as Control
+	if holder == null or not is_instance_valid(holder):
+		return
+	var previous_tween := holder.get_meta("order_coin_pulse_tween", null) as Tween
+	if previous_tween != null and previous_tween.is_valid():
+		previous_tween.kill()
+	holder.pivot_offset = holder.size * 0.5
+	holder.scale = Vector2.ONE
+	holder.modulate = Color.WHITE
+	var pulse_tween := holder.create_tween()
+	holder.set_meta("order_coin_pulse_tween", pulse_tween)
+	pulse_tween.tween_property(holder, "scale", Vector2(1.17, 1.17), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pulse_tween.parallel().tween_property(holder, "modulate", Color(1.18, 1.08, 0.72, 1.0), 0.12)
+	pulse_tween.tween_property(holder, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pulse_tween.parallel().tween_property(holder, "modulate", Color.WHITE, 0.20)
+
+	var holder_rect := holder.get_global_rect()
+	var flash := Panel.new()
+	flash.name = "OrderCoinHudFlash"
+	flash.global_position = holder_rect.position - Vector2(8.0, 6.0)
+	flash.size = holder_rect.size + Vector2(16.0, 12.0)
+	flash.pivot_offset = flash.size * 0.5
+	flash.scale = Vector2(0.72, 0.72)
+	flash.modulate.a = 0.0
+	flash.z_index = 96
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.83, 0.25, 0.18), Color(1.0, 0.91, 0.48, 0.94), 18.0, 3))
+	_hud_root.add_child(flash)
+	var flash_tween := flash.create_tween()
+	flash_tween.tween_property(flash, "modulate:a", 1.0, 0.08)
+	flash_tween.parallel().tween_property(flash, "scale", Vector2(1.16, 1.16), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	flash_tween.tween_property(flash, "modulate:a", 0.0, 0.22)
+	flash_tween.tween_callback(flash.queue_free)
+
+	var gain_label := Label.new()
+	gain_label.text = "+%d" % coin_reward
+	gain_label.size = Vector2(90.0, 36.0)
+	gain_label.global_position = holder_rect.get_center() + Vector2(24.0, 6.0)
+	gain_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gain_label.add_theme_font_size_override("font_size", 23)
+	gain_label.add_theme_color_override("font_color", Color(1.0, 0.80, 0.20, 1.0))
+	gain_label.add_theme_color_override("font_outline_color", Color(0.28, 0.14, 0.03, 0.96))
+	gain_label.add_theme_constant_override("outline_size", 6)
+	gain_label.z_index = 97
+	gain_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud_root.add_child(gain_label)
+	var gain_tween := gain_label.create_tween()
+	gain_tween.set_parallel(true)
+	gain_tween.tween_property(gain_label, "global_position", gain_label.global_position + Vector2(0.0, -38.0), 0.56).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	gain_tween.tween_property(gain_label, "modulate:a", 0.0, 0.24).set_delay(0.34)
+	gain_tween.chain().tween_callback(gain_label.queue_free)
 
 func _kitchen_order_time_text(order: Dictionary) -> String:
 	var delay := maxf(float(order.get("delay", 0.0)), 0.0)
@@ -10293,6 +17420,10 @@ func _format_kitchen_time(seconds: float) -> String:
 		return "%d:%02d" % [minutes, secs]
 	return "%ds" % secs
 
+func _format_crop_fresh_time(seconds: float) -> String:
+	var total := maxi(int(ceil(seconds)), 0)
+	return "%d:%02d" % [int(total / 60), int(total % 60)]
+
 func _kitchen_status_text() -> String:
 	var lines: Array[String] = []
 	if _kitchen_business_active:
@@ -10302,7 +17433,10 @@ func _kitchen_status_text() -> String:
 		var held_text := "%s%s" % [_kitchen_item_name(_kitchen_held_item), _kitchen_quality_suffix(_kitchen_held_quality)]
 		if _kitchen_item_is_spoilable(_kitchen_held_item):
 			held_text += " %.0fs后腐烂" % maxf(_kitchen_held_fresh_time, 0.0)
-		lines.append("手持：%s → %s" % [held_text, _recipe_name(_kitchen_held_recipe)])
+		if _kitchen_held_recipe == "":
+			lines.append("手持：%s（可自由选择订单）" % held_text)
+		else:
+			lines.append("手持：%s → %s" % [held_text, _recipe_name(_kitchen_held_recipe)])
 	elif _kitchen_business_active:
 		lines.append("手持：空")
 	var progress_summary := _kitchen_progress_summary()
@@ -10314,10 +17448,11 @@ func _kitchen_status_text() -> String:
 	var scrap_summary := _kitchen_scrap_dish_summary()
 	if scrap_summary != "":
 		lines.append("残次处理：" + scrap_summary)
-	if not _kitchen_pot_state.is_empty():
-		lines.append("煮锅：%s" % _cook_state_text(_kitchen_pot_state, KITCHEN_COOK_SOUP_SECONDS))
-	if not _kitchen_grill_state.is_empty():
-		lines.append("烤架：%s" % _cook_state_text(_kitchen_grill_state, KITCHEN_COOK_GRILL_SECONDS))
+	for raw_instance_id in _kitchen_cook_states.keys():
+		var instance_id := str(raw_instance_id)
+		var state := _kitchen_cook_states.get(instance_id, {}) as Dictionary
+		var equipment_id := _kitchen_instance_type(instance_id)
+		lines.append("%s %d号：%s" % [_equipment_name(equipment_id), _kitchen_instance_index(instance_id), _cook_state_text(state, _kitchen_cook_duration(equipment_id))])
 	return "\n".join(lines)
 
 func _kitchen_order_summary() -> String:
@@ -10356,10 +17491,12 @@ func _kitchen_progress_summary() -> String:
 	var parts: Array[String] = []
 	for station in _kitchen_equipment_progress.keys():
 		var progress := _kitchen_equipment_progress[station] as Dictionary
+		var equipment_id := _kitchen_instance_type(str(station))
+		var station_name := "%s %d号" % [_equipment_name(equipment_id), _kitchen_instance_index(str(station))]
 		if bool(progress.get("done", false)):
-			parts.append("%s完成" % _equipment_name(str(station)))
+			parts.append("%s完成" % station_name)
 		else:
-			parts.append("%s %.0fs" % [_equipment_name(str(station)), float(progress.get("time", 0.0))])
+			parts.append("%s %.0fs" % [station_name, float(progress.get("time", 0.0))])
 	return " / ".join(parts)
 
 func _has_urgent_kitchen_order() -> bool:
@@ -10446,7 +17583,7 @@ func _recipe_name(recipe: String) -> String:
 	return str(_recipe_data(recipe).get("name", recipe))
 
 func _recipe_step_text(recipe: String) -> String:
-	var steps: Array[String] = ["食材箱"]
+	var steps: Array[String] = ["作物"]
 	if _recipe_needs_wash(recipe):
 		steps.append("洗菜池")
 	if _recipe_needs_cut(recipe):
@@ -10458,14 +17595,25 @@ func _recipe_step_text(recipe: String) -> String:
 func _recipe_price(recipe: String) -> int:
 	var base_price := int(_recipe_data(recipe).get("price", 1))
 	var popularity_bonus := 1.0 + float(maxi(_kitchen_popularity_level - 1, 0)) * 0.12
-	return maxi(1, int(round(float(base_price) * popularity_bonus)))
+	var upgrade_multiplier := KitchenUpgradeCatalog.get_village_effect_multiplier(_village_upgrades, "base_recipe_price")
+	upgrade_multiplier *= KitchenUpgradeCatalog.get_equipment_effect_multiplier("prep_shelf", _kitchen_function_upgrades, "served_recipe_price")
+	upgrade_multiplier *= KitchenUpgradeCatalog.get_equipment_effect_multiplier("prep_shelf", _kitchen_function_upgrades, "all_order_price")
+	if _recipe_needs_cut(recipe):
+		upgrade_multiplier *= KitchenUpgradeCatalog.get_equipment_effect_multiplier("cutting_table", _kitchen_function_upgrades, "cut_recipe_price")
+	if _recipe_uses_station(recipe, "pot"):
+		upgrade_multiplier *= KitchenUpgradeCatalog.get_equipment_effect_multiplier("pot", _kitchen_function_upgrades, "soup_recipe_price")
+	if _recipe_uses_station(recipe, "grill"):
+		upgrade_multiplier *= KitchenUpgradeCatalog.get_equipment_effect_multiplier("grill", _kitchen_function_upgrades, "grill_recipe_price")
+	if bool(_local_event_perks.get("rabbit_regulars", false)) and str(_recipe_data(recipe).get("crop", "")) == CROP_CARROT:
+		upgrade_multiplier *= 1.03
+	return maxi(1, int(round(float(base_price) * popularity_bonus * upgrade_multiplier)))
 
 func _recipe_quality_price(recipe: String, quality: int) -> int:
 	return maxi(1, int(round(float(_recipe_price(recipe)) * _kitchen_quality_multiplier(quality))))
 
 func _kitchen_prep_duration(equipment_id: String) -> float:
-	var level := int(_kitchen_upgrade_levels.get(equipment_id, 1))
-	return maxf(0.7, KITCHEN_PREP_SECONDS - float(level - 1) * 0.25)
+	var effect_key := "wash_duration" if equipment_id == "sink" else "cut_duration"
+	return maxf(0.45, KitchenUpgradeCatalog.get_equipment_effect_multiplier(equipment_id, _kitchen_function_upgrades, effect_key, KITCHEN_PREP_SECONDS))
 
 func _recipe_scrap_price(recipe: String) -> int:
 	return int(_recipe_data(recipe).get("scrap_price", max(1, int(round(float(_recipe_price(recipe)) * 0.28)))))
@@ -10476,6 +17624,8 @@ func _recipe_quality_scrap_price(recipe: String, quality: int) -> int:
 func _recipe_data(recipe: String) -> Dictionary:
 	if KITCHEN_RECIPE_DATA.has(recipe):
 		return KITCHEN_RECIPE_DATA[recipe]
+	if ResearchRecipeCatalog.has(recipe):
+		return ResearchRecipeCatalog.get_data(recipe)
 	return {}
 
 func _try_use_selected_tool() -> bool:
@@ -10528,9 +17678,9 @@ func _till_soil_in_front_of_player() -> void:
 	var center := _player.global_position + forward * 2.0
 	center = _snap_soil_position(center)
 	var center_2d := Vector2(center.x, center.z)
+	_play_hoe_swing(yaw, center)
 	if not _can_place_soil_tile(center):
 		return
-	_play_hoe_swing(yaw, center)
 	for existing in _tilled_soil_centers:
 		if existing.distance_squared_to(center_2d) <= 0.25:
 			return
@@ -10546,14 +17696,12 @@ func _till_soil_in_front_of_player() -> void:
 			_interaction_prompt.visible = false
 		_show_good_job_feedback()
 	var impact_timer := get_tree().create_timer(0.16)
+	impact_timer.timeout.connect(_play_farm_soil_impact)
 	impact_timer.timeout.connect(_create_soil_patch.bind(center))
 
 func _plant_seed_in_front_of_player(seed_item: String) -> bool:
 	if _player == null:
 		return false
-	if _chapter_one_active and _starter_kit_collected and _tutorial_planted_carrot_count() < TUTORIAL_CARROT_COUNT and _placed_food_chests.is_empty():
-		_show_notification("先把食材箱摆到房车旁，再开始播种")
-		return true
 	var yaw := _get_player_visual_yaw()
 	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
 	var target := _player.global_position + forward * 2.0
@@ -10572,9 +17720,10 @@ func _plant_seed_in_front_of_player(seed_item: String) -> bool:
 	_planted_seed_centers.append(soil_center)
 	_stop_empty_soil_decay(soil_center)
 	_create_seedling_at(soil_center, crop_type, quality)
+	AudioManager.play_sfx("farm_seed_plant", 0.0, randf_range(0.96, 1.08))
 	if crop_type == CROP_EGGPLANT:
 		_chapter_one_planted_eggplant_total += 1
-	elif crop_type == CROP_MARSHMALLOW:
+	elif crop_type == CROP_TOMATO:
 		_chapter_one_planted_mystery_total += 1
 	_update_inventory_bar()
 	_show_good_job_feedback()
@@ -10674,13 +17823,7 @@ func _create_seedling_at(center: Vector2, crop_type: String = CROP_CARROT, quali
 	_crop_countdown_labels[crop_key] = label
 
 func _crop_grow_seconds(crop_type: String) -> float:
-	match crop_type:
-		CROP_PEA:
-			return PEA_GROW_SECONDS
-		CROP_EGGPLANT:
-			return EGGPLANT_GROW_SECONDS
-		_:
-			return CARROT_GROW_SECONDS
+	return CropCatalog.grow_seconds(crop_type)
 
 func _crop_key(center: Vector2) -> String:
 	return "%.2f,%.2f" % [center.x, center.y]
@@ -10762,7 +17905,9 @@ func _remove_soil_weeds_near(center: Vector2) -> void:
 			_soil_weed_nodes.remove_at(index)
 			weed.queue_free()
 
-func _update_crop_growth(delta: float) -> void:
+func _update_crop_growth(delta: float, freshness_delta: float = -1.0) -> void:
+	if freshness_delta < 0.0:
+		freshness_delta = delta
 	if _crop_growth_remaining.is_empty():
 		return
 	for key in _crop_growth_remaining.keys():
@@ -10776,15 +17921,32 @@ func _update_crop_growth(delta: float) -> void:
 		if remaining > 0.0 and can_grow:
 			remaining = maxf(remaining - delta, 0.0)
 			_crop_growth_remaining[key] = remaining
+			_update_crop_growth_visual(crop_node, str(_crop_types.get(str(key), CROP_CARROT)), remaining)
 			if remaining <= 0.0:
 				_set_crop_mature(str(key))
-		elif remaining <= 0.0 and crop_node != null and is_instance_valid(crop_node) and not _is_crop_rotten(str(key)):
+		if remaining <= 0.0 and crop_node != null and is_instance_valid(crop_node) and not _is_crop_rotten(str(key)):
 			var rot_remaining := float(_crop_rot_remaining.get(str(key), CROP_ROT_SECONDS))
-			rot_remaining = maxf(rot_remaining - delta, 0.0)
+			rot_remaining = maxf(rot_remaining - freshness_delta, 0.0)
 			_crop_rot_remaining[str(key)] = rot_remaining
 			if rot_remaining <= 0.0:
 				_set_crop_rotten(str(key))
 		_update_crop_countdown(str(key))
+
+func _update_crop_growth_visual(crop_node: Node3D, crop_type: String, remaining: float) -> void:
+	if crop_node == null or not is_instance_valid(crop_node):
+		return
+	var duration := maxf(_crop_grow_seconds(crop_type), 0.01)
+	var progress := clampf(1.0 - remaining / duration, 0.0, 1.0)
+	var stage := 0 if progress < 0.34 else (1 if progress < 0.72 else 2)
+	if int(crop_node.get_meta("growth_stage", -1)) == stage:
+		return
+	crop_node.set_meta("growth_stage", stage)
+	for child in crop_node.get_children():
+		if child is MeshInstance3D and child.name != "SeedBody":
+			(child as MeshInstance3D).scale *= [0.72, 1.18, 1.28][stage]
+	var seed_body := crop_node.get_node_or_null("SeedBody") as MeshInstance3D
+	if seed_body != null:
+		seed_body.visible = stage < 2
 
 func _update_crop_countdown(key: String) -> void:
 	var label := _crop_countdown_labels.get(key) as Label3D
@@ -10810,7 +17972,7 @@ func _update_crop_countdown(key: String) -> void:
 			label.modulate = Color(0.62, 0.48, 0.34, 1.0)
 		else:
 			var rot_remaining := float(_crop_rot_remaining.get(key, CROP_ROT_SECONDS))
-			label.text = "成熟 %ds" % int(ceilf(rot_remaining))
+			label.text = "成熟 %s" % _format_crop_fresh_time(rot_remaining)
 			label.modulate = Color(0.68, 1.0, 0.48, 1.0)
 
 func _is_crop_watered(center: Vector2) -> bool:
@@ -10909,7 +18071,8 @@ func _is_crop_rotten(key: String) -> bool:
 	return root != null and is_instance_valid(root) and root.has_node("RottenCrop")
 
 func _is_tutorial_seed_replacement_active(crop_type: String) -> bool:
-	return _chapter_one_active and crop_type == CROP_CARROT and not _kitchen_first_day_completed and not _post_tutorial_grand_reward_claimed and (_tutorial_harvested_carrot_count < TUTORIAL_CARROT_COUNT or _prepared_crop_total(CROP_CARROT) < FIRST_KITCHEN_REQUIRED_CARROTS)
+	# 补种子只用于首轮收获 5 个胡萝卜的新手兜底。
+	return _chapter_one_active and crop_type == CROP_CARROT and _tutorial_harvested_carrot_count < FIRST_KITCHEN_REQUIRED_CARROTS
 
 func _set_crop_rotten(key: String) -> void:
 	var root := _crop_nodes.get(key) as Node3D
@@ -10939,6 +18102,10 @@ func _has_tutorial_rotten_carrots() -> bool:
 	return false
 
 func _grant_tutorial_replacement_seeds() -> void:
+	if _tutorial_harvested_carrot_count >= FIRST_KITCHEN_REQUIRED_CARROTS:
+		_tutorial_rotten_carrot_seed_debt = 0
+		_tutorial_rotten_seed_prompt_active = false
+		return
 	var amount := _tutorial_rotten_carrot_seed_debt
 	if amount <= 0:
 		_tutorial_rotten_seed_prompt_active = false
@@ -10995,6 +18162,7 @@ func _try_harvest_crop() -> bool:
 	var center := Vector2(crop.global_position.x, crop.global_position.z)
 	var crop_type := str(_crop_types.get(crop_key, CROP_CARROT))
 	var quality := int(_crop_qualities.get(crop_key, 0))
+	var fresh_time := maxf(float(_crop_rot_remaining.get(crop_key, CROP_ROT_SECONDS)), 0.0)
 	if crop_type == CROP_CARROT:
 		_tutorial_harvested_carrot_count = mini(_tutorial_harvested_carrot_count + 1, 5)
 	_chapter_one_harvest_total += 1
@@ -11002,7 +18170,7 @@ func _try_harvest_crop() -> bool:
 		_chapter_one_harvested_pea_total += 1
 	elif crop_type == CROP_EGGPLANT:
 		_chapter_one_harvested_eggplant_total += 1
-	elif crop_type == CROP_MARSHMALLOW:
+	elif crop_type == CROP_TOMATO:
 		_chapter_one_mystery_sample_saved = true
 	_crop_nodes.erase(crop_key)
 	_crop_growth_remaining.erase(crop_key)
@@ -11017,7 +18185,8 @@ func _try_harvest_crop() -> bool:
 	_create_harvest_pop(center, crop_type, quality)
 	crop.queue_free()
 	_record_codex_crop(crop_type)
-	_hold_crop_item(crop_type, quality)
+	_hold_crop_item(crop_type, quality, fresh_time)
+	AudioManager.play_sfx("farm_harvest", 0.0, randf_range(0.94, 1.06))
 	_update_inventory_bar()
 	_show_good_job_feedback()
 	_show_crop_throw_guide_once()
@@ -11076,6 +18245,7 @@ func _try_clear_rotten_crop_with_hoe() -> bool:
 	var center := Vector2(crop.global_position.x, crop.global_position.z)
 	var yaw := _get_player_visual_yaw()
 	_play_hoe_swing(yaw, Vector3(center.x, _height_at(center.x, center.y), center.y))
+	get_tree().create_timer(0.16).timeout.connect(_play_farm_soil_impact)
 	_crop_nodes.erase(crop_key)
 	_crop_growth_remaining.erase(crop_key)
 	_crop_countdown_labels.erase(crop_key)
@@ -11184,8 +18354,88 @@ func _create_carrot_model(model_name: String) -> Node3D:
 		root.add_child(leaf)
 	return root
 
+func _crop_part_material(color: Color, emission_strength: float = 0.0) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.82
+	if emission_strength > 0.0:
+		material.emission_enabled = true
+		material.emission = color
+		material.emission_energy_multiplier = emission_strength
+	return material
+
+func _add_crop_sphere(root: Node3D, part_name: String, position: Vector3, scale_value: Vector3, color: Color, emission_strength: float = 0.0) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	part.name = part_name
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.16
+	mesh.height = 0.32
+	mesh.radial_segments = 12
+	mesh.rings = 6
+	part.mesh = mesh
+	part.position = position
+	part.scale = scale_value
+	part.material_override = _crop_part_material(color, emission_strength)
+	root.add_child(part)
+	return part
+
+func _add_crop_stem(root: Node3D, part_name: String, position: Vector3, height: float, radius: float, color: Color) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	part.name = part_name
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius * 0.82
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 8
+	part.mesh = mesh
+	part.position = position
+	part.material_override = _crop_part_material(color)
+	root.add_child(part)
+	return part
+
+func _create_special_crop_model(crop_type: String, model_name: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = model_name
+	var green := Color(0.28, 0.62, 0.20)
+	match crop_type:
+		CROP_TOMATO:
+			_add_crop_sphere(root, "TomatoFruit", Vector3(0.0, 0.03, 0.0), Vector3(1.18, 0.96, 1.18), Color(0.90, 0.15, 0.10))
+			for index in range(5):
+				var leaf := _add_crop_sphere(root, "TomatoCalyx", Vector3(0.0, 0.20, 0.0), Vector3(0.62, 0.09, 0.20), green)
+				leaf.rotation_degrees.y = float(index) * 72.0
+			_add_crop_stem(root, "TomatoStem", Vector3(0.0, 0.30, 0.0), 0.24, 0.035, green)
+		CROP_PUMPKIN:
+			for index in range(6):
+				var angle := TAU * float(index) / 6.0
+				_add_crop_sphere(root, "PumpkinRib", Vector3(cos(angle) * 0.07, 0.02, sin(angle) * 0.07), Vector3(1.20, 0.78, 0.82), Color(0.94, 0.40 + 0.025 * float(index % 2), 0.06))
+			_add_crop_stem(root, "PumpkinStem", Vector3(0.0, 0.25, 0.0), 0.26, 0.052, Color(0.30, 0.48, 0.16))
+		CROP_STRAWBERRY:
+			var berry := _add_crop_sphere(root, "StrawberryFruit", Vector3(0.0, 0.02, 0.0), Vector3(0.92, 1.20, 0.92), Color(0.92, 0.12, 0.20))
+			berry.rotation_degrees.z = 180.0
+			for index in range(5):
+				var top_leaf := _add_crop_sphere(root, "StrawberryLeaf", Vector3(0.0, 0.23, 0.0), Vector3(0.64, 0.08, 0.22), green)
+				top_leaf.rotation_degrees.y = float(index) * 72.0
+			for index in range(10):
+				var seed_angle := TAU * float(index) / 10.0
+				_add_crop_sphere(root, "StrawberrySeed", Vector3(cos(seed_angle) * 0.13, 0.04 + 0.08 * float(index % 2), sin(seed_angle) * 0.13), Vector3(0.08, 0.04, 0.05), Color(1.0, 0.80, 0.24))
+		CROP_SWEET_CORN:
+			_add_crop_stem(root, "CornCob", Vector3(0.0, 0.10, 0.0), 0.58, 0.13, Color(0.98, 0.75, 0.16))
+			for side in [-1.0, 1.0]:
+				var husk := _add_crop_sphere(root, "CornHusk", Vector3(0.11 * side, 0.04, 0.0), Vector3(0.32, 1.42, 0.12), Color(0.24, 0.60, 0.20))
+				husk.rotation_degrees.z = -20.0 * side
+		CROP_MOON_MUSHROOM:
+			_add_crop_stem(root, "MushroomStem", Vector3(0.0, 0.05, 0.0), 0.48, 0.09, Color(0.88, 0.90, 0.78))
+			_add_crop_sphere(root, "MushroomCap", Vector3(0.0, 0.31, 0.0), Vector3(1.38, 0.42, 1.38), Color(0.30, 0.62, 0.92), 1.6)
+		CROP_MARSHMALLOW:
+			_add_crop_stem(root, "MarshmallowStem", Vector3(0.0, 0.08, 0.0), 0.48, 0.055, Color(0.46, 0.70, 0.26))
+			for index in range(3):
+				_add_crop_sphere(root, "MarshmallowCloud", Vector3(float(index - 1) * 0.13, 0.33 + 0.04 * float(index % 2), 0.0), Vector3(0.90, 0.76, 0.90), Color(1.0, 0.76 + 0.05 * float(index), 0.91), 0.35)
+		_:
+			return _create_carrot_model(model_name)
+	return root
+
 func _create_crop_model(crop_type: String, quality: int, model_name: String) -> Node3D:
-	var root := _create_carrot_model(model_name)
+	var root := _create_special_crop_model(crop_type, model_name) if crop_type in [CROP_TOMATO, CROP_PUMPKIN, CROP_STRAWBERRY, CROP_SWEET_CORN, CROP_MOON_MUSHROOM, CROP_MARSHMALLOW] else _create_carrot_model(model_name)
 	root.set_meta("crop_type", crop_type)
 	root.set_meta("crop_quality", clampi(quality, 0, 3))
 	root.scale *= _crop_quality_scale(quality)
@@ -11208,23 +18458,16 @@ func _create_crop_model(crop_type: String, quality: int, model_name: String) -> 
 			mat.roughness = 0.84
 			mesh.material_override = mat
 		root.scale *= Vector3(1.16, 0.92, 1.16)
-	elif crop_type == CROP_MARSHMALLOW:
-		for mesh in _collect_mesh_instances(root):
-			var mat := StandardMaterial3D.new()
-			mat.albedo_color = Color(1.0, 0.82, 0.92, 1.0)
-			mat.roughness = 0.78
-			mesh.material_override = mat
-		root.scale *= 1.08
 	return root
 
 func _crop_quality_scale(quality: int) -> float:
 	return 1.0 + float(clampi(quality, 0, 3)) * 0.16
 
-func _hold_crop_item(item: String, quality: int = 0) -> void:
+func _hold_crop_item(item: String, quality: int = 0, fresh_time: float = -1.0) -> void:
 	_clear_held_crop()
 	_held_crop_item = item
 	_held_crop_quality = clampi(quality, 0, 3)
-	_held_crop_fresh_time = HELD_CROP_ROT_SECONDS
+	_held_crop_fresh_time = CROP_ROT_SECONDS if fresh_time < 0.0 else maxf(fresh_time, 0.0)
 	if _player == null:
 		return
 	_held_crop_root = _create_crop_model(item, _held_crop_quality, "HeldCrop")
@@ -11249,16 +18492,30 @@ func _clear_held_crop() -> void:
 	_update_held_crop_quality_panel()
 
 func _update_held_crop_quality_panel() -> void:
-	if _held_crop_quality_panel == null or _held_crop_quality_label == null:
+	if _held_crop_quality_panel == null or _held_crop_quality_label == null or _held_crop_freshness_label == null:
 		return
-	_held_crop_quality_panel.visible = _held_crop_item != ""
-	if _held_crop_item == "":
+	var showing_regular_crop := _held_crop_item != ""
+	var showing_kitchen_item := _kitchen_held_item != "" and _kitchen_item_is_spoilable(_kitchen_held_item)
+	var should_show := showing_regular_crop or showing_kitchen_item
+	_held_crop_quality_panel.visible = should_show
+	_layout_left_status_stack(should_show)
+	if not should_show:
+		_held_crop_quality_label.text = ""
+		_held_crop_freshness_label.text = ""
 		return
-	var quality_text := _quality_stars(_held_crop_quality)
-	if quality_text == "":
-		quality_text = "普通品质"
-	var fresh_text := "  %.0fs后腐烂" % maxf(_held_crop_fresh_time, 0.0)
-	_held_crop_quality_label.text = "%s  %s%s" % [_crop_display_name(_held_crop_item), quality_text, fresh_text]
+	if showing_regular_crop:
+		var quality_text := _quality_stars(_held_crop_quality)
+		if quality_text == "":
+			quality_text = "普通品质"
+		_held_crop_quality_label.text = "%s · %s" % [_crop_display_name(_held_crop_item), quality_text]
+		_held_crop_freshness_label.text = "%s 后腐烂" % _format_crop_fresh_time(_held_crop_fresh_time)
+		return
+	if showing_kitchen_item:
+		var quality_text := _quality_stars(_kitchen_held_quality)
+		if quality_text == "":
+			quality_text = "普通品质"
+		_held_crop_quality_label.text = "%s · %s" % [_kitchen_item_name(_kitchen_held_item), quality_text]
+		_held_crop_freshness_label.text = "%s 后腐烂" % _format_crop_fresh_time(_kitchen_held_fresh_time)
 
 func _update_held_crop_freshness(delta: float) -> void:
 	if _held_crop_item == "":
@@ -11283,12 +18540,14 @@ func _update_kitchen_held_freshness(delta: float) -> void:
 		return
 	_kitchen_held_fresh_time = maxf(_kitchen_held_fresh_time - delta, 0.0)
 	if _kitchen_held_fresh_time > 0.0:
+		_update_held_crop_quality_panel()
 		return
 	var item_name := _kitchen_item_name(_kitchen_held_item)
 	var spoil_position := _player.global_position if _player != null and is_instance_valid(_player) else Vector3.ZERO
 	_clear_kitchen_held_item()
 	_create_temporary_rotten_crop_at(spoil_position, item_name)
 	_update_inventory_bar()
+	_show_side_toast("%s腐烂了" % item_name)
 
 func _current_held_throw_root() -> Node3D:
 	if _held_crop_item != "" and _held_crop_root != null and is_instance_valid(_held_crop_root):
@@ -11298,13 +18557,15 @@ func _current_held_throw_root() -> Node3D:
 	return null
 
 func _kitchen_throw_has_priority_interaction() -> bool:
-	return _nearest_kitchen_equipment_id() != "" or _is_player_near_placed_food_chest()
+	if _nearest_kitchen_equipment_id() != "":
+		return true
+	return _kitchen_held_item != "" and _is_player_near_placed_food_chest()
 
 func _try_start_crop_throw_charge(button: String) -> bool:
 	var throw_root := _current_held_throw_root()
 	if throw_root == null:
 		return false
-	if _held_crop_item == "" and _kitchen_held_item != "" and _kitchen_throw_has_priority_interaction():
+	if _kitchen_throw_has_priority_interaction():
 		return false
 	if _crop_throw_charging:
 		return true
@@ -11347,6 +18608,7 @@ func _throw_held_crop() -> void:
 func _throw_regular_held_crop() -> void:
 	if _held_crop_item == "" or _held_crop_root == null or not is_instance_valid(_held_crop_root):
 		return
+	var fresh_time := _held_crop_fresh_time
 	var charge_ratio := clampf(_crop_throw_charge_time / CROP_THROW_FULL_CHARGE_SECONDS, 0.0, 1.0)
 	var throw_distance := lerpf(CROP_THROW_MIN_DISTANCE, CROP_THROW_MAX_DISTANCE, charge_ratio)
 	var start := _held_crop_root.global_position
@@ -11360,8 +18622,10 @@ func _throw_regular_held_crop() -> void:
 	thrown.scale = Vector3.ONE * 1.12 * _crop_quality_scale(_held_crop_quality)
 	thrown.set_meta("crop_type", _held_crop_item)
 	thrown.set_meta("crop_quality", _held_crop_quality)
+	thrown.set_meta("fresh_time", fresh_time)
 	_mark_generated(thrown)
 	add_child(thrown)
+	_begin_dropped_crop_flight(thrown, fresh_time)
 	_clear_held_crop()
 	var tween := create_tween()
 	var flight_out_time := lerpf(0.18, 0.34, charge_ratio)
@@ -11370,7 +18634,23 @@ func _throw_regular_held_crop() -> void:
 	tween.parallel().tween_property(thrown, "rotation_degrees", Vector3(210.0, thrown.rotation_degrees.y + 180.0, -95.0), flight_out_time)
 	tween.tween_property(thrown, "global_position", end, flight_in_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(thrown, "rotation_degrees", Vector3(390.0, thrown.rotation_degrees.y + 360.0, -155.0), flight_in_time)
-	tween.finished.connect(_register_dropped_crop.bind(thrown))
+	tween.finished.connect(_finish_thrown_regular_crop.bind(thrown))
+
+func _finish_thrown_regular_crop(thrown: Node3D) -> void:
+	if thrown == null or not is_instance_valid(thrown):
+		return
+	thrown.position.y = _height_at(thrown.position.x, thrown.position.z) + 0.2
+	var crop_type := str(thrown.get_meta("crop_type", CROP_CARROT))
+	var quality := int(thrown.get_meta("crop_quality", 0))
+	var fresh_time := maxf(float(thrown.get_meta("drop_lifetime", CROP_ROT_SECONDS)), 0.0)
+	if _kitchen_business_active:
+		var equipment_id := _kitchen_equipment_id_at_position(thrown.global_position)
+		var kitchen_item := _kitchen_item_id("raw", crop_type)
+		if equipment_id != "" and _try_apply_kitchen_item_to_equipment(equipment_id, kitchen_item, "", quality, true, fresh_time):
+			_dropped_crop_roots.erase(thrown)
+			thrown.queue_free()
+			return
+	_register_dropped_crop(thrown, fresh_time)
 
 func _throw_kitchen_held_item() -> void:
 	if _kitchen_held_item == "" or _kitchen_held_visual == null or not is_instance_valid(_kitchen_held_visual):
@@ -11378,6 +18658,8 @@ func _throw_kitchen_held_item() -> void:
 		return
 	var item := _kitchen_held_item
 	var recipe := _kitchen_held_recipe
+	if _kitchen_item_is_spoilable(item):
+		recipe = ""
 	var quality := _kitchen_held_quality
 	var fresh_time := _kitchen_held_fresh_time
 	var charge_ratio := clampf(_crop_throw_charge_time / CROP_THROW_FULL_CHARGE_SECONDS, 0.0, 1.0)
@@ -11399,6 +18681,10 @@ func _throw_kitchen_held_item() -> void:
 		thrown.set_meta("fresh_time", fresh_time)
 	_mark_generated(thrown)
 	add_child(thrown)
+	if _kitchen_item_is_spoilable(item):
+		if not _dropped_kitchen_item_roots.has(thrown):
+			_dropped_kitchen_item_roots.append(thrown)
+		_update_dropped_kitchen_freshness_label(thrown, fresh_time)
 	_clear_kitchen_held_item()
 	var tween := create_tween()
 	var flight_out_time := lerpf(0.18, 0.34, charge_ratio)
@@ -11416,12 +18702,21 @@ func _finish_thrown_kitchen_item(thrown: Node3D) -> void:
 	var item := str(thrown.get_meta("kitchen_item", ""))
 	var recipe := str(thrown.get_meta("recipe", ""))
 	var quality := int(thrown.get_meta("quality", 0))
+	var fresh_time := float(thrown.get_meta("fresh_time", -1.0))
+	if _kitchen_item_is_stage(item, "burnt"):
+		_dropped_kitchen_item_roots.erase(thrown)
+		_kitchen_burnt_food_disposal_guide_completed = true
+		thrown.queue_free()
+		_show_side_toast("焦糊食物已扔掉，继续完成订单")
+		return
 	var equipment_id := _kitchen_equipment_id_at_position(thrown.global_position)
-	if equipment_id != "" and _try_apply_kitchen_item_to_equipment(equipment_id, item, recipe, quality, true):
+	if equipment_id != "" and _try_apply_kitchen_item_to_equipment(equipment_id, item, recipe, quality, true, fresh_time):
+		_dropped_kitchen_item_roots.erase(thrown)
 		thrown.queue_free()
 		return
-	if item == "raw_carrot" and _is_position_near_placed_food_chest(thrown.global_position):
-		if _store_crop_in_food_chest(CROP_CARROT, quality):
+	if _kitchen_item_can_return_to_food_chest(item) and _is_position_near_placed_food_chest(thrown.global_position):
+		if _store_crop_in_food_chest(_kitchen_item_crop_type(item), quality, fresh_time):
+			_dropped_kitchen_item_roots.erase(thrown)
 			thrown.queue_free()
 			return
 	_register_dropped_kitchen_item(thrown)
@@ -11440,8 +18735,8 @@ func _kitchen_equipment_id_at_position(position: Vector3) -> String:
 	var best_id := ""
 	var best_distance := INF
 	for raw_id in _kitchen_equipment_roots.keys():
-		var equipment_id := str(raw_id)
-		var root := _kitchen_equipment_roots.get(equipment_id) as Node3D
+		var instance_id := str(raw_id)
+		var root := _kitchen_equipment_roots.get(instance_id) as Node3D
 		if root == null or not is_instance_valid(root):
 			continue
 		var center := Vector2(root.global_position.x, root.global_position.z)
@@ -11451,47 +18746,99 @@ func _kitchen_equipment_id_at_position(position: Vector3) -> String:
 		var distance := point.distance_squared_to(center)
 		if distance < best_distance:
 			best_distance = distance
-			best_id = equipment_id
+			best_id = instance_id
 	return best_id
 
-func _try_apply_kitchen_item_to_equipment(equipment_id: String, item: String, recipe: String, quality: int, from_throw: bool = false) -> bool:
+func _try_apply_kitchen_item_to_equipment(instance_id: String, item: String, _recipe: String, quality: int, from_throw: bool = false, fresh_time: float = -1.0) -> bool:
 	if not _kitchen_business_active:
 		return false
+	var equipment_id := _kitchen_instance_type(instance_id)
 	match equipment_id:
 		"sink":
-			if item != "raw_carrot" or _kitchen_equipment_progress.has("sink"):
+			if _kitchen_equipment_progress.has(instance_id):
+				if from_throw:
+					_show_notification("洗菜池正在使用")
 				return false
-			_start_kitchen_progress("sink", "washing", _kitchen_prep_duration("sink"), "washed_carrot", recipe, quality)
-			_show_side_toast("胡萝卜放进洗菜池")
+			if not _kitchen_item_is_raw_crop(item):
+				if from_throw:
+					_show_notification("洗菜池只能接收未清洗的订单食材")
+				return false
+			var crop_type := _kitchen_item_crop_type(item)
+			if not _pending_kitchen_crop_needs_wash(crop_type):
+				if from_throw:
+					_show_notification("当前待完成订单不需要清洗%s" % _crop_display_name(crop_type))
+				return false
+			_start_kitchen_progress(instance_id, "washing", _kitchen_prep_duration("sink"), _kitchen_item_id("washed", crop_type), "", quality, fresh_time)
+			_show_side_toast("%s放进洗菜池" % _crop_display_name(crop_type))
 			return true
 		"cutting_table":
-			if item != "washed_carrot" or _kitchen_equipment_progress.has("cutting_table"):
+			if _kitchen_equipment_progress.has(instance_id):
+				if from_throw:
+					_show_notification("料理台正在使用")
 				return false
-			_start_kitchen_progress("cutting_table", "cutting", _kitchen_prep_duration("cutting_table"), "chopped_carrot", recipe, quality)
-			_show_side_toast("开始切胡萝卜")
+			if not _kitchen_item_is_stage(item, "washed"):
+				if from_throw:
+					_show_notification("料理台只能接收洗净且需要切配的食材")
+				return false
+			var crop_type := _kitchen_item_crop_type(item)
+			if not _pending_kitchen_crop_needs_cut(crop_type):
+				if from_throw:
+					_show_notification("当前待完成订单不需要切配%s" % _crop_display_name(crop_type))
+				return false
+			_start_kitchen_progress(instance_id, "cutting", _kitchen_prep_duration("cutting_table"), _kitchen_item_id("chopped", crop_type), "", quality, fresh_time)
+			_show_side_toast("开始切配%s" % _crop_display_name(crop_type))
 			return true
 		"pot":
-			if not _kitchen_pot_state.is_empty() or (item != "washed_carrot" and item != "chopped_carrot"):
+			if _kitchen_cook_states.has(instance_id):
+				if from_throw:
+					_show_notification("煮锅正在使用")
 				return false
-			_kitchen_pot_state = _create_kitchen_cook_state("pot", KITCHEN_RECIPE_SOUP, item, KITCHEN_COOK_SOUP_SECONDS, quality)
+			var recipe := _pending_kitchen_recipe_for_item_and_station(item, "pot")
+			if recipe == "":
+				if from_throw:
+					_show_notification(_kitchen_cook_requirement_hint(item, "pot", "煮锅"))
+				return false
+			_kitchen_cook_states[instance_id] = _create_kitchen_cook_state(instance_id, recipe, item, _kitchen_cook_duration("pot"), quality)
 			_show_side_toast("已放入煮锅，靠近按 F 选择火候")
 			return true
 		"grill":
-			if not _kitchen_grill_state.is_empty() or item != "raw_carrot":
+			if _kitchen_cook_states.has(instance_id):
+				if from_throw:
+					_show_notification("烧烤架正在使用")
 				return false
-			_kitchen_grill_state = _create_kitchen_cook_state("grill", KITCHEN_RECIPE_GRILLED, item, KITCHEN_COOK_GRILL_SECONDS, quality)
+			var recipe := _pending_kitchen_recipe_for_item_and_station(item, "grill")
+			if recipe == "":
+				if from_throw:
+					_show_notification(_kitchen_cook_requirement_hint(item, "grill", "烧烤架"))
+				return false
+			_kitchen_cook_states[instance_id] = _create_kitchen_cook_state(instance_id, recipe, item, _kitchen_cook_duration("grill"), quality)
 			_show_side_toast("已放上烧烤架，靠近按 F 选择火候")
 			return true
 	return false
 
-func _register_dropped_crop(crop: Node3D) -> void:
+func _begin_dropped_crop_flight(crop: Node3D, fresh_time: float) -> void:
 	if crop == null or not is_instance_valid(crop):
 		return
 	if not _dropped_crop_roots.has(crop):
 		_dropped_crop_roots.append(crop)
-	crop.set_meta("drop_lifetime", DROPPED_ITEM_LIFETIME_SECONDS)
+	var remaining := maxf(fresh_time, 0.0)
+	crop.set_meta("drop_lifetime", remaining)
+	_update_dropped_crop_freshness_label(crop, remaining)
+
+func _register_dropped_crop(crop: Node3D, fresh_time: float = -1.0) -> void:
+	if crop == null or not is_instance_valid(crop):
+		return
+	if not _dropped_crop_roots.has(crop):
+		_dropped_crop_roots.append(crop)
+	var resolved_fresh_time := CROP_ROT_SECONDS if fresh_time < 0.0 else maxf(fresh_time, 0.0)
+	if resolved_fresh_time <= 0.0:
+		_dropped_crop_roots.erase(crop)
+		_spoil_dropped_crop(crop)
+		return
+	crop.set_meta("drop_lifetime", resolved_fresh_time)
 	crop.rotation_degrees = Vector3(74.0, crop.rotation_degrees.y, -18.0)
 	crop.position.y = _height_at(crop.position.x, crop.position.z) + 0.2
+	_update_dropped_crop_freshness_label(crop, resolved_fresh_time)
 
 func _try_pickup_dropped_crop() -> bool:
 	if _held_crop_item != "":
@@ -11506,8 +18853,9 @@ func _try_pickup_dropped_crop() -> bool:
 	_dropped_crop_roots.erase(best_crop)
 	var crop_type := str(best_crop.get_meta("crop_type", CROP_CARROT))
 	var quality := int(best_crop.get_meta("crop_quality", 0))
+	var fresh_time := maxf(float(best_crop.get_meta("drop_lifetime", CROP_ROT_SECONDS)), 0.0)
 	best_crop.queue_free()
-	_hold_crop_item(crop_type, quality)
+	_hold_crop_item(crop_type, quality, fresh_time)
 	_update_inventory_bar()
 	_show_crop_throw_guide_once()
 	return true
@@ -11576,10 +18924,12 @@ func _find_near_dropped_seed() -> Node3D:
 			best_seed = seed
 	return best_seed
 
-func _update_dropped_item_lifetimes(delta: float) -> void:
+func _update_dropped_item_lifetimes(delta: float, freshness_delta: float = -1.0) -> void:
+	if freshness_delta < 0.0:
+		freshness_delta = delta
 	_update_dropped_nodes_lifetime(_dropped_seed_roots, delta, false)
-	_update_dropped_nodes_lifetime(_dropped_crop_roots, delta, true)
-	_update_dropped_kitchen_item_freshness(delta)
+	_update_dropped_nodes_lifetime(_dropped_crop_roots, freshness_delta, true)
+	_update_dropped_kitchen_item_freshness(freshness_delta)
 
 func _update_dropped_kitchen_item_freshness(delta: float) -> void:
 	for index in range(_dropped_kitchen_item_roots.size() - 1, -1, -1):
@@ -11590,7 +18940,7 @@ func _update_dropped_kitchen_item_freshness(delta: float) -> void:
 		var kitchen_item := str(item.get_meta("kitchen_item", ""))
 		if not _kitchen_item_is_spoilable(kitchen_item):
 			continue
-		var fresh_time := float(item.get_meta("fresh_time", HELD_CROP_ROT_SECONDS))
+		var fresh_time := float(item.get_meta("fresh_time", CROP_ROT_SECONDS))
 		fresh_time = maxf(fresh_time - delta, 0.0)
 		if fresh_time <= 0.0:
 			_dropped_kitchen_item_roots.remove_at(index)
@@ -11600,6 +18950,23 @@ func _update_dropped_kitchen_item_freshness(delta: float) -> void:
 			_create_temporary_rotten_crop_at(position, item_name)
 		else:
 			item.set_meta("fresh_time", fresh_time)
+			_update_dropped_kitchen_freshness_label(item, fresh_time)
+
+func _update_dropped_kitchen_freshness_label(item: Node3D, fresh_time: float) -> void:
+	var label := item.get_node_or_null("FreshnessCountdown") as Label3D
+	if label == null:
+		label = Label3D.new()
+		label.name = "FreshnessCountdown"
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		label.font_size = 24
+		label.pixel_size = 0.012
+		label.outline_size = 7
+		label.modulate = Color(1.0, 0.94, 0.66, 1.0)
+		label.outline_modulate = Color(0.24, 0.12, 0.04, 0.90)
+		label.position = Vector3(0.0, 0.70, 0.0)
+		item.add_child(label)
+	label.text = "新鲜 %s" % _format_crop_fresh_time(fresh_time)
 
 func _update_dropped_nodes_lifetime(nodes: Array[Node3D], delta: float, spoil_as_crop: bool) -> void:
 	for index in range(nodes.size() - 1, -1, -1):
@@ -11617,6 +18984,25 @@ func _update_dropped_nodes_lifetime(nodes: Array[Node3D], delta: float, spoil_as
 				node.queue_free()
 		else:
 			node.set_meta("drop_lifetime", lifetime)
+			if spoil_as_crop:
+				_update_dropped_crop_freshness_label(node, lifetime)
+
+func _update_dropped_crop_freshness_label(crop: Node3D, lifetime: float) -> void:
+	var label := crop.get_node_or_null("DropRotCountdown") as Label3D
+	if label == null:
+		label = Label3D.new()
+		label.name = "DropRotCountdown"
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		label.font_size = 24
+		label.pixel_size = 0.012
+		label.outline_size = 7
+		label.outline_modulate = Color(0.24, 0.12, 0.04, 0.90)
+		label.position = Vector3(0.0, 0.70, 0.0)
+		crop.add_child(label)
+	var urgent := lifetime <= 30.0
+	label.modulate = Color(1.0, 0.54, 0.32, 1.0) if urgent else Color(1.0, 0.94, 0.66, 1.0)
+	label.text = "腐烂 %s" % _format_crop_fresh_time(lifetime)
 
 func _spoil_dropped_crop(crop: Node3D) -> void:
 	if crop == null or not is_instance_valid(crop):
@@ -11725,7 +19111,8 @@ func _update_watering_can_fill(delta: float) -> void:
 		_stop_watering_fill()
 		return
 	var before := _water_amount
-	_water_amount = clampf(_water_amount + delta / WATER_FILL_SECONDS, 0.0, 1.0)
+	var refill_speed := KitchenUpgradeCatalog.get_village_effect_multiplier(_village_upgrades, "watering_can_refill_speed")
+	_water_amount = clampf(_water_amount + delta * refill_speed / WATER_FILL_SECONDS, 0.0, 1.0)
 	if absf(_water_amount - before) > 0.002:
 		_update_inventory_bar()
 		if _water_fill_effect_cooldown <= 0.0:
@@ -11789,6 +19176,7 @@ func _use_watering_can() -> bool:
 	_watering_guide_completed = _tutorial_watered_carrot_count() >= TUTORIAL_CARROT_COUNT
 	_darkened_watered_soil_patch(soil_center)
 	_update_inventory_bar()
+	AudioManager.play_sfx("farm_water_pour", 0.0, randf_range(0.96, 1.04))
 	_play_watering_can_use(yaw, soil_center)
 	_create_watering_effect(soil_center)
 	if _watering_guide_completed and not _scythe_collected and not _scythe_task_prompt_active:
@@ -11922,6 +19310,7 @@ func _play_scythe_swing(yaw: float) -> void:
 	if not scene is PackedScene or _player == null:
 		_scythe_swinging = false
 		return
+	AudioManager.play_sfx("farm_scythe_swing", 0.0, randf_range(0.95, 1.06))
 	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
 	var root := Node3D.new()
 	root.name = "ScytheSwing"
@@ -11980,6 +19369,7 @@ func _cut_grass_in_front(yaw: float) -> void:
 				break
 	cut_count += _cut_soil_weeds_in_front(player_pos, forward, 96 - cut_count)
 	if cut_count > 0:
+		AudioManager.play_sfx("farm_grass_cut", 0.0, randf_range(0.94, 1.08))
 		if drop_origin == Vector3.ZERO:
 			drop_origin = _player.global_position + Vector3(forward.x, 0.0, forward.y) * 1.4
 		_try_drop_seed_from_scythe_swing(drop_origin)
@@ -12115,14 +19505,26 @@ func _try_drop_seed_from_scythe_swing(origin: Vector3) -> void:
 	_create_grass_resource_drop(origin)
 
 func _roll_seed_drop_swing_target() -> int:
+	var frequency := KitchenUpgradeCatalog.get_village_effect_multiplier(_village_upgrades, "wild_seed_drop_frequency")
+	if bool(_local_event_perks.get("forest_mycelium", false)):
+		frequency *= 1.05
+	var rolled := 0
 	if randf() < 0.55:
-		return randi_range(SEED_DROP_SWING_MIN, SEED_DROP_SWING_MEDIAN)
-	return randi_range(SEED_DROP_SWING_MEDIAN, SEED_DROP_SWING_MAX)
+		rolled = randi_range(SEED_DROP_SWING_MIN, SEED_DROP_SWING_MEDIAN)
+	else:
+		rolled = randi_range(SEED_DROP_SWING_MEDIAN, SEED_DROP_SWING_MAX)
+	return maxi(1, int(round(float(rolled) / frequency)))
 
 func _roll_tree_seed_drop_shake_target() -> int:
+	var frequency := KitchenUpgradeCatalog.get_village_effect_multiplier(_village_upgrades, "wild_seed_drop_frequency")
+	if bool(_local_event_perks.get("forest_mycelium", false)):
+		frequency *= 1.05
+	var rolled := 0
 	if randf() < 0.55:
-		return randi_range(TREE_SEED_DROP_SHAKE_MIN, TREE_SEED_DROP_SHAKE_MEDIAN)
-	return randi_range(TREE_SEED_DROP_SHAKE_MEDIAN, TREE_SEED_DROP_SHAKE_MAX)
+		rolled = randi_range(TREE_SEED_DROP_SHAKE_MIN, TREE_SEED_DROP_SHAKE_MEDIAN)
+	else:
+		rolled = randi_range(TREE_SEED_DROP_SHAKE_MEDIAN, TREE_SEED_DROP_SHAKE_MAX)
+	return maxi(1, int(round(float(rolled) / frequency)))
 
 func _create_cut_grass_piece(origin: Vector3) -> void:
 	var piece := MeshInstance3D.new()
@@ -12233,8 +19635,14 @@ func _create_spilled_seed_drop(origin: Vector3, crop_type: String, quality: int 
 	tween.tween_property(seed, "position", Vector3.ZERO, 0.22).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 func _roll_random_seed_drop() -> Dictionary:
+	var pool: Array[String] = []
+	for crop_type in CropCatalog.MAINLINE_IDS:
+		if bool(_unlocked_crops.get(crop_type, false)):
+			pool.append(crop_type)
+	if pool.is_empty():
+		pool.append(CROP_CARROT)
 	return {
-		"crop_type": CROP_TYPES.pick_random(),
+		"crop_type": pool.pick_random(),
 		"quality": _roll_seed_quality(),
 	}
 
@@ -12249,16 +19657,7 @@ func _roll_seed_quality() -> int:
 	return 3
 
 func _seed_color(crop_type: String, quality: int) -> Color:
-	var base := Color(0.90, 0.62, 0.28, 1.0)
-	match crop_type:
-		CROP_EGGPLANT:
-			base = Color(0.56, 0.34, 0.78, 1.0)
-		CROP_PEA:
-			base = Color(0.44, 0.82, 0.36, 1.0)
-		CROP_BELL_PEPPER:
-			base = Color(0.86, 0.22, 0.16, 1.0)
-		CROP_MARSHMALLOW:
-			base = Color(1.0, 0.74, 0.90, 1.0)
+	var base := CropCatalog.seed_color(crop_type)
 	if quality > 0:
 		base = base.lerp(Color(1.0, 0.88, 0.28, 1.0), float(quality) * 0.18)
 	return base
@@ -12328,6 +19727,7 @@ func _play_hoe_swing(yaw: float, target_center: Vector3) -> void:
 	if not scene is PackedScene or _player == null:
 		return
 	_hoe_swinging = true
+	AudioManager.play_sfx("farm_hoe_swing", 0.0, randf_range(0.94, 1.05))
 	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
 	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
 	var root := Node3D.new()
@@ -12358,6 +19758,9 @@ func _play_hoe_swing(yaw: float, target_center: Vector3) -> void:
 	tween.tween_interval(0.08)
 	tween.tween_property(root, "scale", Vector3.ZERO, 0.10)
 	tween.finished.connect(_finish_hoe_swing.bind(root))
+
+func _play_farm_soil_impact() -> void:
+	AudioManager.play_sfx("farm_soil_impact", 0.0, randf_range(0.92, 1.05))
 
 func _finish_hoe_swing(root: Node3D) -> void:
 	if root != null and is_instance_valid(root):
@@ -12560,6 +19963,84 @@ func _make_round_style(fill: Color, border: Color, radius: float, border_width: 
 	style.set_corner_radius_all(int(radius))
 	return style
 
+func _make_kitchen_equipment_panel_style() -> StyleBox:
+	var texture := _load_ui_texture(KITCHEN_EQUIPMENT_PANEL_PATH)
+	if texture == null:
+		return _make_notice_board_style()
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = 40.0
+	style.texture_margin_top = 30.0
+	style.texture_margin_right = 40.0
+	style.texture_margin_bottom = 30.0
+	style.content_margin_left = 20.0
+	style.content_margin_top = 10.0
+	style.content_margin_right = 20.0
+	style.content_margin_bottom = 10.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	return style
+
+func _make_kitchen_equipment_slot_style(state: String = "normal") -> StyleBox:
+	var fill := Color(0.97, 0.93, 0.82, 1.0)
+	var border := Color(0.40, 0.29, 0.17, 0.92)
+	var border_width := 2
+	if state == "hover":
+		fill = Color(1.0, 0.97, 0.88, 1.0)
+		border = Color(0.56, 0.37, 0.18, 1.0)
+	elif state == "pressed":
+		fill = Color(0.89, 0.83, 0.69, 1.0)
+		border = Color(0.48, 0.31, 0.16, 1.0)
+	elif state == "locked":
+		fill = Color(0.76, 0.73, 0.66, 0.94)
+		border = Color(0.48, 0.42, 0.32, 0.68)
+		border_width = 1
+	elif state == "selected":
+		fill = Color(1.0, 0.94, 0.72, 1.0)
+		border = Color(0.80, 0.49, 0.12, 1.0)
+		border_width = 3
+	var style := _make_round_style(fill, border, 5.0, border_width)
+	style.content_margin_left = 6.0
+	style.content_margin_top = 5.0
+	style.content_margin_right = 6.0
+	style.content_margin_bottom = 5.0
+	style.shadow_color = Color(0.22, 0.14, 0.07, 0.14)
+	style.shadow_size = 1
+	style.shadow_offset = Vector2(0.0, 1.0)
+	return style
+
+func _make_wood_inventory_slot_style(state: String = "normal") -> StyleBox:
+	var texture := _load_ui_texture(INVENTORY_SLOT_PATH)
+	if texture == null:
+		return _make_round_style(Color(0.48, 0.31, 0.17, 0.96), Color(0.25, 0.15, 0.08, 1.0), 8.0, 2)
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	if state == "selected":
+		style.modulate_color = Color(1.16, 1.02, 0.72, 1.0)
+	elif state == "drag_hover":
+		style.modulate_color = Color(0.74, 1.10, 0.78, 1.0)
+	elif state == "locked":
+		style.modulate_color = Color(0.36, 0.34, 0.30, 0.92)
+	return style
+
+func _apply_kitchen_equipment_header_button_style(button: Button) -> void:
+	_apply_kitchen_parchment_button_style(button, 12)
+
+func _apply_kitchen_parchment_button_style(button: Button, font_size: int = 13) -> void:
+	button.focus_mode = Control.FOCUS_NONE
+	button.rotation = 0.0
+	button.scale = Vector2.ONE
+	button.add_theme_font_size_override("font_size", font_size)
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.add_theme_color_override("font_color", Color(0.25, 0.16, 0.09, 1.0))
+	button.add_theme_color_override("font_hover_color", Color(0.20, 0.12, 0.06, 1.0))
+	button.add_theme_color_override("font_pressed_color", Color(0.25, 0.16, 0.09, 1.0))
+	button.add_theme_color_override("font_disabled_color", Color(0.34, 0.28, 0.20, 0.58))
+	button.add_theme_stylebox_override("normal", _make_kitchen_equipment_slot_style("normal"))
+	button.add_theme_stylebox_override("hover", _make_kitchen_equipment_slot_style("hover"))
+	button.add_theme_stylebox_override("pressed", _make_kitchen_equipment_slot_style("pressed"))
+	button.add_theme_stylebox_override("disabled", _make_kitchen_equipment_slot_style("locked"))
+
 func _make_notice_board_style() -> StyleBox:
 	var texture := load(NOTICE_BOARD_PANEL_PATH) as Texture2D
 	if texture == null:
@@ -12578,12 +20059,58 @@ func _make_notice_board_style() -> StyleBox:
 	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
 	return style
 
+func _make_kitchen_order_board_style() -> StyleBox:
+	var texture := _load_ui_texture(KITCHEN_ORDER_BOARD_PATH)
+	if texture == null:
+		return _make_notice_board_style()
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = 0.0
+	style.texture_margin_top = 0.0
+	style.texture_margin_right = 0.0
+	style.texture_margin_bottom = 0.0
+	style.content_margin_left = 42.0
+	style.content_margin_top = 78.0
+	style.content_margin_right = 38.0
+	style.content_margin_bottom = 54.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	return style
+
+func _make_kitchen_order_card_style(state: String = "normal") -> StyleBox:
+	var texture := _load_ui_texture(KITCHEN_ORDER_CARD_PATH)
+	if texture == null:
+		return _make_paper_info_card_style(state)
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = 0.0
+	style.texture_margin_top = 0.0
+	style.texture_margin_right = 0.0
+	style.texture_margin_bottom = 0.0
+	style.content_margin_left = 18.0
+	style.content_margin_top = 7.0
+	style.content_margin_right = 14.0
+	style.content_margin_bottom = 6.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	if state == "urgent":
+		style.modulate_color = Color(1.08, 0.89, 0.80, 1.0)
+	elif state == "locked":
+		style.modulate_color = Color(0.72, 0.74, 0.69, 0.86)
+	return style
+
 func _make_paper_info_card_style(state: String = "normal") -> StyleBoxFlat:
 	var fill := Color(0.97, 0.92, 0.82, 0.98)
 	var border := Color(0.53, 0.39, 0.23, 0.84)
 	if state == "hover":
 		fill = Color(1.0, 0.96, 0.86, 1.0)
 		border = Color(0.62, 0.45, 0.25, 0.96)
+	elif state == "selected":
+		fill = Color(1.0, 0.91, 0.66, 1.0)
+		border = Color(0.84, 0.53, 0.14, 1.0)
+	elif state == "claimed":
+		fill = Color(0.82, 0.92, 0.72, 0.98)
+		border = Color(0.36, 0.58, 0.26, 0.94)
 	elif state == "locked":
 		fill = Color(0.72, 0.68, 0.59, 0.86)
 		border = Color(0.43, 0.37, 0.29, 0.56)
@@ -12623,21 +20150,85 @@ func _apply_wood_command_button_style(button: Button) -> void:
 	button.add_theme_stylebox_override("disabled", _make_small_wood_command_style(Color(0.72, 0.68, 0.60, 0.78), true))
 
 func _make_task_tab_style() -> StyleBox:
-	var texture := load(TASK_TAB_PATH) as Texture2D
+	var texture := _load_ui_texture(TASK_TAB_PATH)
 	if texture == null:
 		return _make_round_style(Color(0.97, 0.88, 0.66, 0.96), Color(0.40, 0.27, 0.16, 0.90), 14.0, 2)
 	var style := StyleBoxTexture.new()
 	style.texture = texture
-	style.texture_margin_left = 88.0
-	style.texture_margin_top = 94.0
-	style.texture_margin_right = 88.0
-	style.texture_margin_bottom = 88.0
-	style.content_margin_left = 34.0
-	style.content_margin_top = 16.0
-	style.content_margin_right = 30.0
-	style.content_margin_bottom = 14.0
+	style.texture_margin_left = 105.0
+	style.texture_margin_top = 54.0
+	style.texture_margin_right = 105.0
+	style.texture_margin_bottom = 54.0
+	style.content_margin_left = 28.0
+	style.content_margin_top = 13.0
+	style.content_margin_right = 28.0
+	style.content_margin_bottom = 12.0
 	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
 	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	return style
+
+func _make_interaction_prompt_style() -> StyleBox:
+	var texture := _load_ui_texture(INTERACTION_PROMPT_FRAME_PATH)
+	if texture == null:
+		return _make_round_style(Color(1.0, 0.93, 0.76, 0.96), Color(0.28, 0.34, 0.16, 0.96), 22.0, 3)
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	return style
+
+func _make_tool_reward_panel_style() -> StyleBox:
+	var texture := _load_ui_texture(TOOL_REWARD_PANEL_PATH)
+	if texture == null:
+		return _make_wood_toast_style()
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = 0.0
+	style.texture_margin_top = 0.0
+	style.texture_margin_right = 0.0
+	style.texture_margin_bottom = 0.0
+	style.content_margin_left = 54.0
+	style.content_margin_top = 54.0
+	style.content_margin_right = 54.0
+	style.content_margin_bottom = 42.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	return style
+
+func _make_kitchen_upgrade_panel_style() -> StyleBox:
+	var texture := _load_ui_texture(KITCHEN_UPGRADE_PANEL_PATH)
+	if texture == null:
+		return _make_kitchen_equipment_panel_style()
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = 84.0
+	style.texture_margin_top = 86.0
+	style.texture_margin_right = 84.0
+	style.texture_margin_bottom = 68.0
+	style.content_margin_left = 0.0
+	style.content_margin_top = 0.0
+	style.content_margin_right = 0.0
+	style.content_margin_bottom = 0.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	return style
+
+func _make_wood_toast_style() -> StyleBox:
+	var texture := _load_ui_texture(WOOD_NOTICE_BUTTON_PATH)
+	if texture == null:
+		return _make_round_style(Color(0.96, 0.90, 0.74, 0.98), Color(0.38, 0.24, 0.12, 0.96), 10.0, 2)
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = 30.0
+	style.texture_margin_top = 12.0
+	style.texture_margin_right = 30.0
+	style.texture_margin_bottom = 12.0
+	style.content_margin_left = 24.0
+	style.content_margin_top = 7.0
+	style.content_margin_right = 24.0
+	style.content_margin_bottom = 7.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
 	return style
 
 func _make_wood_notice_button_style(tint: Color, pressed: bool = false) -> StyleBoxTexture:
@@ -12668,6 +20259,7 @@ func _apply_corner_action_button_style(button: Button) -> void:
 	button.add_theme_stylebox_override("pressed", _make_wood_notice_button_style(Color(0.83, 0.78, 0.68, 1.0), true))
 
 func _build_mom_dialogue() -> Array[Dictionary]:
+	_sync_food_chest_tutorial_state()
 	if _chapter_one_active:
 		if _is_chapter_one_final_mom_talk_pending():
 			return [
@@ -12700,18 +20292,8 @@ func _build_mom_dialogue() -> Array[Dictionary]:
 			]
 		if _is_kitchen_intro_talk_pending():
 			return [
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "厨房都摆起来了？这就有点像一辆真正能营业的房车了。"},
-				{"speaker": "我", "portrait": PLAYER_PORTRAIT_PATH, "text": "你想怎么回答？", "options": ["我想先试着接一天订单", "先做几份简单的菜", "如果忙不过来就当练习"]},
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "那就先试一天。不要急着把所有事都做完，先看清楚客人喜欢什么，再慢慢升级设备和人气。"},
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "今天先做三份胡萝卜清汤。准备好了，就去房车旁进入经营准备，选择第1关。"},
-			]
-		if _is_crop_future_talk_pending():
-			return [
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "胡萝卜已经浇过水了，接下来需要一点时间慢慢长大。"},
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "别站在田边干等。家里有一个储存食材的箱子，等会儿收获的胡萝卜都要先放进去。"},
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "房车营业会从箱子里取食材。箱子里没有足够胡萝卜，就算设备摆好了也开不了业。"},
-				{"speaker": "我", "portrait": PLAYER_PORTRAIT_PATH, "text": "你想怎么回答？", "options": ["在各地研究料理", "做当地人喜欢的菜", "先从村庄开始"]},
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "嗯。食材要在当地被理解，才能做成真正有价值的料理。先去屋里找到那个食材箱吧。"},
+				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "胡萝卜都收进食材箱，厨房也摆好了。现在可以试着接第一天的订单了。"},
+				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "第一天先准备三份胡萝卜清汤。去房车旁进入经营准备，选择第1关吧。"},
 			]
 		if _return_after_weeding_prompt_active and not _weeding_lesson_completed:
 			return [
@@ -12735,15 +20317,20 @@ func _build_mom_dialogue() -> Array[Dictionary]:
 				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "做得很好，这 5 块地已经松好了。"},
 				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "这里有 5 颗胡萝卜种子，还有水壶。先拿去试试吧。"},
 			]
+		if _is_food_chest_recovery_pending():
+			return [
+				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "锄头你已经拿到了，但屋里的食材箱还没收好。先去把它拿回来。"},
+				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "它是最早的收纳工具；收获的作物仍然可以直接带去厨房烹饪。"},
+			]
 		if _is_hoe_intro_pending():
 			return [
 				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "食材箱已经接到房车旁了。这样等胡萝卜成熟，就能先放进箱子里，不会弄丢。"},
 				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "现在再开始整理土地吧。我把锄头给你，先开垦 5 块地。"},
 			]
-		if (not _dialogue_completed or _is_initial_chest_intro_pending()) and not _has_hoe and not _find_food_chests_prompt_active and not _food_chests_found and not _chest_lesson_completed:
+		if _is_initial_chest_intro_pending():
 			return [
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "先别急着开垦。胡萝卜成熟得很快，收获后要先放进食材箱。"},
-				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "家里有个旧食材箱，先去屋里把它拿出来，摆到房车旁边。箱子安好后，我们再拿锄头种地。"},
+				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "先别急着开垦。先去屋里把食材箱拿出来，带在身边会方便很多。"},
+				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "食材箱是第一步的收纳工具；之后收获的作物也可以直接拿去厨房烹饪，不需要先放进去。"},
 			]
 		if _is_mom_soil_task_pending():
 			return [
@@ -12751,8 +20338,7 @@ func _build_mom_dialogue() -> Array[Dictionary]:
 				{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "我在这看着你呢，大胆去做吧。"},
 			]
 		return [
-			{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "先给地松松土吧，我给你把锄头找出来了。"},
-			{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "这把锄头不只是开垦土地，以后作物腐烂了，也要靠它清理。"},
+			{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "先按左上角目标继续准备吧。食材箱在屋里，收获的作物也能直接带去厨房。"},
 		]
 	return [
 		{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "前些天收到你的消息，我就一直放心不下。\n这一路赶过来，连面包都忘了从烤箱里拿出来。"},
@@ -12764,6 +20350,14 @@ func _build_mom_dialogue() -> Array[Dictionary]:
 		{"speaker": MOM_NAME, "portrait": MOM_PORTRAIT_PATH, "text": "那就这么说定了。从播下第一颗胡萝卜种子开始，慢慢适应村里的生活吧。"},
 	]
 func _update_mom_interaction() -> void:
+	if _camper_driving:
+		if _mom_is_highlighted:
+			_set_mom_highlight(false)
+		if _camper_is_highlighted:
+			_set_camper_highlight(false)
+		if _rebas_is_highlighted:
+			_set_rebas_highlight(false)
+		return
 	var house_entry_near := _is_player_near_house_entry()
 	var house_exit_near := _is_player_near_house_exit()
 	if house_entry_near or house_exit_near:
@@ -12829,12 +20423,26 @@ func _show_notification(text: String) -> void:
 	_mark_interaction_prompt_shown(text)
 	_notification_time = 3.0
 	_notification_text = text
+	_notification_on_kitchen_board = _is_kitchen_board_notification(text)
 	_reset_interaction_prompt_layout()
 	if _interaction_prompt_label != null:
 		_interaction_prompt_label.text = text
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = true
+		if _notification_on_kitchen_board:
+			_position_notification_on_kitchen_board()
 		_interaction_prompt.move_to_front()
+
+func _is_kitchen_board_notification(text: String) -> bool:
+	return text.begins_with("第一次营业开始：") or text.begins_with("正式营业开始：")
+
+func _position_notification_on_kitchen_board() -> void:
+	if _interaction_prompt == null:
+		return
+	var top_left := Vector2(28.0, 82.0)
+	if _kitchen_status_panel != null and is_instance_valid(_kitchen_status_panel):
+		top_left = Vector2(_kitchen_status_panel.offset_left + 12.0, _kitchen_status_panel.offset_top + 28.0)
+	_set_interaction_prompt_screen_rect(top_left, _interaction_prompt_rect_size())
 
 func _is_objective_notification_text(text: String) -> bool:
 	return text.begins_with("目标：") or text.begins_with("回去") or text.begins_with("进屋") or text.begins_with("选中食材箱子") or text.begins_with("去湖边") or text.begins_with("记得看倒计时")
@@ -12985,14 +20593,26 @@ func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_te
 
 	var panel := PanelContainer.new()
 	panel.name = "RewardPanel"
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.offset_left = 34.0
-	panel.offset_top = 26.0
-	panel.offset_right = -34.0
-	panel.offset_bottom = -26.0
-	panel.pivot_offset = get_viewport().get_visible_rect().size * 0.5
+	var reward_viewport_size := get_viewport().get_visible_rect().size
+	var reward_available_size := reward_viewport_size - Vector2(48.0, 28.0)
+	var reward_panel_size := Vector2(minf(reward_available_size.x, 920.0), minf(reward_available_size.y, 520.0))
+	var reward_panel_ratio := 16.0 / 9.0
+	if reward_panel_size.x / reward_panel_size.y > reward_panel_ratio:
+		reward_panel_size.x = reward_panel_size.y * reward_panel_ratio
+	else:
+		reward_panel_size.y = reward_panel_size.x / reward_panel_ratio
+	var reward_panel_position := (reward_viewport_size - reward_panel_size) * 0.5
+	panel.anchor_left = 0.0
+	panel.anchor_top = 0.0
+	panel.anchor_right = 0.0
+	panel.anchor_bottom = 0.0
+	panel.offset_left = reward_panel_position.x
+	panel.offset_top = reward_panel_position.y
+	panel.offset_right = reward_panel_position.x + reward_panel_size.x
+	panel.offset_bottom = reward_panel_position.y + reward_panel_size.y
+	panel.pivot_offset = reward_panel_size * 0.5
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", _make_round_style(Color(0.94, 0.92, 0.84, 0.18), Color(1.0, 0.98, 0.84, 0.44), 10.0, 1))
+	panel.add_theme_stylebox_override("panel", _make_tool_reward_panel_style())
 	_reward_overlay.add_child(panel)
 	_reward_panel = panel
 
@@ -13005,15 +20625,14 @@ func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_te
 	var title := Label.new()
 	title.text = title_text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.24, 0.15, 0.07))
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(title)
 
 	var view := TextureRect.new()
 	view.name = preview_name
-	var viewport_size := get_viewport().get_visible_rect().size
-	view.custom_minimum_size = Vector2(maxf(viewport_size.x - 140.0, 520.0), maxf(viewport_size.y - 210.0, 360.0))
+	view.custom_minimum_size = Vector2(maxf(reward_panel_size.x - 140.0, 480.0), maxf(reward_panel_size.y - 220.0, 230.0))
 	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -13026,19 +20645,19 @@ func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_te
 	var hint := Label.new()
 	hint.text = hint_text
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 18)
+	hint.add_theme_font_size_override("font_size", 15)
 	hint.add_theme_color_override("font_color", Color(0.34, 0.28, 0.18))
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(hint)
 	var collect_button := Button.new()
 	collect_button.text = "收进背包"
-	collect_button.custom_minimum_size = Vector2(132.0, 42.0)
+	collect_button.custom_minimum_size = Vector2(120.0, 36.0)
 	collect_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	collect_button.add_theme_font_size_override("font_size", 18)
+	collect_button.add_theme_font_size_override("font_size", 16)
 	collect_button.add_theme_color_override("font_color", Color(0.25, 0.18, 0.10))
-	collect_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.93, 0.80, 0.55, 0.96), Color(1.0, 0.94, 0.70, 1.0), 18.0, 2))
-	collect_button.add_theme_stylebox_override("hover", _make_round_style(Color(0.98, 0.87, 0.62, 1.0), Color(1.0, 0.98, 0.80, 1.0), 18.0, 2))
-	collect_button.add_theme_stylebox_override("pressed", _make_round_style(Color(0.82, 0.66, 0.40, 1.0), Color(0.98, 0.90, 0.66, 1.0), 18.0, 2))
+	collect_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color.WHITE))
+	collect_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.10, 1.08, 0.94, 1.0)))
+	collect_button.add_theme_stylebox_override("pressed", _make_wood_notice_button_style(Color(0.83, 0.78, 0.68, 1.0), true))
 	collect_button.pressed.connect(collect_callable)
 	stack.add_child(collect_button)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -13047,6 +20666,7 @@ func _show_tool_reward_overlay(title_text: String, preview_name: String, hint_te
 func _play_tool_reward_burst(title: Label) -> void:
 	if title == null or not is_instance_valid(title) or _reward_overlay == null:
 		return
+	AudioManager.play_sfx("reward_stage")
 	var burst_root := Control.new()
 	burst_root.name = "RewardConfettiBurst"
 	burst_root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -13440,20 +21060,23 @@ func _update_notification(delta: float) -> void:
 		_interaction_prompt_label.text = _notification_text
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = true
+		if _notification_on_kitchen_board:
+			_position_notification_on_kitchen_board()
 		_interaction_prompt.move_to_front()
 	if _notification_time <= 0.0 and _interaction_prompt != null:
 		_interaction_prompt.visible = false
 		_notification_text = ""
+		_notification_on_kitchen_board = false
 
 func _is_chapter_one_task_system_active() -> bool:
 	return _chapter_one_active and _post_tutorial_grand_reward_claimed
 
 func _chapter_one_task_definitions() -> Array[Dictionary]:
 	return [
-		{"id": 1, "goal": "查看第2-5关的经营条件，并确认后续至少3种需要准备的食材。", "reward": "个人金币 x50", "unlock": 0},
+		{"id": 1, "goal": "在大世界寻找风种并完成逐风挑战。", "reward": "个人金币 x50", "unlock": 0},
 		{"id": 2, "goal": "满足第2关开启条件，并额外持有任意3个后续关卡需要的种子。", "reward": "胡萝卜种子 x3，商店刷新券 x1", "unlock": 0},
 		{"id": 3, "goal": "累计向食材箱存入10个食材，不限种类。", "reward": "个人金币 x80", "unlock": 0},
-		{"id": 4, "goal": "同时持有成品食材 + 对应种子合计达到12个。", "reward": "食材箱容量 +1", "unlock": 0},
+		{"id": 4, "goal": "同时持有成品食材 + 对应种子合计达到12个。", "reward": "胡萝卜种子 x3", "unlock": 0},
 		{"id": 5, "goal": "满足第2关全部食材与种子开启条件。", "reward": "个人金币 x60", "unlock": 0},
 		{"id": 6, "goal": "完成第2关经营。", "reward": "个人金币 x100", "unlock": 1},
 		{"id": 7, "goal": "完成第2关后，剩余可用食材或种子不少于3个。", "reward": "胡萝卜种子 x4", "unlock": 2},
@@ -13465,31 +21088,31 @@ func _chapter_one_task_definitions() -> Array[Dictionary]:
 		{"id": 13, "goal": "在老伯商店累计购买5个种子。", "reward": "豌豆种子 x3", "unlock": 8},
 		{"id": 14, "goal": "通过老伯商店累计卖出5个食材箱内的食材。", "reward": "个人金币 x120", "unlock": 9},
 		{"id": 15, "goal": "累计收获5个豌豆。", "reward": "解锁老伯商店常规刷新豌豆种子", "unlock": 10},
-		{"id": 16, "goal": "同时持有胡萝卜与豌豆的成品食材或对应种子，且两类合计各不少于4个。", "reward": "食材箱容量 +1", "unlock": 11},
+		{"id": 16, "goal": "胡萝卜与豌豆的对应种子、田间作物或食材箱库存，各类合计不少于4个。", "reward": "豌豆种子 x3", "unlock": 11},
 		{"id": 17, "goal": "在房车附近完成至少3个厨房设备的摆放，并进入经营准备界面检查一次。", "reward": "个人金币 x70", "unlock": 12},
 		{"id": 18, "goal": "在开始第3关前，满足第3关全部食材条件，并额外准备任意2个备用种子。", "reward": "豌豆种子 x2，个人金币 x80", "unlock": 13},
 		{"id": 19, "goal": "累计完成12个经营订单，不限关卡。", "reward": "料理台升级材料 x1", "unlock": 14},
 		{"id": 20, "goal": "任意正式经营关卡中完成全部订单，且漏单数为0。", "reward": "个人金币 x120", "unlock": 15},
 		{"id": 21, "goal": "满足第3关全部食材与种子开启条件。", "reward": "商店刷新券 x1", "unlock": 16},
 		{"id": 22, "goal": "完成第3关经营。", "reward": "个人金币 x130", "unlock": 17},
-		{"id": 23, "goal": "打开设备升级界面，并查看料理台 Lv2 的升级条件。", "reward": "料理台 Lv2 解锁券 x1", "unlock": 18},
-		{"id": 24, "goal": "任意正式经营关卡中，在目标时间内完成全部订单。", "reward": "个人金币 x150", "unlock": 19},
+		{"id": 23, "goal": "打开改造界面，查看料理台数量等级与功能改造。", "reward": "料理台 Lv2 解锁券 x1", "unlock": 18},
+		{"id": 24, "goal": "限时挑战：完成全部订单（第2/3关100秒，第4关98秒，第5关96秒）。", "reward": "个人金币 x150", "unlock": 19},
 		{"id": 25, "goal": "通过老伯商店购买或获得1个茄子种子。", "reward": "茄子种子 x2", "unlock": 20},
 		{"id": 26, "goal": "累计种下3个茄子种子。", "reward": "个人金币 x80", "unlock": 21},
-		{"id": 27, "goal": "累计收获3个茄子。", "reward": "食材箱容量 +1", "unlock": 22},
+		{"id": 27, "goal": "累计收获3个茄子。", "reward": "茄子种子 x2", "unlock": 22},
 		{"id": 28, "goal": "食材箱内同时拥有3种不同食材。", "reward": "个人金币 x120", "unlock": 23},
-		{"id": 29, "goal": "累计种下2个神秘种子。", "reward": "神秘种子 x1", "unlock": 24},
-		{"id": 30, "goal": "收获1个神秘作物，并放入食材箱或仓库。", "reward": "仓库物品：神秘作物样本 x1", "unlock": 25},
+		{"id": 29, "goal": "累计种下2个番茄种子。", "reward": "番茄种子 x1", "unlock": 24},
+		{"id": 30, "goal": "收获1个番茄，并放入食材箱。", "reward": "仓库物品：番茄试种记录 x1", "unlock": 25},
 		{"id": 31, "goal": "满足第4关全部食材与种子开启条件。", "reward": "个人金币 x100", "unlock": 26},
 		{"id": 32, "goal": "完成第4关经营。", "reward": "老伯商店稀有种子刷新概率小幅提升", "unlock": 27},
 		{"id": 33, "goal": "从仓库取出开业小木牌。", "reward": "个人金币 x60", "unlock": 28},
 		{"id": 34, "goal": "将开业小木牌摆放到房车旁边。", "reward": "商店刷新券 x1", "unlock": 29},
 		{"id": 35, "goal": "查看第5关经营条件，并确认所需食材种类。", "reward": "胡萝卜种子 x3，豌豆种子 x3", "unlock": 30},
-		{"id": 36, "goal": "满足第5关全部食材与种子开启条件。", "reward": "食材箱容量 +1", "unlock": 31},
+		{"id": 36, "goal": "满足第5关全部食材与种子开启条件。", "reward": "料理台升级材料 x1", "unlock": 31},
 		{"id": 37, "goal": "完成第5关经营。", "reward": "个人金币 x180", "unlock": 32},
 		{"id": 38, "goal": "完成第2-5关全部正式经营关卡。", "reward": "背包快捷栏解锁 1 格", "unlock": 33},
-		{"id": 39, "goal": "累计完成20个经营订单，不限关卡。", "reward": "神秘种子 x2，个人金币 x150", "unlock": 34},
-		{"id": 40, "goal": "与妈妈对话，确认房车可以前往新区域。", "reward": "解锁新区域：月露溪谷，月露莓种子 x2，个人金币 x200", "unlock": 35},
+		{"id": 39, "goal": "累计完成20个经营订单，不限关卡。", "reward": "个人金币 x220", "unlock": 34},
+		{"id": 40, "goal": "与妈妈对话，确认房车可以前往新区域。", "reward": "推进至 40/40，领取第四阶段节点奖励", "unlock": 35},
 	]
 
 func _chapter_one_task_key(task_id: int) -> String:
@@ -13504,6 +21127,37 @@ func _chapter_one_claimed_count() -> int:
 		if _is_chapter_one_task_claimed(int(task.get("id", 0))):
 			count += 1
 	return count
+
+func _chapter_one_phase_reward_key(threshold: int) -> String:
+	return str(threshold)
+
+func _chapter_one_phase_reward_by_threshold(threshold: int) -> Dictionary:
+	for reward in CHAPTER_ONE_PHASE_REWARDS:
+		if int(reward.get("threshold", 0)) == threshold:
+			return reward
+	return {}
+
+func _is_chapter_one_phase_reward_claimed(threshold: int) -> bool:
+	return bool(_chapter_one_phase_reward_claimed.get(_chapter_one_phase_reward_key(threshold), false))
+
+func _chapter_one_phase_reward_state(threshold: int) -> String:
+	if _is_chapter_one_phase_reward_claimed(threshold):
+		return "claimed"
+	return "claimable" if _chapter_one_claimed_count() >= threshold else "locked"
+
+func _chapter_one_phase_reward_claimable_count() -> int:
+	var count := 0
+	for reward in CHAPTER_ONE_PHASE_REWARDS:
+		if _chapter_one_phase_reward_state(int(reward.get("threshold", 0))) == "claimable":
+			count += 1
+	return count
+
+func _sync_chapter_one_phase_reward_legacy_state() -> void:
+	if not _is_chapter_one_task_claimed(CHAPTER_ONE_TASK_TOTAL) or not _chapter_one_unlocked_new_area:
+		return
+	for reward in CHAPTER_ONE_PHASE_REWARDS:
+		var threshold := int(reward.get("threshold", 0))
+		_chapter_one_phase_reward_claimed[_chapter_one_phase_reward_key(threshold)] = true
 
 func _is_chapter_one_task_unlocked(task: Dictionary) -> bool:
 	if not _is_chapter_one_task_system_active():
@@ -13520,7 +21174,7 @@ func _chapter_one_progress_text(text: String, done: bool) -> Dictionary:
 	return {"text": text, "done": done}
 
 func _chapter_one_all_crop_types() -> Array[String]:
-	return [CROP_CARROT, CROP_PEA, CROP_EGGPLANT, CROP_BELL_PEPPER, CROP_MARSHMALLOW]
+	return CropCatalog.MAINLINE_IDS.duplicate()
 
 func _chapter_one_required_crop_types_from_levels(first_level: int, last_level: int) -> Array[String]:
 	var seen: Dictionary = {}
@@ -13595,7 +21249,7 @@ func _chapter_one_task_progress(task: Dictionary) -> Dictionary:
 	var task_id := int(task.get("id", 0))
 	match task_id:
 		1:
-			return _chapter_one_progress(_chapter_one_confirmed_required_food_count(), 3)
+			return _chapter_one_progress(1 if _wind_chase_completed else 0, 1)
 		2:
 			var seed_total := _chapter_one_future_seed_total()
 			var ready := _chapter_one_business_level_ready(2)
@@ -13634,11 +21288,14 @@ func _chapter_one_task_progress(task: Dictionary) -> Dictionary:
 		15:
 			return _chapter_one_progress(_chapter_one_harvested_pea_total, 5)
 		16:
-			var carrot_total := _prepared_crop_total(CROP_CARROT)
-			var pea_total := _prepared_crop_total(CROP_PEA)
-			return _chapter_one_progress_text("胡萝卜类库存 %d/4，豌豆类库存 %d/4" % [mini(carrot_total, 4), mini(pea_total, 4)], carrot_total >= 4 and pea_total >= 4)
+			var carrot_total := _business_requirement_total(CROP_CARROT)
+			var pea_total := _business_requirement_total(CROP_PEA)
+			return _chapter_one_progress_text("胡萝卜准备 %d/4，豌豆准备 %d/4" % [mini(carrot_total, 4), mini(pea_total, 4)], carrot_total >= 4 and pea_total >= 4)
 		17:
-			var placed_equipment := _kitchen_equipment_roots.size()
+			var placed_types: Dictionary = {}
+			for instance_id in _kitchen_equipment_roots.keys():
+				placed_types[_kitchen_instance_type(str(instance_id))] = true
+			var placed_equipment := placed_types.size()
 			var prep_checked := _chapter_one_checked_business_prep_after_level2
 			return _chapter_one_progress_text("已摆放厨房设备 %d/3，经营准备检查 %d/1" % [mini(placed_equipment, 3), 1 if prep_checked else 0], placed_equipment >= 3 and prep_checked)
 		18:
@@ -13706,6 +21363,13 @@ func _chapter_one_claimable_count() -> int:
 
 func _chapter_one_task_panel_signature_text() -> String:
 	var parts: Array[String] = [str(_post_tutorial_objective_expanded), str(_chapter_one_claimed_count()), str(_chapter_one_claimable_count())]
+	var clue_event := _current_scheduled_local_event() if _local_event_business_id == "" else ""
+	parts.append("local_event_clue:%s" % clue_event)
+	var mainline_clue_level := _active_mainline_clue_level()
+	parts.append("mainline_clue:%d:%d" % [mainline_clue_level, _business_discovery_state(mainline_clue_level) if mainline_clue_level > 0 else 0])
+	for reward in CHAPTER_ONE_PHASE_REWARDS:
+		var threshold := int(reward.get("threshold", 0))
+		parts.append("phase_%d:%s" % [threshold, _chapter_one_phase_reward_state(threshold)])
 	for task in _chapter_one_task_definitions():
 		var task_id := int(task.get("id", 0))
 		var progress := _chapter_one_task_progress(task)
@@ -13731,7 +21395,7 @@ func _apply_chapter_one_task_reward(task_id: int) -> void:
 		3:
 			_coins += 80
 		4:
-			_chapter_one_food_chest_capacity_bonus += 1
+			_chapter_one_grant_seed(CROP_CARROT, 3)
 		5:
 			_coins += 60
 		6:
@@ -13755,7 +21419,7 @@ func _apply_chapter_one_task_reward(task_id: int) -> void:
 		15:
 			_chapter_one_pea_seed_regular_unlocked = true
 		16:
-			_chapter_one_food_chest_capacity_bonus += 1
+			_chapter_one_grant_seed(CROP_PEA, 3)
 		17:
 			_coins += 70
 		18:
@@ -13778,11 +21442,11 @@ func _apply_chapter_one_task_reward(task_id: int) -> void:
 		26:
 			_coins += 80
 		27:
-			_chapter_one_food_chest_capacity_bonus += 1
+			_chapter_one_grant_seed(CROP_EGGPLANT, 2)
 		28:
 			_coins += 120
 		29:
-			_chapter_one_grant_seed(CROP_MARSHMALLOW, 1)
+			_chapter_one_grant_seed(CROP_TOMATO, 1)
 		30:
 			_add_warehouse_item(WAREHOUSE_ITEM_MYSTERY_CROP_SAMPLE, 1)
 		31:
@@ -13797,24 +21461,49 @@ func _apply_chapter_one_task_reward(task_id: int) -> void:
 			_chapter_one_grant_seed(CROP_CARROT, 3)
 			_chapter_one_grant_seed(CROP_PEA, 3)
 		36:
-			_chapter_one_food_chest_capacity_bonus += 1
+			_add_warehouse_item(WAREHOUSE_ITEM_COOKING_TABLE_UPGRADE_MATERIAL, 1)
 		37:
 			_coins += 180
 		38:
 			_chapter_one_backpack_unlock_bonus += 1
 		39:
-			_chapter_one_grant_seed(CROP_MARSHMALLOW, 2)
-			_coins += 150
-		40:
-			_chapter_one_unlocked_new_area = true
-			_add_warehouse_item(WAREHOUSE_ITEM_MOON_DEW_BERRY_SEED, 2)
-			_coins += 200
+			_coins += 220
 	_update_coin_hud()
 	_update_inventory_bar()
 	_refresh_food_chest_capacity_label()
 	_rebuild_warehouse_panel()
 
-func _claim_chapter_one_task_reward(task_id: int) -> void:
+func _claim_chapter_one_phase_reward(threshold: int, origin: Vector2 = Vector2(-1.0, -1.0)) -> void:
+	var reward := _chapter_one_phase_reward_by_threshold(threshold)
+	if reward.is_empty():
+		return
+	if _is_chapter_one_phase_reward_claimed(threshold):
+		_show_side_toast("这个阶段奖励已经领取过了")
+		return
+	if _chapter_one_claimed_count() < threshold:
+		_show_side_toast("完成 %d 项目标任务后才能领取" % threshold)
+		return
+	_chapter_one_phase_reward_claimed[_chapter_one_phase_reward_key(threshold)] = true
+	_coins += int(reward.get("coins", 0))
+	var warehouse_item := str(reward.get("warehouse_item", ""))
+	if warehouse_item != "":
+		_add_warehouse_item(warehouse_item, int(reward.get("warehouse_amount", 1)))
+	if bool(reward.get("unlock_new_area", false)):
+		_chapter_one_unlocked_new_area = true
+	_update_coin_hud()
+	_update_inventory_bar()
+	_rebuild_warehouse_panel()
+	_chapter_one_task_panel_signature = ""
+	_chapter_one_task_layout_signature = ""
+	_hide_chapter_one_phase_reward_detail()
+	_play_chapter_one_task_confetti(origin, 1.35)
+	AudioManager.play_sfx("reward_stage")
+	_show_side_toast("阶段奖励已领取：%s" % str(reward.get("reward", "奖励")))
+	_update_post_tutorial_objective()
+
+func _claim_chapter_one_task_reward(task_id: int, card: Control = null, button: Button = null) -> void:
+	if _chapter_one_task_claim_animation_running:
+		return
 	var target_task: Dictionary = {}
 	for task in _chapter_one_task_definitions():
 		if int(task.get("id", 0)) == task_id:
@@ -13825,14 +21514,30 @@ func _claim_chapter_one_task_reward(task_id: int) -> void:
 	if not _is_chapter_one_task_claimable(target_task):
 		_show_side_toast("任务还没有完成")
 		return
+	_chapter_one_task_claim_animation_running = true
+	if button != null and is_instance_valid(button):
+		button.disabled = true
 	_chapter_one_task_claimed[_chapter_one_task_key(task_id)] = true
 	_apply_chapter_one_task_reward(task_id)
 	_chapter_one_task_panel_signature = ""
-	_play_chapter_one_task_confetti()
+	_hide_chapter_one_phase_reward_detail()
+	var confetti_origin := card.get_global_rect().get_center() if card != null and is_instance_valid(card) else Vector2(-1.0, -1.0)
+	_play_chapter_one_task_confetti(confetti_origin, 1.0)
+	AudioManager.play_sfx("reward_small")
 	_show_side_toast("奖励已领取：%s" % str(target_task.get("reward", "")))
+	if card != null and is_instance_valid(card):
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var tween := create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(card, "position:x", card.position.x + maxf(card.size.x + 36.0, 180.0), 0.20).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_property(card, "modulate:a", 0.0, 0.18)
+		await tween.finished
+		if is_instance_valid(card):
+			card.queue_free()
+	_chapter_one_task_claim_animation_running = false
 	_update_post_tutorial_objective()
 
-func _play_chapter_one_task_confetti() -> void:
+func _play_chapter_one_task_confetti(origin: Vector2 = Vector2(-1.0, -1.0), intensity: float = 1.0) -> void:
 	if _hud_root == null:
 		return
 	var root := Control.new()
@@ -13842,20 +21547,21 @@ func _play_chapter_one_task_confetti() -> void:
 	root.z_index = 40
 	_hud_root.add_child(root)
 	var viewport_size := get_viewport().get_visible_rect().size
-	var center := Vector2(viewport_size.x - 170.0, 150.0)
+	var center := origin if origin.x >= 0.0 and origin.y >= 0.0 else Vector2(viewport_size.x - 150.0, 135.0)
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var tween := create_tween()
 	tween.set_parallel(true)
-	for index in range(30):
+	var piece_count := maxi(40, roundi(52.0 * intensity))
+	for index in range(piece_count):
 		var piece := ColorRect.new()
 		piece.color = [Color(1.0, 0.86, 0.38, 0.98), Color(0.92, 0.52, 0.32, 0.95), Color(0.62, 0.78, 0.42, 0.95), Color(1.0, 0.96, 0.70, 0.95)][index % 4]
-		piece.size = Vector2(rng.randf_range(5.0, 10.0), rng.randf_range(8.0, 16.0))
-		piece.position = center + Vector2(rng.randf_range(-18.0, 18.0), rng.randf_range(-12.0, 12.0))
+		piece.size = Vector2(rng.randf_range(6.0, 12.0) * intensity, rng.randf_range(9.0, 18.0) * intensity)
+		piece.position = center + Vector2(rng.randf_range(-22.0, 22.0), rng.randf_range(-16.0, 16.0))
 		piece.rotation = rng.randf_range(-PI, PI)
 		root.add_child(piece)
-		var outward := Vector2(rng.randf_range(-150.0, 130.0), rng.randf_range(-95.0, 125.0))
-		var duration := rng.randf_range(0.55, 0.88)
+		var outward := Vector2(rng.randf_range(-170.0, 150.0) * intensity, rng.randf_range(-115.0, 140.0) * intensity)
+		var duration := rng.randf_range(0.62, 0.98)
 		tween.tween_property(piece, "position", piece.position + outward, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(piece, "rotation", piece.rotation + rng.randf_range(-5.0, 5.0), duration)
 		tween.tween_property(piece, "modulate:a", 0.0, 0.22).set_delay(duration * 0.62)
@@ -13864,11 +21570,136 @@ func _play_chapter_one_task_confetti() -> void:
 func _play_post_tutorial_task_confetti() -> void:
 	_play_chapter_one_task_confetti()
 
+func _play_opening_package_confetti(origin: Vector2) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	_play_chapter_one_task_confetti(origin, 1.65)
+	_play_chapter_one_task_confetti(Vector2(viewport_size.x * 0.30, viewport_size.y * 0.30), 1.25)
+	_play_chapter_one_task_confetti(Vector2(viewport_size.x * 0.70, viewport_size.y * 0.30), 1.25)
+
+func _play_opening_package_reward_sequence(origin: Vector2, rewards: Array[Dictionary], summary_text: String) -> void:
+	AudioManager.play_sfx("reward_stage")
+	if _hud_root == null or not is_instance_valid(_hud_root):
+		_opening_package_reward_feedback_running = false
+		_show_opening_package_reward_panel(summary_text)
+		return
+	_opening_package_reward_feedback_running = true
+	_play_opening_package_confetti(origin)
+	var overlay := Control.new()
+	overlay.name = "OpeningPackageRewardFlow"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 90
+	_hud_root.add_child(overlay)
+	for reward in rewards:
+		_spawn_opening_reward_fly_packet(overlay, origin, reward)
+		await get_tree().create_timer(0.12).timeout
+	await get_tree().create_timer(0.90).timeout
+	if overlay != null and is_instance_valid(overlay):
+		overlay.queue_free()
+	_opening_package_reward_feedback_running = false
+	_show_opening_package_reward_panel(summary_text)
+
+func _spawn_opening_reward_fly_packet(parent: Control, origin: Vector2, reward: Dictionary) -> void:
+	var chip := PanelContainer.new()
+	chip.name = "OpeningReward_%s" % str(reward.get("id", "item"))
+	chip.size = Vector2(112.0, 58.0)
+	chip.pivot_offset = chip.size * 0.5
+	chip.position = origin - chip.pivot_offset
+	chip.scale = Vector2(0.42, 0.42)
+	chip.modulate.a = 0.0
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.93, 0.70, 0.97), Color(0.91, 0.66, 0.23, 0.96), 18.0, 2))
+	parent.add_child(chip)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 4)
+	chip.add_child(row)
+	var texture := _load_ui_texture(str(reward.get("icon", "")))
+	if texture != null:
+		var icon := TextureRect.new()
+		icon.texture = texture
+		icon.custom_minimum_size = Vector2(38.0, 38.0)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+	else:
+		var fallback := Label.new()
+		fallback.text = str(reward.get("fallback_icon", "◆"))
+		fallback.custom_minimum_size = Vector2(38.0, 38.0)
+		fallback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		fallback.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		fallback.add_theme_font_size_override("font_size", 26)
+		fallback.add_theme_color_override("font_color", Color(0.79, 0.51, 0.12, 1.0))
+		row.add_child(fallback)
+	var amount := Label.new()
+	amount.text = str(reward.get("fly_text", "+1"))
+	amount.add_theme_font_size_override("font_size", 16)
+	amount.add_theme_color_override("font_color", Color(0.31, 0.18, 0.06, 1.0))
+	row.add_child(amount)
+
+	var target := _opening_reward_target_position(reward)
+	var tween := chip.create_tween()
+	tween.tween_property(chip, "modulate:a", 1.0, 0.08)
+	tween.parallel().tween_property(chip, "scale", Vector2(1.06, 1.06), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(chip, "scale", Vector2.ONE, 0.08)
+	tween.tween_interval(0.08)
+	tween.tween_property(chip, "position", target - chip.pivot_offset, 0.62).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(chip, "scale", Vector2(0.28, 0.28), 0.62).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(chip, "modulate:a", 0.0, 0.18).set_delay(0.44)
+	tween.tween_callback(_pulse_opening_reward_target.bind(reward, target))
+	tween.tween_callback(chip.queue_free)
+
+func _opening_reward_target_position(reward: Dictionary) -> Vector2:
+	var target_control := reward.get("target_control", null) as Control
+	if target_control != null and is_instance_valid(target_control):
+		return target_control.get_global_rect().get_center()
+	var target_position: Variant = reward.get("target_position", null)
+	if target_position is Vector2:
+		return target_position
+	return get_viewport().get_visible_rect().size * Vector2(0.5, 0.82)
+
+func _pulse_opening_reward_target(reward: Dictionary, target_position: Vector2) -> void:
+	var target_control := reward.get("target_control", null) as Control
+	if target_control != null and is_instance_valid(target_control):
+		var previous := target_control.get_meta("opening_reward_pulse", null) as Tween
+		if previous != null and previous.is_valid():
+			previous.kill()
+		target_control.pivot_offset = target_control.size * 0.5
+		target_control.scale = Vector2.ONE
+		target_control.modulate = Color.WHITE
+		var pulse := target_control.create_tween()
+		target_control.set_meta("opening_reward_pulse", pulse)
+		pulse.tween_property(target_control, "scale", Vector2(1.16, 1.16), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pulse.parallel().tween_property(target_control, "modulate", Color(1.18, 1.08, 0.72, 1.0), 0.12)
+		pulse.tween_property(target_control, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pulse.parallel().tween_property(target_control, "modulate", Color.WHITE, 0.20)
+	var arrival := Label.new()
+	arrival.text = str(reward.get("arrival_text", "已获得"))
+	arrival.size = Vector2(190.0, 34.0)
+	arrival.position = target_position - Vector2(95.0, 48.0)
+	arrival.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	arrival.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	arrival.add_theme_font_size_override("font_size", 17)
+	arrival.add_theme_color_override("font_color", Color(1.0, 0.84, 0.28, 1.0))
+	arrival.add_theme_color_override("font_outline_color", Color(0.24, 0.12, 0.03, 0.96))
+	arrival.add_theme_constant_override("outline_size", 6)
+	arrival.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arrival.z_index = 96
+	_hud_root.add_child(arrival)
+	var arrival_tween := arrival.create_tween()
+	arrival_tween.set_parallel(true)
+	arrival_tween.tween_property(arrival, "position", arrival.position + Vector2(0.0, -28.0), 0.62).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	arrival_tween.tween_property(arrival, "modulate:a", 0.0, 0.24).set_delay(0.38)
+	arrival_tween.chain().tween_callback(arrival.queue_free)
+
 func _update_chapter_one_task_objective() -> void:
 	if _post_tutorial_objective == null or _post_tutorial_objective_label == null:
 		return
 	var should_show := _is_chapter_one_task_system_active() and not _dialogue_open and not _map_open and _reward_overlay == null
 	if _shop_overlay != null and _shop_overlay.visible:
+		should_show = false
+	if _food_chest_overlay != null and _food_chest_overlay.visible:
 		should_show = false
 	if _business_result_overlay != null and _business_result_overlay.visible:
 		should_show = false
@@ -13884,21 +21715,20 @@ func _update_chapter_one_task_objective() -> void:
 func _update_chapter_one_task_objective_layout() -> void:
 	if _post_tutorial_objective == null:
 		return
+	_sync_chapter_one_phase_reward_legacy_state()
 	var expanded := _post_tutorial_objective_expanded
 	var layout_signature := "%s|%s|%s" % [expanded, get_viewport().get_visible_rect().size, _chapter_one_task_panel_signature_text()]
 	if layout_signature == _chapter_one_task_layout_signature:
 		return
 	_chapter_one_task_layout_signature = layout_signature
-	var viewport_height := get_viewport().get_visible_rect().size.y
-	var panel_height := clampf(viewport_height * 0.66, 420.0, 560.0)
 	_post_tutorial_objective.anchor_left = 1.0
 	_post_tutorial_objective.anchor_top = 0.0
 	_post_tutorial_objective.anchor_right = 1.0
 	_post_tutorial_objective.anchor_bottom = 0.0
-	_post_tutorial_objective.offset_left = -376.0 if expanded else -210.0
-	_post_tutorial_objective.offset_top = 70.0
-	_post_tutorial_objective.offset_right = -20.0
-	_post_tutorial_objective.offset_bottom = 70.0 + (panel_height if expanded else 68.0)
+	_post_tutorial_objective.offset_left = -282.0 if expanded else -124.0
+	_post_tutorial_objective.offset_top = 18.0
+	_post_tutorial_objective.offset_right = -12.0
+	_post_tutorial_objective.offset_bottom = 408.0 if expanded else 70.0
 	var panel_style: StyleBox = _make_notice_board_style() if expanded else _make_task_tab_style()
 	if panel_style is StyleBoxFlat:
 		var flat_style := panel_style as StyleBoxFlat
@@ -13906,6 +21736,15 @@ func _update_chapter_one_task_objective_layout() -> void:
 		flat_style.shadow_size = 6 if expanded else 3
 		flat_style.shadow_offset = Vector2(0.0, 3.0)
 	_post_tutorial_objective.add_theme_stylebox_override("panel", panel_style)
+	if _post_tutorial_board_art != null:
+		_post_tutorial_board_art.visible = expanded
+		_post_tutorial_board_art.self_modulate = Color.WHITE
+	var compact_art := _post_tutorial_objective.get_node_or_null("TaskCompactArt") as TextureRect
+	if compact_art != null:
+		compact_art.visible = not expanded
+	var compact_backdrop := _post_tutorial_objective.get_node_or_null("TaskCompactBackdrop") as PanelContainer
+	if compact_backdrop != null:
+		compact_backdrop.visible = false
 	var icon := _post_tutorial_objective.get_node_or_null("ObjectiveIcon") as Label
 	if icon != null:
 		icon.visible = false
@@ -13919,21 +21758,22 @@ func _update_chapter_one_task_objective_layout() -> void:
 	if _post_tutorial_objective_label != null:
 		_post_tutorial_objective_label.visible = true
 		_post_tutorial_objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if not expanded else HORIZONTAL_ALIGNMENT_LEFT
-		_post_tutorial_objective_label.offset_left = 14.0
-		_post_tutorial_objective_label.offset_top = 8.0
-		_post_tutorial_objective_label.offset_right = -14.0
-		_post_tutorial_objective_label.offset_bottom = 42.0
-		_post_tutorial_objective_label.add_theme_font_size_override("font_size", 22 if expanded else 16)
+		_post_tutorial_objective_label.offset_left = 18.0 if expanded else 12.0
+		_post_tutorial_objective_label.offset_top = 18.0 if expanded else 9.0
+		_post_tutorial_objective_label.offset_right = -18.0 if expanded else -12.0
+		_post_tutorial_objective_label.offset_bottom = 50.0 if expanded else 38.0
+		_post_tutorial_objective_label.add_theme_font_size_override("font_size", 18 if expanded else 16)
 		_post_tutorial_objective_label.add_theme_color_override("font_color", Color(0.25, 0.19, 0.12, 1.0) if expanded else Color(0.30, 0.22, 0.13, 1.0))
-		_post_tutorial_objective_label.text = "目标任务  %d/%d" % [_chapter_one_claimed_count(), CHAPTER_ONE_TASK_TOTAL] if expanded else "任务 %d/%d" % [_chapter_one_claimed_count(), CHAPTER_ONE_TASK_TOTAL]
+		_post_tutorial_objective_label.text = "目标任务  %d/%d" % [_chapter_one_claimed_count(), CHAPTER_ONE_TASK_TOTAL] if expanded else "任务"
 	if _post_tutorial_gift_button != null:
-		var has_claimable := _chapter_one_claimable_count() > 0
+		var has_claimable := _chapter_one_claimable_count() > 0 or _chapter_one_phase_reward_claimable_count() > 0
 		_post_tutorial_gift_button.visible = has_claimable and not expanded
 		_post_tutorial_gift_button.text = ""
-		_post_tutorial_gift_button.offset_left = -16.0
-		_post_tutorial_gift_button.offset_top = 8.0
+		_post_tutorial_gift_button.offset_left = -20.0
+		_post_tutorial_gift_button.offset_top = 7.0
 		_post_tutorial_gift_button.offset_right = -6.0
-		_post_tutorial_gift_button.offset_bottom = 18.0
+		_post_tutorial_gift_button.offset_bottom = 21.0
+		_post_tutorial_gift_button.tooltip_text = "有可领取的任务或阶段奖励"
 		_post_tutorial_gift_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.95, 0.18, 0.10, 0.98), Color(1.0, 0.92, 0.72, 0.98), 5.0, 1))
 		_post_tutorial_gift_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.26, 0.14, 1.0), Color(1.0, 0.92, 0.72, 1.0), 5.0, 1))
 	if _post_tutorial_dropdown != null:
@@ -13942,16 +21782,18 @@ func _update_chapter_one_task_objective_layout() -> void:
 		_post_tutorial_dropdown.anchor_top = 0.0
 		_post_tutorial_dropdown.anchor_right = 1.0
 		_post_tutorial_dropdown.anchor_bottom = 1.0
-		_post_tutorial_dropdown.offset_left = 10.0
-		_post_tutorial_dropdown.offset_top = 48.0
-		_post_tutorial_dropdown.offset_right = -10.0
-		_post_tutorial_dropdown.offset_bottom = -10.0
+		_post_tutorial_dropdown.offset_left = 18.0
+		_post_tutorial_dropdown.offset_top = 58.0
+		_post_tutorial_dropdown.offset_right = -18.0
+		_post_tutorial_dropdown.offset_bottom = -22.0
 		var paper_style := _make_round_style(Color(0.93, 0.88, 0.77, 0.98), Color(0.72, 0.61, 0.43, 0.92), 4.0, 1)
 		paper_style.content_margin_left = 2.0
 		paper_style.content_margin_right = 2.0
 		_post_tutorial_dropdown.add_theme_stylebox_override("panel", paper_style)
 	if _post_tutorial_alt_guide != null:
 		_post_tutorial_alt_guide.visible = false
+	if not expanded:
+		_hide_chapter_one_phase_reward_detail()
 	_rebuild_chapter_one_task_panel_if_needed()
 
 func _rebuild_chapter_one_task_panel_if_needed(force: bool = false) -> void:
@@ -13963,6 +21805,7 @@ func _rebuild_chapter_one_task_panel_if_needed(force: bool = false) -> void:
 	var previous_scroll := 0
 	if _chapter_one_task_scroll != null:
 		previous_scroll = _chapter_one_task_scroll.scroll_vertical
+	_hide_chapter_one_phase_reward_detail()
 	for child in _post_tutorial_dropdown.get_children():
 		child.queue_free()
 	_chapter_one_task_progress_bar = null
@@ -13971,38 +21814,286 @@ func _rebuild_chapter_one_task_panel_if_needed(force: bool = false) -> void:
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 7)
+	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_right", 7)
+	margin.add_theme_constant_override("margin_bottom", 5)
 	_post_tutorial_dropdown.add_child(margin)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 7)
+	box.add_theme_constant_override("separation", 5)
 	margin.add_child(box)
 
 	_chapter_one_task_progress_bar = ProgressBar.new()
 	_chapter_one_task_progress_bar.max_value = float(CHAPTER_ONE_TASK_TOTAL)
 	_chapter_one_task_progress_bar.value = float(_chapter_one_claimed_count())
 	_chapter_one_task_progress_bar.show_percentage = false
-	_chapter_one_task_progress_bar.custom_minimum_size = Vector2(0.0, 12.0)
+	_chapter_one_task_progress_bar.custom_minimum_size = Vector2(0.0, 9.0)
 	_chapter_one_task_progress_bar.add_theme_stylebox_override("background", _make_round_style(Color(0.35, 0.30, 0.20, 0.92), Color(0.72, 0.61, 0.40, 0.88), 5.0, 1))
 	_chapter_one_task_progress_bar.add_theme_stylebox_override("fill", _make_round_style(Color(0.47, 0.50, 0.22, 1.0), Color(0.31, 0.34, 0.14, 0.96), 4.0, 1))
 	box.add_child(_chapter_one_task_progress_bar)
+	box.add_child(_create_chapter_one_phase_reward_line())
 
 	_chapter_one_task_scroll = ScrollContainer.new()
 	_chapter_one_task_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_chapter_one_task_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_chapter_one_task_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_chapter_one_task_scroll.clip_contents = true
+	_chapter_one_task_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	box.add_child(_chapter_one_task_scroll)
 
 	_chapter_one_task_list = VBoxContainer.new()
 	_chapter_one_task_list.add_theme_constant_override("separation", 7)
 	_chapter_one_task_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_chapter_one_task_scroll.add_child(_chapter_one_task_list)
+	var mainline_clue_level := _active_mainline_clue_level()
+	if mainline_clue_level > 0:
+		_chapter_one_task_list.add_child(_create_mainline_discovery_task_clue_card(mainline_clue_level))
+	var clue_event := _current_scheduled_local_event() if _local_event_business_id == "" else ""
+	if clue_event != "":
+		_chapter_one_task_list.add_child(_create_local_event_task_clue_card(clue_event))
+	var completed_tasks: Array[Dictionary] = []
+	var active_tasks: Array[Dictionary] = []
+	var locked_tasks: Array[Dictionary] = []
 	for task in _chapter_one_task_definitions():
+		var task_id := int(task.get("id", 0))
+		if _is_chapter_one_task_claimed(task_id):
+			continue
+		if _is_chapter_one_task_claimable(task):
+			completed_tasks.append(task)
+		elif _is_chapter_one_task_unlocked(task):
+			active_tasks.append(task)
+		else:
+			locked_tasks.append(task)
+	var ordered_tasks: Array[Dictionary] = []
+	ordered_tasks.append_array(completed_tasks)
+	ordered_tasks.append_array(active_tasks)
+	ordered_tasks.append_array(locked_tasks)
+	var visible_task_count := 0
+	for task in ordered_tasks:
 		_chapter_one_task_list.add_child(_create_chapter_one_task_card(task))
-	_chapter_one_task_scroll.scroll_vertical = previous_scroll
+		visible_task_count += 1
+	if visible_task_count == 0:
+		var complete_label := Label.new()
+		complete_label.text = "全部目标任务已领取\n点击上方节点查看阶段奖励"
+		complete_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		complete_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		complete_label.custom_minimum_size = Vector2(0.0, 72.0)
+		complete_label.add_theme_font_size_override("font_size", 13)
+		complete_label.add_theme_color_override("font_color", Color(0.32, 0.25, 0.15, 0.92))
+		_chapter_one_task_list.add_child(complete_label)
+	if completed_tasks.is_empty():
+		_chapter_one_task_scroll.scroll_vertical = previous_scroll
+	else:
+		_chapter_one_task_scroll.scroll_vertical = 0
+		_chapter_one_task_scroll.set_deferred("scroll_vertical", 0)
 	_chapter_one_task_panel_signature = signature
+
+func _create_local_event_task_clue_card(event_id: String) -> Control:
+	var config := LocalEventCatalog.get_event(event_id)
+	var card := PanelContainer.new()
+	card.name = "LocalEventDirectionClue"
+	card.custom_minimum_size = Vector2(0.0, 46.0)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_theme_stylebox_override("panel", _make_round_style(Color(0.83, 0.80, 0.62, 0.96), Color(0.49, 0.51, 0.28, 0.94), 6.0, 1))
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 9)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 9)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	card.add_child(margin)
+	var clue := Label.new()
+	clue.text = "地方线索：%s" % str(config.get("direction_hint", "远处好像有新的动静"))
+	clue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	clue.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	clue.add_theme_font_size_override("font_size", 12)
+	clue.add_theme_color_override("font_color", Color(0.28, 0.27, 0.13, 1.0))
+	clue.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(clue)
+	return card
+
+func _create_mainline_discovery_task_clue_card(level_id: int) -> Control:
+	var site := BusinessDiscoveryCatalog.get_site(level_id)
+	var state := _business_discovery_state(level_id)
+	var card := PanelContainer.new()
+	card.name = "MainlineDiscoveryClue%d" % level_id
+	card.custom_minimum_size = Vector2(0.0, 58.0)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_theme_stylebox_override("panel", _make_round_style(Color(0.91, 0.82, 0.60, 0.98), Color(0.64, 0.41, 0.16, 0.96), 7.0, 2))
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 9)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 9)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	card.add_child(margin)
+	var clue := Label.new()
+	clue.text = "主线传闻：%s" % str(site.get("clue", "去大世界寻找新的顾客。"))
+	if state == BusinessDiscoveryCatalog.STATE_DISCOVERED:
+		clue.text = "首次委托：将房车开到%s并停入现场空地" % str(site.get("short_name", "顾客所在地"))
+	clue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	clue.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	clue.add_theme_font_size_override("font_size", 12)
+	clue.add_theme_color_override("font_color", Color(0.35, 0.22, 0.10, 1.0))
+	clue.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(clue)
+	return card
+
+func _create_chapter_one_phase_reward_line() -> Control:
+	var wrap := Control.new()
+	wrap.name = "ChapterOnePhaseRewardLine"
+	wrap.custom_minimum_size = Vector2(0.0, 53.0)
+	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.draw.connect(_draw_chapter_one_phase_reward_line.bind(wrap, _chapter_one_claimed_count()))
+	for reward in CHAPTER_ONE_PHASE_REWARDS:
+		var threshold := int(reward.get("threshold", 0))
+		var ratio := float(threshold) / float(CHAPTER_ONE_TASK_TOTAL)
+		var track_offset := 14.0 - 28.0 * ratio
+		var state := _chapter_one_phase_reward_state(threshold)
+		var node := Button.new()
+		node.name = "PhaseReward%d" % threshold
+		node.text = "✓" if state == "claimed" else "🎁"
+		node.focus_mode = Control.FOCUS_NONE
+		node.tooltip_text = "%s：%s" % [str(reward.get("title", "阶段奖励")), str(reward.get("reward", "奖励"))]
+		node.anchor_left = ratio
+		node.anchor_right = ratio
+		node.anchor_top = 0.0
+		node.anchor_bottom = 0.0
+		node.offset_left = track_offset - 14.0
+		node.offset_top = 9.0
+		node.offset_right = track_offset + 14.0
+		node.offset_bottom = 37.0
+		node.add_theme_font_size_override("font_size", 14)
+		var node_fill := Color(0.68, 0.64, 0.54, 0.84)
+		var node_border := Color(0.45, 0.39, 0.28, 0.72)
+		var node_font := Color(0.42, 0.35, 0.23, 0.84)
+		if state == "claimable":
+			node_fill = Color(1.0, 0.84, 0.32, 1.0)
+			node_border = Color(0.82, 0.34, 0.12, 1.0)
+			node_font = Color(0.43, 0.17, 0.05, 1.0)
+		elif state == "claimed":
+			node_fill = Color(0.52, 0.68, 0.35, 0.96)
+			node_border = Color(0.25, 0.42, 0.18, 0.96)
+			node_font = Color(0.14, 0.29, 0.10, 1.0)
+		node.add_theme_color_override("font_color", node_font)
+		node.add_theme_color_override("font_hover_color", node_font)
+		node.add_theme_stylebox_override("normal", _make_round_style(node_fill, node_border, 14.0, 1))
+		node.add_theme_stylebox_override("hover", _make_round_style(node_fill.lightened(0.10), node_border.lightened(0.08), 14.0, 2))
+		node.add_theme_stylebox_override("pressed", _make_round_style(node_fill.darkened(0.12), node_border, 14.0, 2))
+		node.pressed.connect(_show_chapter_one_phase_reward_detail.bind(threshold, node))
+		wrap.add_child(node)
+		if state == "claimable":
+			var red_dot := Label.new()
+			red_dot.text = "●"
+			red_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			red_dot.anchor_left = ratio
+			red_dot.anchor_right = ratio
+			red_dot.anchor_top = 0.0
+			red_dot.anchor_bottom = 0.0
+			red_dot.offset_left = track_offset + 6.0
+			red_dot.offset_top = 4.0
+			red_dot.offset_right = track_offset + 20.0
+			red_dot.offset_bottom = 18.0
+			red_dot.z_index = 2
+			red_dot.add_theme_font_size_override("font_size", 13)
+			red_dot.add_theme_color_override("font_color", Color(0.94, 0.08, 0.05, 1.0))
+			wrap.add_child(red_dot)
+		var threshold_label := Label.new()
+		threshold_label.text = "%d" % threshold
+		threshold_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		threshold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		threshold_label.anchor_left = ratio
+		threshold_label.anchor_right = ratio
+		threshold_label.anchor_top = 0.0
+		threshold_label.anchor_bottom = 0.0
+		threshold_label.offset_left = track_offset - 18.0
+		threshold_label.offset_top = 37.0
+		threshold_label.offset_right = track_offset + 18.0
+		threshold_label.offset_bottom = 52.0
+		threshold_label.add_theme_font_size_override("font_size", 10)
+		threshold_label.add_theme_color_override("font_color", Color(0.35, 0.26, 0.14, 0.90))
+		wrap.add_child(threshold_label)
+	return wrap
+
+func _draw_chapter_one_phase_reward_line(control: Control, claimed_count: int) -> void:
+	if control == null:
+		return
+	var left := 14.0
+	var right := maxf(control.size.x - 14.0, left + 1.0)
+	var y := 23.0
+	var width := right - left
+	var ratio := clampf(float(claimed_count) / float(CHAPTER_ONE_TASK_TOTAL), 0.0, 1.0)
+	control.draw_rect(Rect2(Vector2(left, y - 3.0), Vector2(width, 6.0)), Color(0.39, 0.32, 0.22, 0.38), true, 3.0)
+	control.draw_rect(Rect2(Vector2(left, y - 3.0), Vector2(width * ratio, 6.0)), Color(0.94, 0.68, 0.24, 0.88), true, 3.0)
+
+func _hide_chapter_one_phase_reward_detail() -> void:
+	if _chapter_one_phase_detail != null and is_instance_valid(_chapter_one_phase_detail):
+		_chapter_one_phase_detail.queue_free()
+	_chapter_one_phase_detail = null
+
+func _show_chapter_one_phase_reward_detail(threshold: int, node: Control) -> void:
+	if _post_tutorial_objective == null or node == null or not is_instance_valid(node):
+		return
+	var reward := _chapter_one_phase_reward_by_threshold(threshold)
+	if reward.is_empty():
+		return
+	_hide_chapter_one_phase_reward_detail()
+	var state := _chapter_one_phase_reward_state(threshold)
+	var detail := PanelContainer.new()
+	detail.name = "ChapterOnePhaseRewardDetail"
+	detail.custom_minimum_size = Vector2(208.0, 0.0)
+	detail.mouse_filter = Control.MOUSE_FILTER_STOP
+	detail.z_index = 24
+	detail.add_theme_stylebox_override("panel", _make_round_style(Color(1.0, 0.95, 0.79, 0.99), Color(0.53, 0.34, 0.13, 0.98), 7.0, 2))
+	_post_tutorial_objective.add_child(detail)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	detail.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 3)
+	margin.add_child(box)
+	var title := Label.new()
+	title.text = "🎁 %s  %d/%d" % [str(reward.get("title", "阶段奖励")), threshold, CHAPTER_ONE_TASK_TOTAL]
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color(0.31, 0.19, 0.07, 1.0))
+	box.add_child(title)
+	var reward_label := Label.new()
+	reward_label.text = "奖励：%s" % str(reward.get("reward", "奖励"))
+	reward_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reward_label.add_theme_font_size_override("font_size", 12)
+	reward_label.add_theme_color_override("font_color", Color(0.45, 0.27, 0.08, 0.98))
+	box.add_child(reward_label)
+	var state_label := Label.new()
+	state_label.text = "已领取" if state == "claimed" else ("可领取" if state == "claimable" else "完成 %d 项目标任务后可领取" % threshold)
+	state_label.add_theme_font_size_override("font_size", 11)
+	state_label.add_theme_color_override("font_color", Color(0.20, 0.45, 0.18, 1.0) if state == "claimable" else Color(0.39, 0.31, 0.18, 0.92))
+	box.add_child(state_label)
+	if state == "claimable":
+		var claim_button := Button.new()
+		claim_button.text = "领取奖励"
+		claim_button.custom_minimum_size = Vector2(84.0, 24.0)
+		claim_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+		claim_button.focus_mode = Control.FOCUS_NONE
+		claim_button.add_theme_font_size_override("font_size", 12)
+		claim_button.add_theme_color_override("font_color", Color(0.28, 0.16, 0.05, 1.0))
+		claim_button.add_theme_stylebox_override("normal", _make_round_style(Color(1.0, 0.79, 0.28, 1.0), Color(0.63, 0.30, 0.09, 1.0), 5.0, 1))
+		claim_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.87, 0.42, 1.0), Color(0.74, 0.37, 0.10, 1.0), 5.0, 1))
+		claim_button.pressed.connect(_claim_chapter_one_phase_reward.bind(threshold, node.get_global_rect().get_center()))
+		box.add_child(claim_button)
+	detail.reset_size()
+	var detail_size := Vector2(208.0, maxf(detail.get_combined_minimum_size().y, 76.0))
+	detail.size = detail_size
+	var root_rect := _post_tutorial_objective.get_global_rect()
+	var node_rect := node.get_global_rect()
+	var target := node_rect.position - root_rect.position + Vector2(node_rect.size.x * 0.5 - detail_size.x * 0.5, node_rect.size.y + 5.0)
+	target.x = clampf(target.x, 5.0, maxf(_post_tutorial_objective.size.x - detail_size.x - 5.0, 5.0))
+	target.y = clampf(target.y, 60.0, maxf(_post_tutorial_objective.size.y - detail_size.y - 8.0, 60.0))
+	detail.position = target
+	_chapter_one_phase_detail = detail
 
 func _create_chapter_one_task_card(task: Dictionary) -> PanelContainer:
 	var task_id := int(task.get("id", 0))
@@ -14011,14 +22102,11 @@ func _create_chapter_one_task_card(task: Dictionary) -> PanelContainer:
 	var claimable := _is_chapter_one_task_claimable(task)
 	var progress := _chapter_one_task_progress(task)
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(0.0, 82.0)
+	card.custom_minimum_size = Vector2(0.0, 70.0)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var card_color := Color(0.98, 0.94, 0.84, 0.98)
 	var border_color := Color(0.71, 0.60, 0.40, 0.92)
-	if claimed:
-		card_color = Color(0.77, 0.73, 0.64, 0.74)
-		border_color = Color(0.51, 0.47, 0.37, 0.54)
-	elif not unlocked:
+	if not unlocked:
 		card_color = Color(0.69, 0.66, 0.58, 0.58)
 		border_color = Color(0.48, 0.43, 0.34, 0.52)
 	elif claimable:
@@ -14046,9 +22134,10 @@ func _create_chapter_one_task_card(task: Dictionary) -> PanelContainer:
 	row.add_child(box)
 
 	var goal := Label.new()
-	goal.text = "目标：%s" % str(task.get("goal", ""))
-	goal.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	goal.add_theme_font_size_override("font_size", 15)
+	goal.text = str(task.get("goal", ""))
+	goal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	goal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	goal.add_theme_font_size_override("font_size", 12)
 	goal.add_theme_color_override("font_color", Color(0.29, 0.22, 0.14, 0.98) if unlocked else Color(0.32, 0.30, 0.24, 0.72))
 	box.add_child(goal)
 
@@ -14070,16 +22159,14 @@ func _create_chapter_one_task_card(task: Dictionary) -> PanelContainer:
 	button.custom_minimum_size = Vector2(62.0, 26.0)
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.focus_mode = Control.FOCUS_NONE
-	if claimed:
-		button.text = "已领取"
-		button.disabled = true
-	elif not unlocked:
+	if not unlocked:
 		button.text = "未解锁"
 		button.disabled = true
 	elif claimable:
 		button.text = "领取"
 		button.disabled = false
-		button.pressed.connect(_claim_chapter_one_task_reward.bind(task_id))
+		button.set_meta("audio_role", "silent")
+		button.pressed.connect(_claim_chapter_one_task_reward.bind(task_id, card, button))
 	else:
 		button.text = "进行中"
 		button.disabled = true
@@ -14093,6 +22180,7 @@ func _create_chapter_one_task_card(task: Dictionary) -> PanelContainer:
 	return card
 
 func _update_post_tutorial_objective() -> void:
+	_sync_food_chest_tutorial_state()
 	if _post_tutorial_objective == null or _post_tutorial_objective_label == null:
 		return
 	if _is_chapter_one_task_system_active():
@@ -14103,7 +22191,11 @@ func _update_post_tutorial_objective() -> void:
 	var hide_when_house_interactable := false
 	var hide_when_food_chest_interactable := false
 	var hide_when_camper_interactable := false
-	if _tutorial_rotten_seed_prompt_active:
+	if _is_food_chest_recovery_pending():
+		text = "目标：先去屋里拿食材箱"
+		hide_when_house_interactable = not _inside_house
+		hide_when_food_chest_interactable = _inside_house
+	elif _tutorial_rotten_seed_prompt_active:
 		text = "目标：回去找%s拿补种子" % MOM_NAME
 		hide_when_mom_interactable = true
 	elif _has_tutorial_rotten_carrots():
@@ -14146,29 +22238,18 @@ func _update_post_tutorial_objective() -> void:
 	elif _return_after_weeding_prompt_active and not _weeding_lesson_completed:
 		text = "目标：回去和%s聊聊杂草" % MOM_NAME
 		hide_when_mom_interactable = true
-	elif _is_crop_future_talk_pending():
-		text = "目标：趁胡萝卜长大，回去和%s聊聊食材箱" % MOM_NAME
-		hide_when_mom_interactable = true
-	elif _find_food_chests_prompt_active and not _food_chests_found:
-		text = "目标：进屋找到储存食材的箱子"
-		hide_when_house_interactable = not _inside_house
-		hide_when_food_chest_interactable = _inside_house
-	elif _is_chest_lesson_pending():
-		text = "目标：回去和%s聊聊食材箱子" % MOM_NAME
-		hide_when_mom_interactable = true
-	elif _chest_lesson_completed and _has_food_chest and _placed_food_chests.is_empty():
-		text = "目标：选中食材箱子，摆在房车周围"
-		hide_when_camper_interactable = true
-	elif _chest_lesson_completed and not _kitchen_first_day_completed and _placed_food_chests.is_empty():
-		text = "目标：先把食材箱摆在房车周围"
-	elif _chest_lesson_completed and not _kitchen_first_day_completed and _prepared_crop_total(CROP_CARROT) < FIRST_KITCHEN_REQUIRED_CARROTS:
-		text = "目标：准备胡萝卜（食材箱+种子 %d/%d，箱子容量 %d）" % [_prepared_crop_total(CROP_CARROT), FIRST_KITCHEN_REQUIRED_CARROTS, _food_chest_capacity()]
-	elif _chest_lesson_completed and not _kitchen_first_day_completed and not _has_stored_first_kitchen_carrots_once():
-		text = "目标：把收获的胡萝卜先放进食材箱（%d/%d，容量 %d）" % [_first_kitchen_stored_carrot_progress(), FIRST_KITCHEN_REQUIRED_CARROTS, _food_chest_capacity()]
-	elif _chest_lesson_completed and not _kitchen_first_day_completed and not _has_all_first_day_kitchen_equipment():
+	elif _are_guided_tutorials_complete() and _watering_guide_completed and not _kitchen_first_day_completed and _tutorial_harvested_carrot_count < FIRST_KITCHEN_REQUIRED_CARROTS:
+		text = "目标：等待胡萝卜成熟并收获（%d/%d）" % [_tutorial_harvested_carrot_count, FIRST_KITCHEN_REQUIRED_CARROTS]
+	elif _are_guided_tutorials_complete() and _tutorial_harvested_carrot_count >= FIRST_KITCHEN_REQUIRED_CARROTS and not _has_stored_first_kitchen_carrots_once():
+		text = "目标：把胡萝卜全部放入食材箱（%d/%d）" % [_first_kitchen_stored_carrot_progress(), FIRST_KITCHEN_REQUIRED_CARROTS]
+		hide_when_food_chest_interactable = true
+	elif _has_stored_first_kitchen_carrots_once() and not _kitchen_first_day_completed and not _has_all_first_day_kitchen_equipment():
 		text = "目标：点击右下角设备按钮，摆好洗菜池、煮锅和备菜架"
+	elif not _kitchen_first_day_completed and _has_all_first_day_kitchen_equipment() and _first_kitchen_stored_carrot_count() < FIRST_KITCHEN_REQUIRED_CARROTS:
+		text = "目标：把胡萝卜补回食材箱（%d/%d）" % [_first_kitchen_stored_carrot_count(), FIRST_KITCHEN_REQUIRED_CARROTS]
+		hide_when_food_chest_interactable = true
 	elif _is_kitchen_intro_talk_pending():
-		text = "目标：回去和%s聊聊试接一天订单" % MOM_NAME
+		text = "目标：回去和%s确认第一天经营" % MOM_NAME
 		hide_when_mom_interactable = true
 	elif _can_start_first_kitchen_business():
 		text = "目标：靠近房车进入经营准备，选择第1关"
@@ -14250,27 +22331,13 @@ func _post_tutorial_grand_reward_tasks() -> Array[Dictionary]:
 			{"text": "摆放房车开业小木牌", "done": _opening_sign_placed},
 		]
 	return [
-		{"text": "找到并摆好食材箱", "done": _chest_lesson_completed and not _placed_food_chests.is_empty()},
 		{"text": "开垦 5 块土地", "done": _hoe_guide_completed},
 		{"text": "给 5 颗胡萝卜浇水", "done": _watering_guide_completed},
-		{"text": "把 5 个胡萝卜放进食材箱", "done": _has_stored_first_kitchen_carrots_once()},
-		{"text": "摆好洗菜池、煮锅和备菜架", "done": _has_all_first_day_kitchen_equipment()},
-		{"text": "通过第1关经营", "done": _kitchen_first_day_completed},
-	]
-	return [
-		{"text": "开垦 5 块土地", "done": _hoe_guide_completed},
-		{"text": "给 5 颗胡萝卜浇水", "done": _watering_guide_completed},
-		{"text": "找到并摆好食材箱", "done": _chest_lesson_completed and not _placed_food_chests.is_empty()},
-		{"text": "把 5 个胡萝卜放进食材箱", "done": _has_stored_first_kitchen_carrots_once()},
-		{"text": "摆好洗菜池、煮锅和备菜架", "done": _has_all_first_day_kitchen_equipment()},
-		{"text": "通过第1关经营", "done": _kitchen_first_day_completed},
-	]
-	return [
 		{"text": "种熟 5 颗胡萝卜", "done": _matured_carrot_count >= 5},
-		{"text": "和妈妈聊下一步", "done": _crop_future_talk_completed},
-		{"text": "找到食材箱", "done": _food_chests_found or _chest_lesson_completed or not _placed_food_chests.is_empty()},
-		{"text": "把食材箱摆到房车旁", "done": not _placed_food_chests.is_empty()},
+		{"text": "收获 5 颗胡萝卜", "done": _tutorial_harvested_carrot_count >= 5},
+		{"text": "把 5 颗胡萝卜存入食材箱", "done": _has_stored_first_kitchen_carrots_once()},
 		{"text": "摆好洗菜池、煮锅和备菜架", "done": _has_all_first_day_kitchen_equipment()},
+		{"text": "通过第1关经营", "done": _kitchen_first_day_completed},
 	]
 
 func _post_tutorial_grand_reward_progress() -> int:
@@ -14284,23 +22351,61 @@ func _post_tutorial_grand_reward_total() -> int:
 	return _post_tutorial_grand_reward_tasks().size()
 
 func _grant_post_tutorial_grand_reward_if_ready() -> void:
-	if _post_tutorial_grand_reward_claimed:
+	if _post_tutorial_grand_reward_claimed or _opening_package_reward_feedback_running:
 		return
 	if _post_tutorial_grand_reward_progress() < _post_tutorial_grand_reward_total():
 		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	var reward_origin := viewport_size * Vector2(0.5, 0.34)
+	if _post_tutorial_claim_button != null and is_instance_valid(_post_tutorial_claim_button):
+		reward_origin = _post_tutorial_claim_button.get_global_rect().get_center()
+	var seed_target_slot := _find_inventory_slot_for_item(_seed_item(CROP_PEA, 0), -1)
+	if seed_target_slot == -1:
+		seed_target_slot = _find_empty_inventory_slot()
 	_post_tutorial_grand_reward_claimed = true
+	if _wind_chase_unlocked and not _wind_chase_completed:
+		_wind_chase_intro_pending = true
+		_wind_chase_guide_seen = false
 	_coins += OPENING_PACKAGE_COINS
 	_coop_coins += OPENING_PACKAGE_COOP_COINS
-	if not _add_seed_to_inventory(CROP_PEA, 0, OPENING_PACKAGE_PEA_SEEDS, true):
+	var seeds_stored := _add_seed_to_inventory(CROP_PEA, 0, OPENING_PACKAGE_PEA_SEEDS, false)
+	_unlock_crop_for_shop(CROP_PEA, 3)
+	if not seeds_stored:
 		var seed_origin := _player.global_position if _player != null else Vector3.ZERO
 		_create_spilled_seed_drop(seed_origin, CROP_PEA, 0, OPENING_PACKAGE_PEA_SEEDS)
+		_show_side_toast("背包已满，豌豆种子掉落在脚边")
 	_add_warehouse_item(WAREHOUSE_ITEM_OPENING_SIGN, 1)
 	_add_warehouse_item(WAREHOUSE_ITEM_COOKING_TABLE_LV2_TICKET, 1)
-	_show_side_toast("小木牌和 Lv2 解锁券已放入仓库")
 	_update_coin_hud()
+	_update_inventory_bar()
+	_update_warehouse_button()
 	_update_kitchen_upgrade_buttons()
-	_post_tutorial_objective_expanded = true
+	_post_tutorial_objective_expanded = false
 	_update_post_tutorial_objective()
+
+	var personal_target := _personal_coin_label.get_parent() as Control if _personal_coin_label != null and is_instance_valid(_personal_coin_label) else null
+	var coop_target := _coop_coin_label.get_parent() as Control if _coop_coin_label != null and is_instance_valid(_coop_coin_label) else null
+	var rewards: Array[Dictionary] = [
+		{"id": "personal_coin", "icon": REWARD_ICON_PERSONAL_COIN_PATH, "fallback_icon": "●", "fly_text": "+%d" % OPENING_PACKAGE_COINS, "arrival_text": "+%d 个人金币" % OPENING_PACKAGE_COINS, "target_control": personal_target},
+		{"id": "coop_coin", "icon": REWARD_ICON_COOP_COIN_PATH, "fallback_icon": "●", "fly_text": "+%d" % OPENING_PACKAGE_COOP_COINS, "arrival_text": "+%d 合作金币" % OPENING_PACKAGE_COOP_COINS, "target_control": coop_target},
+	]
+	var seed_reward := {"id": "pea_seed", "icon": SEED_ICON_PATH, "fallback_icon": "◆", "fly_text": "x%d" % OPENING_PACKAGE_PEA_SEEDS, "arrival_text": "豌豆种子 x%d" % OPENING_PACKAGE_PEA_SEEDS}
+	if seeds_stored and seed_target_slot >= 0 and seed_target_slot < _inventory_slots.size():
+		seed_reward["target_control"] = _inventory_slots[seed_target_slot]
+	else:
+		var seed_screen_target := viewport_size * Vector2(0.5, 0.72)
+		if _camera != null and is_instance_valid(_camera) and _player != null and is_instance_valid(_player):
+			var player_target := _player.global_position + Vector3(0.0, 0.85, 0.0)
+			if not _camera.is_position_behind(player_target):
+				seed_screen_target = _camera.unproject_position(player_target)
+		seed_reward["target_position"] = seed_screen_target
+		seed_reward["arrival_text"] = "背包已满 · 掉落脚边"
+	rewards.append(seed_reward)
+	rewards.append({"id": "opening_sign", "icon": WAREHOUSE_ICON_OPENING_SIGN_PATH, "fallback_icon": "★", "fly_text": "x1", "arrival_text": "木牌已放入仓库", "target_control": _warehouse_button})
+	rewards.append({"id": "lv2_ticket", "icon": WAREHOUSE_ICON_COOKING_TABLE_TICKET_PATH, "fallback_icon": "↑", "fly_text": "x1", "arrival_text": "Lv2 券已放入仓库", "target_control": _warehouse_button})
+	var seed_destination := "背包" if seeds_stored else "玩家脚边（背包已满）"
+	var summary := "个人金币 +%d  → 顶部个人金币\n合作金币 +%d  → 顶部合作金币\n豌豆种子 x%d  → %s\n房车开业小木牌 x1  → 仓库·装饰\n料理台 Lv2 解锁券 x1  → 仓库·解锁" % [OPENING_PACKAGE_COINS, OPENING_PACKAGE_COOP_COINS, OPENING_PACKAGE_PEA_SEEDS, seed_destination]
+	_play_opening_package_reward_sequence(reward_origin, rewards, summary)
 
 func _compact_objective_text(text: String) -> String:
 	var result := text.strip_edges()
@@ -14333,8 +22438,8 @@ func _post_tutorial_dropdown_text(progress: int, total: int) -> String:
 	if goal == "":
 		goal = _next_post_tutorial_goal_text()
 	if _post_tutorial_grand_reward_claimed:
-		return "目标：%s\n进度：开业礼已领取\n奖励：房车开业小木牌、料理台 Lv2" % goal
-	return "目标：%s\n进度：%d/%d\n奖励：金币、种子与开业设备" % [goal, progress, total]
+		return "目标：%s\n进度：开业礼包已领取\n奖励：房车开业小木牌 x1、料理台 Lv2 券 x1" % goal
+	return "目标：%s\n进度：%d/%d\n开业奖励：\n个人金币 x150 · 合作金币 x20\n豌豆种子 x3\n简易料理台 Lv2 券 x1\n房车开业小木牌 x1" % [goal, progress, total]
 
 func _build_post_tutorial_task_board_text(progress: int, total: int) -> String:
 	var goal := _compact_objective_text(_post_tutorial_visible_goal_text)
@@ -14369,10 +22474,12 @@ func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
 		return
 	var progress := _post_tutorial_grand_reward_progress()
 	var total := maxi(_post_tutorial_grand_reward_total(), 1)
-	var expanded := show_reward and _post_tutorial_objective_expanded
+	# 任务板初始为展开状态，点击后才收起为横向木质任务条。
+	var expanded := _post_tutorial_objective_expanded
 	var ready := show_reward and progress >= total and not _post_tutorial_grand_reward_claimed
-	var board_height := 380.0
-	var board_width := 300.0
+	# 完整任务板贴在资源栏右侧，顶部与金币栏同一行。
+	var board_height := 310.0
+	var board_width := 250.0
 	var layout_signature := "%s|%s|%d|%d|%s|%s|%s" % [show_reward, expanded, progress, total, ready, _post_tutorial_grand_reward_claimed, _post_tutorial_visible_goal_text]
 	if layout_signature == _post_tutorial_layout_signature:
 		return
@@ -14381,18 +22488,24 @@ func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
 	_post_tutorial_objective.anchor_top = 0.0
 	_post_tutorial_objective.anchor_right = 1.0
 	_post_tutorial_objective.anchor_bottom = 0.0
-	_post_tutorial_objective.offset_left = -20.0 - board_width if expanded else (-178.0 if show_reward else -284.0)
-	_post_tutorial_objective.offset_top = 54.0 if expanded else (74.0 if show_reward else 86.0)
+	_post_tutorial_objective.offset_left = -20.0 - board_width if expanded else -220.0
+	_post_tutorial_objective.offset_top = 10.0
 	_post_tutorial_objective.offset_right = -20.0
-	_post_tutorial_objective.offset_bottom = 54.0 + board_height if expanded else (122.0 if show_reward else 252.0)
+	_post_tutorial_objective.offset_bottom = 10.0 + board_height if expanded else 66.0
 	if _post_tutorial_board_art != null:
 		_post_tutorial_board_art.visible = expanded
 		_post_tutorial_board_art.self_modulate = Color.WHITE
 	_post_tutorial_objective.self_modulate = Color.WHITE
 	var compact_backdrop := _post_tutorial_objective.get_node_or_null("TaskCompactBackdrop") as PanelContainer
+	var compact_art := _post_tutorial_objective.get_node_or_null("TaskCompactArt") as TextureRect
+	# 所有收起状态（含新手引导）都使用统一的横向木质任务栏，
+	# 不再落到旧的深色纯色备用框。
+	var use_compact_art := not expanded
+	if compact_art != null:
+		compact_art.visible = use_compact_art
 	if compact_backdrop != null:
-		compact_backdrop.visible = not expanded
-		if not expanded:
+		compact_backdrop.visible = not expanded and not use_compact_art
+		if compact_backdrop.visible:
 			var task_panel_style := _make_round_style(Color(0.94, 0.88, 0.73, 0.96) if show_reward else Color(0.30, 0.24, 0.17, 0.96), Color(0.57, 0.43, 0.27, 0.94) if show_reward else Color(0.62, 0.50, 0.34, 0.94), 6.0, 2)
 			task_panel_style.shadow_color = Color(0.14, 0.10, 0.06, 0.30)
 			task_panel_style.shadow_size = 4
@@ -14408,9 +22521,9 @@ func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
 			progress_back.anchor_top = 0.0
 			progress_back.anchor_bottom = 0.0
 			progress_back.offset_left = 48.0
-			progress_back.offset_top = 84.0
+			progress_back.offset_top = 52.0
 			progress_back.offset_right = -42.0
-			progress_back.offset_bottom = 96.0
+			progress_back.offset_bottom = 64.0
 	if _post_tutorial_progress_fill != null:
 		_post_tutorial_progress_fill.visible = expanded
 		var fill_width := 0.0
@@ -14421,25 +22534,31 @@ func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
 		_post_tutorial_reward_label.visible = false
 		_post_tutorial_reward_label.text = _compact_objective_text(_post_tutorial_visible_goal_text)
 	if _post_tutorial_gift_button != null:
-		_post_tutorial_gift_button.visible = false
-		_post_tutorial_gift_button.modulate = Color(1.0, 0.96, 0.74, 1.0) if ready else Color(1.0, 1.0, 1.0, 0.62)
-		_post_tutorial_gift_button.tooltip_text = ""
-		_post_tutorial_gift_button.text = "●" if ready and not expanded else ("▲" if expanded else "▼")
-		_post_tutorial_gift_button.offset_left = -30.0
-		_post_tutorial_gift_button.offset_top = -31.0 if expanded else -30.0
-		_post_tutorial_gift_button.offset_right = -8.0
-		_post_tutorial_gift_button.offset_bottom = -9.0 if expanded else -8.0
-		_post_tutorial_gift_button.add_theme_color_override("font_color", Color(0.84, 0.08, 0.05, 1.0) if ready and not expanded else Color(0.42, 0.25, 0.07, 0.95))
+		# 收起任务板后，用红点提示开业礼包已经可以领取；展开时由领取按钮承接操作。
+		_post_tutorial_gift_button.visible = ready and not expanded
+		_post_tutorial_gift_button.tooltip_text = "开业礼包可领取"
+		_post_tutorial_gift_button.text = ""
+		_post_tutorial_gift_button.anchor_left = 1.0
+		_post_tutorial_gift_button.anchor_top = 0.0
+		_post_tutorial_gift_button.anchor_right = 1.0
+		_post_tutorial_gift_button.anchor_bottom = 0.0
+		_post_tutorial_gift_button.offset_left = -24.0
+		_post_tutorial_gift_button.offset_top = 7.0
+		_post_tutorial_gift_button.offset_right = -10.0
+		_post_tutorial_gift_button.offset_bottom = 21.0
+		_post_tutorial_gift_button.add_theme_stylebox_override("normal", _make_round_style(Color(0.93, 0.12, 0.08, 1.0), Color(1.0, 0.87, 0.63, 1.0), 7.0, 1))
+		_post_tutorial_gift_button.add_theme_stylebox_override("hover", _make_round_style(Color(1.0, 0.22, 0.14, 1.0), Color(1.0, 0.93, 0.70, 1.0), 7.0, 1))
 	if _post_tutorial_objective_label != null:
 		_post_tutorial_objective_label.visible = true
-		_post_tutorial_objective_label.offset_left = 48.0 if expanded else 12.0
-		_post_tutorial_objective_label.offset_top = 46.0 if expanded else 8.0
-		_post_tutorial_objective_label.offset_right = -42.0 if expanded else -12.0
-		_post_tutorial_objective_label.offset_bottom = 78.0 if expanded else 30.0
-		_post_tutorial_objective_label.add_theme_font_size_override("font_size", 18 if expanded else 14)
-		_post_tutorial_objective_label.add_theme_color_override("font_color", Color(0.26, 0.20, 0.13, 1.0) if show_reward else Color(1.0, 0.94, 0.82, 0.98))
+		_post_tutorial_objective_label.offset_left = 48.0 if expanded else (28.0 if use_compact_art else 12.0)
+		_post_tutorial_objective_label.offset_top = 22.0 if expanded else 6.0
+		_post_tutorial_objective_label.offset_right = -42.0 if expanded else (-20.0 if use_compact_art else -12.0)
+		_post_tutorial_objective_label.offset_bottom = 46.0 if expanded else 50.0
+		_post_tutorial_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_post_tutorial_objective_label.add_theme_font_size_override("font_size", 15 if expanded else (11 if use_compact_art else 14))
+		_post_tutorial_objective_label.add_theme_color_override("font_color", Color(0.26, 0.20, 0.13, 1.0) if expanded or use_compact_art else Color(1.0, 0.94, 0.82, 0.98))
 		var title_state := " 可领取" if ready else ""
-		_post_tutorial_objective_label.text = "房车开业礼 %d/%d%s" % [progress, total, title_state] if show_reward else _compact_objective_text(_post_tutorial_visible_goal_text)
+		_post_tutorial_objective_label.text = "开业礼包%s" % title_state if expanded else ("开业礼包 %d/%d" % [progress, total] if show_reward else _compact_objective_text(_post_tutorial_visible_goal_text))
 	if _post_tutorial_dropdown != null:
 		_post_tutorial_dropdown.self_modulate = Color.WHITE
 		_post_tutorial_dropdown.visible = expanded
@@ -14448,9 +22567,9 @@ func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
 		_post_tutorial_dropdown.anchor_right = 1.0
 		_post_tutorial_dropdown.anchor_bottom = 1.0
 		_post_tutorial_dropdown.offset_left = 48.0 if expanded else 8.0
-		_post_tutorial_dropdown.offset_top = 106.0 if expanded else 36.0
+		_post_tutorial_dropdown.offset_top = 84.0 if expanded else 36.0
 		_post_tutorial_dropdown.offset_right = -42.0 if expanded else -8.0
-		_post_tutorial_dropdown.offset_bottom = -42.0 if expanded else -8.0
+		_post_tutorial_dropdown.offset_bottom = -18.0 if expanded else -8.0
 		if expanded:
 			_post_tutorial_dropdown.remove_theme_stylebox_override("panel")
 		else:
@@ -14465,11 +22584,17 @@ func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
 		_post_tutorial_dropdown_label.text = _build_post_tutorial_reward_summary_text(progress, total) if show_reward else _post_tutorial_dropdown_text(progress, total)
 		_post_tutorial_dropdown_label.add_theme_font_size_override("font_size", 13 if show_reward else 12)
 		_post_tutorial_dropdown_label.add_theme_color_override("font_color", Color(0.30, 0.23, 0.14, 0.98))
+		call_deferred("_reset_opening_package_scroll")
 	if _post_tutorial_claim_button != null:
 		var claimable := ready
-		_post_tutorial_claim_button.visible = expanded and claimable
+		_post_tutorial_claim_button.visible = expanded
 		_post_tutorial_claim_button.disabled = not claimable
 		_post_tutorial_claim_button.text = "已领取" if _post_tutorial_grand_reward_claimed else ("领取" if claimable else "未达成")
+		var scroll: ScrollContainer = null
+		if _post_tutorial_dropdown != null:
+			scroll = _post_tutorial_dropdown.get_node_or_null("DropdownContent/OpeningPackageScroll") as ScrollContainer
+		if scroll != null:
+			scroll.offset_bottom = -42.0 if expanded else 0.0
 		if expanded:
 			_post_tutorial_claim_button.custom_minimum_size = Vector2(86.0, 34.0)
 			_post_tutorial_claim_button.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -14477,6 +22602,13 @@ func _update_post_tutorial_objective_layout(show_reward: bool) -> void:
 			_post_tutorial_claim_button.add_theme_stylebox_override("normal", _make_wood_notice_button_style(Color(1.0, 1.0, 1.0, 1.0)))
 			_post_tutorial_claim_button.add_theme_stylebox_override("hover", _make_wood_notice_button_style(Color(1.10, 1.08, 0.94, 1.0)))
 			_post_tutorial_claim_button.add_theme_stylebox_override("disabled", _make_wood_notice_button_style(Color(0.70, 0.67, 0.59, 0.82), true))
+
+func _reset_opening_package_scroll() -> void:
+	if _post_tutorial_dropdown == null:
+		return
+	var scroll := _post_tutorial_dropdown.get_node_or_null("DropdownContent/OpeningPackageScroll") as ScrollContainer
+	if scroll != null:
+		scroll.scroll_vertical = 0
 
 func _on_post_tutorial_objective_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -14506,14 +22638,33 @@ func _on_post_tutorial_gift_pressed() -> void:
 func _are_guided_tutorials_complete() -> bool:
 	return _chapter_one_active and _dialogue_completed and _starter_kit_collected and _watering_task_active and _scythe_collected and _weeding_lesson_completed and not _return_to_mom_prompt_active and not _watering_task_prompt_active and not _scythe_task_prompt_active and not _return_after_weeding_prompt_active
 
-func _is_crop_future_talk_pending() -> bool:
-	return _are_guided_tutorials_complete() and _watering_guide_completed and not _crop_future_talk_completed and not _food_chests_found and not _chest_lesson_completed and _placed_food_chests.is_empty()
+func _is_food_chest_recovery_pending() -> bool:
+	return _chapter_one_active and _has_hoe and not _food_chests_found and not _has_food_chest and _placed_food_chests.is_empty() and not _chest_lesson_completed
+
+func _sync_food_chest_tutorial_state() -> void:
+	if not _is_food_chest_recovery_pending():
+		return
+	_find_food_chests_prompt_active = true
+	_food_chest_guide_completed = false
 
 func _is_chest_lesson_pending() -> bool:
 	return _food_chests_found and not _chest_lesson_completed
 
 func _refresh_interaction_prompt_text() -> void:
-	if _interaction_prompt_label == null or _notification_time > 0.0 or _dialogue_open or _map_open or (_business_prep_overlay != null and _business_prep_overlay.visible):
+	if _interaction_prompt_label == null or _dialogue_open or _map_open or (_business_prep_overlay != null and _business_prep_overlay.visible):
+		return
+	if _kitchen_placing_equipment != "":
+		_show_kitchen_equipment_placement_prompt()
+		return
+	if _notification_time > 0.0:
+		return
+	if _camper_driving:
+		_interaction_prompt_label.text = "W/S 行驶 · A/D 转向 · F 下车"
+		_fit_interaction_prompt_to_lines([_interaction_prompt_label.text])
+		if _interaction_prompt != null:
+			_interaction_prompt.visible = true
+			_position_interaction_prompt_near_world(_camper.global_position + Vector3(0.0, 3.0, 0.0))
+			_interaction_prompt.move_to_front()
 		return
 	_update_interaction_options()
 	if _show_interaction_options_prompt():
@@ -14526,7 +22677,7 @@ func _refresh_interaction_prompt_text() -> void:
 			_interaction_prompt.move_to_front()
 		return
 	var mom_near := _is_player_near_mom() and _can_talk_to_mom()
-	if _find_food_chests_prompt_active and not _food_chests_found and _is_player_near_food_chest():
+	if not _food_chests_found and _is_player_near_food_chest():
 		if _food_chest_guide_completed:
 			return
 		_interaction_prompt_label.text = "F / 点击  查看食材箱子"
@@ -14541,6 +22692,23 @@ func _refresh_interaction_prompt_text() -> void:
 		if _interaction_prompt != null:
 			_interaction_prompt.visible = true
 			_interaction_prompt.move_to_front()
+
+func _show_kitchen_equipment_placement_prompt() -> void:
+	if _interaction_prompt_label == null or _interaction_prompt == null:
+		return
+	var can_place := _kitchen_placing_cursor_valid and _is_kitchen_equipment_place_position_valid(_kitchen_placing_position)
+	var status := "可摆放" if can_place else "不可摆放"
+	var angle_degrees := posmod(roundi(rad_to_deg(_kitchen_placing_yaw)), 360)
+	var lines: Array[String] = [
+		"移动鼠标摆放 · WASD / 方向键微调",
+		"滚轮 / Q E 旋转45° · F / 左键确认",
+		"右键 / ESC 取消 · %s · 方向 %d°" % [status, angle_degrees],
+	]
+	_interaction_prompt_label.text = "\n".join(lines)
+	_interaction_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_fit_interaction_prompt_to_lines(lines)
+	_interaction_prompt.visible = true
+	_interaction_prompt.move_to_front()
 
 func _update_camper_interaction() -> void:
 	if _mom_is_highlighted:
@@ -14575,7 +22743,7 @@ func _is_player_near_opening_sign() -> bool:
 func _try_interact_food_chest() -> bool:
 	if not _inside_house or not _is_player_near_food_chest():
 		return false
-	if not _find_food_chests_prompt_active or _food_chests_found:
+	if _food_chests_found:
 		_show_notification("食材箱静静放在屋里，像是等了很久")
 		return true
 	_food_chests_found = true
@@ -14732,7 +22900,7 @@ func _update_food_chest_deposits() -> void:
 	if _placed_food_chests.is_empty() or _player == null:
 		return
 	if _held_crop_item != "" and _is_position_near_placed_food_chest(_player.global_position):
-		if _store_crop_in_food_chest(_held_crop_item, _held_crop_quality):
+		if _store_crop_in_food_chest(_held_crop_item, _held_crop_quality, _held_crop_fresh_time):
 			_clear_held_crop()
 			_update_inventory_bar()
 	for index in range(_dropped_crop_roots.size() - 1, -1, -1):
@@ -14743,7 +22911,8 @@ func _update_food_chest_deposits() -> void:
 		if _is_position_near_placed_food_chest(crop.global_position):
 			var crop_type := str(crop.get_meta("crop_type", CROP_CARROT))
 			var quality := int(crop.get_meta("crop_quality", 0))
-			if _store_crop_in_food_chest(crop_type, quality):
+			var fresh_time := float(crop.get_meta("drop_lifetime", CROP_ROT_SECONDS))
+			if _store_crop_in_food_chest(crop_type, quality, fresh_time):
 				_dropped_crop_roots.remove_at(index)
 				crop.queue_free()
 
@@ -14790,20 +22959,32 @@ func _try_pickup_placed_food_chest() -> bool:
 		return true
 	return false
 
-func _store_crop_in_food_chest(crop_type: String, quality: int) -> bool:
+func _store_crop_in_food_chest(crop_type: String, quality: int, fresh_time: float = -1.0) -> bool:
 	if _stored_crop_total_all() >= _food_chest_capacity():
-		_show_side_toast("食材箱已满（%d/%d），多余食材请先使用或出售" % [_stored_crop_total_all(), _food_chest_capacity()])
+		if not _food_chest_full_notice_shown:
+			_food_chest_full_notice_shown = true
+			_show_notification("食材箱已满（%d/%d），请先使用或出售食材" % [_stored_crop_total_all(), _food_chest_capacity()])
 		return false
+	_food_chest_full_notice_shown = false
 	var unlocks_equipment := crop_type == CROP_CARROT and not _has_stored_first_kitchen_carrots_once()
 	var key := _stored_crop_key(crop_type, quality)
+	var times := _sync_stored_crop_fresh_times(key)
+	var resolved_fresh_time := CROP_ROT_SECONDS if fresh_time < 0.0 else maxf(fresh_time, 0.0)
+	times.append(resolved_fresh_time)
+	times.sort()
 	_stored_crop_counts[key] = int(_stored_crop_counts.get(key, 0)) + 1
+	_stored_crop_fresh_times[key] = times
+	AudioManager.play_sfx("cook_pot_place", -2.0)
 	_chapter_one_stored_crop_total += 1
-	if crop_type == CROP_MARSHMALLOW:
+	if crop_type == CROP_TOMATO:
 		_chapter_one_mystery_sample_saved = true
 	if crop_type == CROP_CARROT and not _kitchen_first_day_completed:
-		_tutorial_stored_carrot_count = mini(_tutorial_stored_carrot_count + 1, FIRST_KITCHEN_REQUIRED_CARROTS)
+		# 只在箱内同时出现的真实数量上推进里程碑，避免同一个胡萝卜反复取放刷满进度。
+		_tutorial_stored_carrot_count = maxi(_tutorial_stored_carrot_count, mini(_first_kitchen_stored_carrot_count(), FIRST_KITCHEN_REQUIRED_CARROTS))
 	if unlocks_equipment and _has_stored_first_kitchen_carrots_once():
 		_kitchen_button_unlock_animation_pending = true
+		_tutorial_rotten_carrot_seed_debt = 0
+		_tutorial_rotten_seed_prompt_active = false
 	_show_side_toast("%s已放入食材箱子（%d/%d）" % [_crop_display_name(crop_type), _stored_crop_total_all(), _food_chest_capacity()])
 	_refresh_food_chest_capacity_label()
 	return true
@@ -14893,7 +23074,10 @@ func _update_map_popup(delta: float) -> void:
 		_update_map_camper_heading(move_dir)
 	var near_village := _is_map_camper_near_village()
 	var locked_site_index := -1 if near_village else _get_near_locked_site_index()
-	var near_locked_site := locked_site_index >= 0
+	var near_flower_garden := locked_site_index == 0
+	var flower_garden_available := near_flower_garden and FlowerGardenManager.unlocked
+	# 花圃在正式解锁前属于未知区域，不提前显示名称、入口或锁定提示。
+	var near_locked_site := locked_site_index >= 0 and (not near_flower_garden or flower_garden_available)
 	if near_village:
 		if not _map_was_near_village:
 			_map_village_label_time = 0.0
@@ -14912,6 +23096,7 @@ func _update_map_popup(delta: float) -> void:
 		_map_locked_label_time += delta
 	_map_locked_site_index = locked_site_index
 	if _map_locked_label != null:
+		_map_locked_label.text = "晨露花圃" if flower_garden_available else ("" if near_flower_garden else "此地暂未解锁")
 		var locked_target_alpha := 1.0 if near_locked_site else 0.0
 		_map_locked_label.modulate.a = move_toward(_map_locked_label.modulate.a, locked_target_alpha, delta * 1.9)
 	if _map_page_locked_time > 0.0:
@@ -14924,7 +23109,7 @@ func _update_map_popup(delta: float) -> void:
 		if near_village:
 			_interaction_prompt_label.text = "F / 点击  返回当前位置" if _chapter_one_active else "F / 点击  进入村庄"
 		elif near_locked_site:
-			_interaction_prompt_label.text = "此地暂未解锁"
+			_interaction_prompt_label.text = "F / 点击  进入晨露花圃" if flower_garden_available else "此地暂未解锁"
 		else:
 			_interaction_prompt_label.text = "WASD / 滑动  开往村庄"
 		_fit_interaction_prompt_to_lines([_interaction_prompt_label.text])
@@ -14997,11 +23182,11 @@ func _handle_map_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
-		_try_enter_village()
+		_try_enter_map_destination()
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if not _try_enter_village():
+		if not _try_enter_map_destination():
 			_start_map_drag(event.position)
 		get_viewport().set_input_as_handled()
 		return
@@ -15014,7 +23199,7 @@ func _handle_map_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			if not _try_enter_village():
+			if not _try_enter_map_destination():
 				_start_map_drag(event.position)
 		else:
 			_stop_map_drag()
@@ -15025,7 +23210,7 @@ func _handle_map_input(event: InputEvent) -> void:
 
 func _on_map_panel_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if not _try_enter_village():
+		if not _try_enter_map_destination():
 			_start_map_drag(event.position)
 		get_viewport().set_input_as_handled()
 	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -15036,7 +23221,7 @@ func _on_map_panel_gui_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			if not _try_enter_village():
+			if not _try_enter_map_destination():
 				_start_map_drag(event.position)
 		else:
 			_stop_map_drag()
@@ -15055,11 +23240,27 @@ func _try_enter_village() -> bool:
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = should_show_enter_feedback
 	_close_map_popup()
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden")):
+		_flower_garden_controller.call("exit_garden")
+		return true
 	if _chapter_one_active:
 		return true
 	_map_camper_pos = MAP_VILLAGE_POINT
 	_start_chapter_one_transition()
 	return true
+
+func _try_enter_map_destination() -> bool:
+	if not _map_open:
+		return false
+	var site_index := _get_near_locked_site_index()
+	if site_index == 0:
+		if not FlowerGardenManager.unlocked:
+			return false
+		_close_map_popup()
+		if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
+			_flower_garden_controller.call("enter_garden", "camper_map")
+		return true
+	return _try_enter_village()
 
 func _start_chapter_one_transition() -> void:
 	if _chapter_transitioning:
@@ -15141,7 +23342,9 @@ func _force_finish_chapter_one_transition(transition_layer: CanvasLayer) -> void
 	_finish_chapter_one_transition()
 
 func _build_chapter_one_scene() -> void:
+	var legacy_level_five_cleared := _business_level_star_count(5) >= 1
 	_chapter_one_active = true
+	_wardrobe_system = null
 	_map_camper_pos = MAP_VILLAGE_POINT
 	_active_ponds = CHAPTER_ONE_PONDS.duplicate(true)
 	_grass_material = null
@@ -15184,6 +23387,40 @@ func _build_chapter_one_scene() -> void:
 	_reset_chapter_one_task_state()
 	_camper = null
 	_camper_model = null
+	_camper_driving = false
+	_camper_drive_unlocked = false
+	_camper_drive_speed = 0.0
+	_camper_drive_collision_cooldown = 0.0
+	_camper_drive_attachments.clear()
+	_camper_drive_note_overlay = null
+	_camper_drive_note_pending = false
+	_camper_drive_note_seen = false
+	_camper_drive_note_resume_action = ""
+	_camper_drive_note_resume_level = 0
+	_camper_compass_root = null
+	_camper_compass_dial = null
+	_camper_compass_heading = null
+	_camper_compass_southeast_label = null
+	_camper_compass_marker = null
+	_camper_compass_glow = null
+	_camper_compass_hint = null
+	_camper_compass_leaf_left = null
+	_camper_compass_leaf_right = null
+	_camper_compass_fade_tween = null
+	_camper_compass_visible_requested = false
+	_camper_compass_sense_level = -1
+	_camper_compass_hint_time = 0.0
+	_camper_compass_animation_time = 0.0
+	_business_location_discovered.clear()
+	_active_business_location_bonus.clear()
+	_business_location_bonus_coins = 0
+	_business_discovery_states.clear()
+	_business_discovery_rumors.clear()
+	_mainline_site_visuals.clear()
+	_mainline_site_proximity_notified.clear()
+	_mainline_commission_overlay = null
+	_mainline_commission_level = 0
+	_business_active_first_commission_level = 0
 	_map_camper_model = null
 	_mom = null
 	_mom_model = null
@@ -15221,6 +23458,11 @@ func _build_chapter_one_scene() -> void:
 	_tutorial_rotten_carrot_seed_debt = 0
 	_kitchen_equipment_entry_guide_completed = false
 	_kitchen_upgrade_entry_guide_completed = false
+	_kitchen_upgrade_attention_acknowledged = false
+	_kitchen_upgrade_confetti_played = false
+	if _kitchen_upgrade_badge_tween != null and _kitchen_upgrade_badge_tween.is_valid():
+		_kitchen_upgrade_badge_tween.kill()
+	_kitchen_upgrade_badge_tween = null
 	_kitchen_button_unlock_animation_pending = false
 	_water_amount = 0.0
 	_water_filling = false
@@ -15250,7 +23492,6 @@ func _build_chapter_one_scene() -> void:
 	_matured_carrot_count = 0
 	_tutorial_harvested_carrot_count = 0
 	_tutorial_stored_carrot_count = 0
-	_crop_future_talk_completed = false
 	_find_food_chests_prompt_active = false
 	_food_chests_found = false
 	_chest_lesson_completed = false
@@ -15259,6 +23500,7 @@ func _build_chapter_one_scene() -> void:
 	_opening_sign = null
 	_opening_sign_bonus_day_key = ""
 	_warehouse_items.clear()
+	_warehouse_new_items.clear()
 	_warehouse_tab = "decor"
 	_warehouse_panel_open = false
 	_warehouse_placing_item = ""
@@ -15267,6 +23509,7 @@ func _build_chapter_one_scene() -> void:
 	_placed_food_chests.clear()
 	_food_chest_preview = null
 	_stored_crop_counts.clear()
+	_stored_crop_fresh_times.clear()
 	_coop_coins = 0
 	_kitchen_stamina = KITCHEN_STAMINA_START
 	_kitchen_stamina_recovery_elapsed = 0.0
@@ -15276,18 +23519,19 @@ func _build_chapter_one_scene() -> void:
 	_business_prep_overlay = null
 	_business_prep_level_list = null
 	_business_prep_reward_box = null
-	_business_prep_detail_box = null
+	_business_opened_detail_card = null
+	_business_flower_gift_button = null
+	_business_duel_button = null
 	_kitchen_status_panel = null
 	_kitchen_status_label = null
 	_kitchen_status_timer_label = null
 	_kitchen_order_scroll = null
 	_kitchen_order_list = null
 	_kitchen_order_ui_refresh_remaining = 0.0
-	_business_level_detail_open.clear()
-	_business_level_detail_tab.clear()
 	_business_level_stars.clear()
 	_business_active_level_id = 0
 	_business_active_level_duration = 0.0
+	_business_active_first_commission_level = 0
 	_business_result_overlay = null
 	_business_result_panel = null
 	_business_result_star_row = null
@@ -15297,6 +23541,8 @@ func _build_chapter_one_scene() -> void:
 	_business_result_progress_label = null
 	_business_result_buttons = null
 	_business_result_next_button = null
+	_business_result_garden_button = null
+	_business_result_duel_button = null
 	_business_result_data.clear()
 	_business_result_pending_open = false
 	_kitchen_held_fresh_time = 0.0
@@ -15339,10 +23585,12 @@ func _build_chapter_one_scene() -> void:
 	_typewriter_total = 0
 	_solid_blockers.clear()
 	_wind_trees.clear()
+	_flower_garden_controller = null
 	_reset_kitchen_state()
 	_clear_generated()
 	_setup_world()
 	_create_visible_sun()
+	_create_night_sky_elements()
 	_create_background_clouds()
 	_create_falling_petals()
 	_create_terrain()
@@ -15353,6 +23601,7 @@ func _build_chapter_one_scene() -> void:
 	_create_background_trees()
 	_create_asset_trees()
 	_create_chapter_one_village_house()
+	_refresh_village_upgrade_world_visuals()
 	_create_house_interior()
 	_create_camper(CHAPTER_ONE_CAMPER_POSITION, deg_to_rad(CHAPTER_ONE_CAMPER_YAW))
 	_create_chapter_one_mom()
@@ -15362,8 +23611,28 @@ func _build_chapter_one_scene() -> void:
 	_zoom = 15.5
 	_create_camera()
 	_create_dialogue_ui()
+	_setup_wardrobe_system()
+	_create_flower_garden_controller()
+	if legacy_level_five_cleared and not FlowerGardenManager.unlocked:
+		FlowerGardenManager.unlock()
 	if _interaction_prompt != null:
 		_interaction_prompt.visible = false
+
+func _create_flower_garden_controller() -> void:
+	if _flower_garden_controller != null and is_instance_valid(_flower_garden_controller):
+		return
+	_flower_garden_controller = FLOWER_GARDEN_CONTROLLER_SCRIPT.new()
+	_mark_generated(_flower_garden_controller)
+	add_child(_flower_garden_controller)
+	_flower_garden_controller.call("setup", self)
+	if not FlowerGardenManager.state_changed.is_connected(_on_flower_garden_state_changed):
+		FlowerGardenManager.state_changed.connect(_on_flower_garden_state_changed)
+	# 兼容已有主线进度：第5关已有至少1星但旧版尚无花圃存档时自动补发开园礼包。
+	if _business_level_star_count(5) >= 1 and not FlowerGardenManager.unlocked:
+		FlowerGardenManager.unlock()
+
+func _on_flower_garden_state_changed() -> void:
+	_update_business_flower_gift_button()
 
 func _start_map_drag(screen_position: Vector2) -> void:
 	_map_dragging = true
@@ -15456,22 +23725,7 @@ func _open_story_dialogue(steps: Array[Dictionary]) -> void:
 func _try_start_seed_sifter() -> bool:
 	if not _is_player_near_seed_sifter() or _dialogue_open:
 		return false
-	if not _sifter_intro_completed:
-		_sifter_intro_completed = true
-		_chapter_one_grant_seed(CROP_PEA, 2)
-		_open_story_dialogue([
-			{"speaker": SIFTER_NAME, "portrait": REBAS_PORTRAIT_PATH, "text": "水会把种荚、枝叶和小石头一起带下来。筛得准，种子才会完整。"},
-			{"speaker": SIFTER_NAME, "portrait": REBAS_PORTRAIT_PATH, "text": "这两包豌豆种子先给你。以后来池塘边找我，普通种子和优质种荚都会有。"},
-		])
-		return true
-	var day_key := _shop_day_key()
-	if _sifter_last_reward_day != day_key:
-		_sifter_last_reward_day = day_key
-		var quality := 1 if randf() < 0.28 else 0
-		_chapter_one_grant_seed(CROP_CARROT if randf() < 0.52 else CROP_PEA, 2, quality)
-		_show_side_toast("奥提筛出了一包%s种子" % ("优质" if quality > 0 else "普通"))
-	else:
-		_show_notification("奥提正在晾晒下一批种荚，明天再来看看。")
+	_open_stream_sifter()
 	return true
 
 func _try_start_young_traveler() -> bool:
@@ -15490,7 +23744,7 @@ func _is_mom_soil_task_pending() -> bool:
 	return _chapter_one_active and _dialogue_completed and _has_hoe and _tilled_soil_centers.is_empty()
 
 func _is_initial_chest_intro_pending() -> bool:
-	return _chapter_one_active and _dialogue_completed and not _has_hoe and not _find_food_chests_prompt_active and not _food_chests_found and not _chest_lesson_completed
+	return _chapter_one_active and not _has_hoe and not _find_food_chests_prompt_active and not _food_chests_found and not _chest_lesson_completed
 
 func _is_hoe_intro_pending() -> bool:
 	return _chapter_one_active and _dialogue_completed and not _has_hoe and _chest_lesson_completed and not _placed_food_chests.is_empty()
@@ -15499,10 +23753,10 @@ func _is_chapter_one_final_mom_talk_pending() -> bool:
 	return _chapter_one_active and _is_chapter_one_task_claimed(39) and not _chapter_one_mom_final_talk
 
 func _can_talk_to_mom() -> bool:
-	return not _dialogue_completed or _is_mom_soil_task_pending() or _is_initial_chest_intro_pending() or _is_hoe_intro_pending() or _is_chapter_one_final_mom_talk_pending() or _tutorial_rotten_seed_prompt_active or (_return_to_mom_prompt_active and not _starter_kit_collected) or _watering_task_prompt_active or (_scythe_task_prompt_active and not _scythe_collected) or (_return_after_weeding_prompt_active and not _weeding_lesson_completed) or _is_crop_future_talk_pending() or _is_chest_lesson_pending() or _is_kitchen_intro_talk_pending()
+	return not _dialogue_completed or _is_mom_soil_task_pending() or _is_initial_chest_intro_pending() or _is_food_chest_recovery_pending() or _is_hoe_intro_pending() or _is_chapter_one_final_mom_talk_pending() or _tutorial_rotten_seed_prompt_active or (_return_to_mom_prompt_active and not _starter_kit_collected) or _watering_task_prompt_active or (_scythe_task_prompt_active and not _scythe_collected) or (_return_after_weeding_prompt_active and not _weeding_lesson_completed) or _is_chest_lesson_pending() or _is_kitchen_intro_talk_pending()
 
 func _should_show_mom_exclamation() -> bool:
-	return not _dialogue_completed or _is_initial_chest_intro_pending() or _is_hoe_intro_pending() or _is_chapter_one_final_mom_talk_pending() or _tutorial_rotten_seed_prompt_active or (_return_to_mom_prompt_active and not _starter_kit_collected) or _watering_task_prompt_active or (_scythe_task_prompt_active and not _scythe_collected) or (_return_after_weeding_prompt_active and not _weeding_lesson_completed) or _is_crop_future_talk_pending() or _is_chest_lesson_pending() or _is_kitchen_intro_talk_pending()
+	return not _dialogue_completed or _is_initial_chest_intro_pending() or _is_food_chest_recovery_pending() or _is_hoe_intro_pending() or _is_chapter_one_final_mom_talk_pending() or _tutorial_rotten_seed_prompt_active or (_return_to_mom_prompt_active and not _starter_kit_collected) or _watering_task_prompt_active or (_scythe_task_prompt_active and not _scythe_collected) or (_return_after_weeding_prompt_active and not _weeding_lesson_completed) or _is_chest_lesson_pending() or _is_kitchen_intro_talk_pending()
 
 func _should_show_rebas_exclamation() -> bool:
 	return _chapter_one_active and _rebas != null and not _dialogue_open and not _map_open and (_shop_overlay == null or not _shop_overlay.visible) and _shop_day_key() != _rebas_seen_shop_key
@@ -15561,8 +23815,9 @@ func _close_dialogue(completed: bool = false) -> void:
 			_chapter_one_mom_final_talk = true
 		elif _chapter_one_active and _tutorial_rotten_seed_prompt_active:
 			_grant_tutorial_replacement_seeds()
-		elif _chapter_one_active and not _has_hoe and not _find_food_chests_prompt_active and not _food_chests_found and not _chest_lesson_completed:
-			_crop_future_talk_completed = true
+		elif _chapter_one_active and _is_food_chest_recovery_pending():
+			_sync_food_chest_tutorial_state()
+		elif _chapter_one_active and _is_initial_chest_intro_pending():
 			_find_food_chests_prompt_active = true
 			_food_chest_guide_completed = false
 		elif _chapter_one_active and _return_to_mom_prompt_active and not _starter_kit_collected:
@@ -15579,10 +23834,6 @@ func _close_dialogue(completed: bool = false) -> void:
 		elif _chapter_one_active and _return_after_weeding_prompt_active and not _weeding_lesson_completed:
 			_return_after_weeding_prompt_active = false
 			_weeding_lesson_completed = true
-		elif _chapter_one_active and _is_crop_future_talk_pending():
-			_crop_future_talk_completed = true
-			_find_food_chests_prompt_active = true
-			_food_chest_guide_completed = false
 		elif _chapter_one_active and _is_chest_lesson_pending():
 			_chest_lesson_completed = true
 		elif _chapter_one_active and _is_kitchen_intro_talk_pending():
@@ -15602,12 +23853,14 @@ func _advance_dialogue() -> void:
 	if not _dialogue_open:
 		return
 	if not _is_dialogue_text_finished():
+		AudioManager.play_sfx("dialogue_advance", 1.5, randf_range(0.96, 1.04))
 		_finish_dialogue_typewriter()
 		return
 	if _dialogue_index < _dialogue_steps.size():
 		var step := _dialogue_steps[_dialogue_index]
 		if step.has("options"):
 			return
+	AudioManager.play_sfx("dialogue_advance", 1.5, randf_range(0.96, 1.04))
 	_dialogue_index += 1
 	if _dialogue_index >= _dialogue_steps.size():
 		_close_dialogue(true)
@@ -15649,6 +23902,8 @@ func _show_dialogue_step() -> void:
 	if _dialogue_index < 0 or _dialogue_index >= _dialogue_steps.size():
 		_close_dialogue(true)
 		return
+	if _dialogue_index == 0:
+		AudioManager.play_sfx("dialogue_advance", 1.0, randf_range(0.96, 1.04))
 	var step := _dialogue_steps[_dialogue_index]
 	_dialogue_name.text = str(step["speaker"])
 	_dialogue_body.text = str(step["text"])
@@ -15681,10 +23936,26 @@ func _update_dialogue_typewriter(delta: float) -> void:
 	if _dialogue_body.visible_characters >= _typewriter_total:
 		_show_dialogue_options(true)
 		return
+	var previous_visible := _dialogue_body.visible_characters
 	_typewriter_time += delta * DIALOGUE_CHARS_PER_SECOND
 	_dialogue_body.visible_characters = mini(int(_typewriter_time), _typewriter_total)
+	_play_dialogue_type_sound(previous_visible, _dialogue_body.visible_characters)
 	if _dialogue_body.visible_characters >= _typewriter_total:
 		_show_dialogue_options(true)
+
+func _play_dialogue_type_sound(previous_visible: int, current_visible: int) -> void:
+	if _dialogue_body == null or current_visible <= previous_visible:
+		return
+	var text := _dialogue_body.text
+	var silent_characters := " \t\r\n，。！？、；：…—,.!?;:'\"（）()【】《》"
+	for character_index in range(previous_visible, mini(current_visible, text.length())):
+		if character_index % DIALOGUE_TYPE_SOUND_INTERVAL != 0:
+			continue
+		var character := text.substr(character_index, 1)
+		if character == "" or silent_characters.contains(character):
+			continue
+		AudioManager.play_sfx("dialogue_type", -7.0, randf_range(0.92, 1.08))
+		return
 
 func _is_dialogue_text_finished() -> bool:
 	return _dialogue_body == null or _typewriter_total <= 0 or _dialogue_body.visible_characters >= _typewriter_total
@@ -15714,6 +23985,9 @@ func _is_dialogue_open() -> bool:
 func _is_map_open() -> bool:
 	return _map_open
 
+func _is_kitchen_equipment_placement_active() -> bool:
+	return _kitchen_placing_equipment != ""
+
 func _is_chapter_transitioning() -> bool:
 	return _chapter_transitioning or _house_transitioning
 
@@ -15742,7 +24016,11 @@ func _fit_model_to_footprint_length(model: Node3D, target_length: float) -> void
 
 func _ground_model(model: Node3D) -> void:
 	var bounds := _get_model_bounds(model)
-	model.position.y -= bounds.position.y * model.scale.y
+	# Bounds are measured in the model's own space, so a previous centering pass is
+	# not reflected in bounds.position. Align the transformed bottom itself instead
+	# of applying the minimum twice, which used to bury centered event models.
+	var transformed_bottom := model.position.y + bounds.position.y * model.scale.y
+	model.position.y -= transformed_bottom
 
 func _setup_placeable_root(root: Node3D) -> void:
 	if root == null:
@@ -15843,6 +24121,34 @@ func _add_camper_blocker(camper: Node3D, model: Node3D) -> void:
 		"center": center_world,
 		"yaw": camper.rotation.y,
 		"half_extents": half_extents,
+		"camper": true,
+	})
+
+func _remove_camper_blocker() -> void:
+	for index in range(_solid_blockers.size() - 1, -1, -1):
+		if bool(_solid_blockers[index].get("camper", false)):
+			_solid_blockers.remove_at(index)
+
+func _rebuild_camper_blocker() -> void:
+	_remove_camper_blocker()
+	if _camper != null and is_instance_valid(_camper) and _camper_model != null and is_instance_valid(_camper_model):
+		_add_camper_blocker(_camper, _camper_model)
+
+func _remove_opening_sign_blocker() -> void:
+	for index in range(_solid_blockers.size() - 1, -1, -1):
+		if bool(_solid_blockers[index].get("opening_sign", false)):
+			_solid_blockers.remove_at(index)
+
+func _add_opening_sign_blocker(root: Node3D) -> void:
+	if root == null or not is_instance_valid(root):
+		return
+	_remove_opening_sign_blocker()
+	_solid_blockers.append({
+		"shape": "box",
+		"center": root.global_position,
+		"yaw": root.rotation.y,
+		"half_extents": OPENING_SIGN_FOOTPRINT_HALF_EXTENTS,
+		"opening_sign": true,
 	})
 
 func _add_circle_blocker(center: Vector3, radius: float) -> void:
@@ -15912,13 +24218,22 @@ func _shake_tree(tree_index: int, impact_offset: Vector2) -> void:
 	if not _tree_seed_drop_shaken_tree_indices.has(tree_index):
 		_tree_seed_drop_shaken_tree_indices.append(tree_index)
 		_tree_seed_drop_shake_counter += 1
+	if _pending_marked_tree_pepper_seeds > 0:
+		var marked_tree := _wind_trees[tree_index]["node"] as Node3D
+		if marked_tree != null and is_instance_valid(marked_tree):
+			for seed_index in range(_pending_marked_tree_pepper_seeds):
+				_create_seed_resource_drop(marked_tree.global_position + Vector3(float(seed_index) * 0.22, 0.65, 0.0), CROP_BELL_PEPPER, 0)
+			_show_notification("标记树上落下了甜椒种子 x%d" % _pending_marked_tree_pepper_seeds)
+			_pending_marked_tree_pepper_seeds = 0
+		return
 	if _tree_seed_drop_shake_counter >= _tree_seed_drop_shake_target:
 		_tree_seed_drop_shake_counter = 0
 		_tree_seed_drop_shake_target = _roll_tree_seed_drop_shake_target()
 		_tree_seed_drop_shaken_tree_indices.clear()
 		var tree := _wind_trees[tree_index]["node"] as Node3D
 		if tree != null and is_instance_valid(tree):
-			_create_seed_resource_drop(tree.global_position + Vector3(0.0, 0.65, 0.0), CROP_BELL_PEPPER, _roll_seed_quality())
+			var drop := _roll_random_seed_drop()
+			_create_seed_resource_drop(tree.global_position + Vector3(0.0, 0.65, 0.0), str(drop.get("crop_type", CROP_CARROT)), int(drop.get("quality", 0)))
 
 func _shake_nearby_tree() -> bool:
 	if _player == null:
@@ -16041,9 +24356,12 @@ func _apply_camera() -> void:
 	if _camera_pivot == null or _camera == null:
 		return
 	var follow_target := Vector3.ZERO
-	if _player != null and is_instance_valid(_player):
+	if _camper_driving and _camper != null and is_instance_valid(_camper):
+		follow_target = _camper.global_position
+	elif _player != null and is_instance_valid(_player):
 		follow_target = _player.global_position
-	var target := follow_target + Vector3(0.0, 1.15, 0.0)
+	var target_height := 1.7 if _camper_driving else 1.15
+	var target := follow_target + Vector3(0.0, target_height, 0.0)
 	var distance := cos(_orbit.y) * _zoom
 	var height := sin(_orbit.y) * _zoom + 1.1
 	var eye_offset := Vector3(0.0, height, -distance).rotated(Vector3.UP, _orbit.x)
