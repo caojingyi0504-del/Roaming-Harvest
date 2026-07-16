@@ -114,7 +114,8 @@ const CAMPER_DRIVE_BRAKE := 11.0
 const CAMPER_DRIVE_TURN_SPEED := 1.25
 const CAMPER_DRIVE_FIELD_LIMIT := 190.0
 const CAMPER_DRIVE_HALF_EXTENTS := Vector2(4.35, 1.85)
-const CAMPER_EXIT_SIDE_OFFSET := 3.2
+const CAMPER_EXIT_PLAYER_RADIUS := 0.55
+const CAMPER_EXIT_CLEARANCE := 0.45
 const CAMPER_DRIVE_FORWARD_YAW_OFFSET := -PI * 0.5
 const CAMPER_COMPASS_FADE_SECONDS := 0.16
 const CAMPER_COMPASS_WARM_DISTANCE := 25.0
@@ -4083,6 +4084,13 @@ func _camper_drive_forward() -> Vector3:
 	var yaw := _camper.rotation.y + CAMPER_DRIVE_FORWARD_YAW_OFFSET
 	return Vector3(sin(yaw), 0.0, cos(yaw)).normalized()
 
+func _camper_turn_yaw(current_yaw: float, steering: float, drive_speed: float, delta: float) -> float:
+	if absf(drive_speed) <= 0.08 or is_zero_approx(steering):
+		return current_yaw
+	var reverse_sign := 1.0 if drive_speed >= 0.0 else -1.0
+	var speed_ratio := clampf(absf(drive_speed) / CAMPER_DRIVE_FORWARD_SPEED, 0.25, 1.0)
+	return wrapf(current_yaw - steering * CAMPER_DRIVE_TURN_SPEED * speed_ratio * reverse_sign * maxf(delta, 0.0), -PI, PI)
+
 func _update_camper_driving(delta: float) -> void:
 	if not _camper_driving or _camper == null or not is_instance_valid(_camper):
 		return
@@ -4101,10 +4109,7 @@ func _update_camper_driving(delta: float) -> void:
 	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		steering += 1.0
 	var previous_yaw := _camper.rotation.y
-	if absf(_camper_drive_speed) > 0.08 and steering != 0.0:
-		var reverse_sign := 1.0 if _camper_drive_speed >= 0.0 else -1.0
-		var speed_ratio := clampf(absf(_camper_drive_speed) / CAMPER_DRIVE_FORWARD_SPEED, 0.25, 1.0)
-		_camper.rotation.y = wrapf(_camper.rotation.y + steering * CAMPER_DRIVE_TURN_SPEED * speed_ratio * reverse_sign * delta, -PI, PI)
+	_camper.rotation.y = _camper_turn_yaw(_camper.rotation.y, steering, _camper_drive_speed, delta)
 	var next_position := _camper.global_position + _camper_drive_forward() * _camper_drive_speed * delta
 	next_position.y = _height_at(next_position.x, next_position.z)
 	if _is_camper_drive_position_valid(next_position, _camper.rotation.y):
@@ -4159,10 +4164,17 @@ func _try_exit_camper_driving() -> bool:
 	if exit_position.x == INF:
 		_show_notification("车门旁没有安全的下车位置，请稍微挪动车辆")
 		return true
-	_camper_driving = false
-	_camper_drive_speed = 0.0
 	_unpack_camper_travel_attachments()
 	_rebuild_camper_blocker()
+	if not _is_safe_camper_exit_position(exit_position):
+		exit_position = _find_safe_camper_exit_position()
+	if exit_position.x == INF:
+		_pack_camper_travel_attachments()
+		_remove_camper_blocker()
+		_show_notification("展开厨房后没有安全的下车位置，请稍微挪动车辆")
+		return true
+	_camper_driving = false
+	_camper_drive_speed = 0.0
 	if _player != null and is_instance_valid(_player):
 		_player.global_position = exit_position
 	_set_player_camper_driving_state(false)
@@ -4170,20 +4182,58 @@ func _try_exit_camper_driving() -> bool:
 	return true
 
 func _find_safe_camper_exit_position() -> Vector3:
-	if _camper == null:
+	if _camper == null or _camper_model == null or not is_instance_valid(_camper_model):
 		return Vector3(INF, INF, INF)
+	var camper_blocker := _camper_blocker_data(_camper, _camper_model)
+	if camper_blocker.is_empty():
+		return Vector3(INF, INF, INF)
+	for position in _camper_exit_candidate_positions(camper_blocker):
+		if _is_safe_camper_exit_position(position, camper_blocker):
+			return position
+	return Vector3(INF, INF, INF)
+
+func _camper_exit_candidate_positions(camper_blocker: Dictionary) -> Array[Vector3]:
+	var center: Vector3 = camper_blocker.get("center", _camper.global_position if _camper != null else Vector3.ZERO)
+	var half_extents: Vector2 = camper_blocker.get("half_extents", CAMPER_DRIVE_HALF_EXTENTS)
 	var forward := _camper_drive_forward()
 	var right := Vector3(forward.z, 0.0, -forward.x)
-	var candidates: Array[Vector3] = [right * CAMPER_EXIT_SIDE_OFFSET, -right * CAMPER_EXIT_SIDE_OFFSET, -forward * 3.4, forward * 3.4]
-	for offset in candidates:
-		var position: Vector3 = _camper.global_position + offset
+	var safe_margin := CAMPER_EXIT_PLAYER_RADIUS + CAMPER_EXIT_CLEARANCE
+	var side_offset := right * (half_extents.y + safe_margin)
+	var end_offset := forward * (half_extents.x + safe_margin)
+	var offsets: Array[Vector3] = [
+		side_offset,
+		-side_offset,
+		-end_offset,
+		end_offset,
+		side_offset - end_offset,
+		side_offset + end_offset,
+		-side_offset - end_offset,
+		-side_offset + end_offset,
+	]
+	var candidates: Array[Vector3] = []
+	for offset in offsets:
+		var position := center + offset
 		position.y = _height_at(position.x, position.z) + 0.04
-		if _is_inside_pond(position.x, position.z, 0.65) or _is_blocked_by_solid(position):
-			continue
-		if _is_point_blocked_by_packed_attachment(Vector2(position.x, position.z), 0.55):
-			continue
-		return position
-	return Vector3(INF, INF, INF)
+		candidates.append(position)
+	return candidates
+
+func _is_safe_camper_exit_position(position: Vector3, camper_blocker: Dictionary = {}) -> bool:
+	var point := Vector2(position.x, position.z)
+	if absf(point.x) > CAMPER_DRIVE_FIELD_LIMIT - CAMPER_EXIT_PLAYER_RADIUS or absf(point.y) > CAMPER_DRIVE_FIELD_LIMIT - CAMPER_EXIT_PLAYER_RADIUS:
+		return false
+	if _is_inside_pond(position.x, position.z, CAMPER_EXIT_PLAYER_RADIUS + 0.10):
+		return false
+	for blocker in _solid_blockers:
+		if _is_point_inside_blocker_with_clearance(point, blocker, CAMPER_EXIT_PLAYER_RADIUS):
+			return false
+	var resolved_camper_blocker := camper_blocker
+	if resolved_camper_blocker.is_empty() and _camper != null and _camper_model != null and is_instance_valid(_camper_model):
+		resolved_camper_blocker = _camper_blocker_data(_camper, _camper_model)
+	if not resolved_camper_blocker.is_empty() and _is_point_inside_blocker_with_clearance(point, resolved_camper_blocker, CAMPER_EXIT_PLAYER_RADIUS):
+		return false
+	if _is_point_blocked_by_packed_attachment(point, CAMPER_EXIT_PLAYER_RADIUS):
+		return false
+	return true
 
 func _pack_camper_travel_attachments() -> void:
 	_camper_drive_attachments.clear()
@@ -24276,6 +24326,13 @@ func _yaw_toward(from_position: Vector3, to_position: Vector3) -> float:
 	return atan2(direction.x, direction.z)
 
 func _add_camper_blocker(camper: Node3D, model: Node3D) -> void:
+	var blocker := _camper_blocker_data(camper, model)
+	if not blocker.is_empty():
+		_solid_blockers.append(blocker)
+
+func _camper_blocker_data(camper: Node3D, model: Node3D) -> Dictionary:
+	if camper == null or model == null or not is_instance_valid(camper) or not is_instance_valid(model):
+		return {}
 	var bounds := _get_model_bounds(model)
 	var center_local := bounds.get_center()
 	var center_world := model.global_transform * center_local
@@ -24283,13 +24340,13 @@ func _add_camper_blocker(camper: Node3D, model: Node3D) -> void:
 		maxf(bounds.size.x * model.scale.x * 0.5 * CAMPER_BLOCKER_SHRINK + CAMPER_BLOCKER_PADDING.x, 0.9),
 		maxf(bounds.size.z * model.scale.z * 0.5 * CAMPER_BLOCKER_SHRINK + CAMPER_BLOCKER_PADDING.y, 1.45)
 	)
-	_solid_blockers.append({
+	return {
 		"shape": "box",
 		"center": center_world,
 		"yaw": camper.rotation.y,
 		"half_extents": half_extents,
 		"camper": true,
-	})
+	}
 
 func _remove_camper_blocker() -> void:
 	for index in range(_solid_blockers.size() - 1, -1, -1):
@@ -24434,6 +24491,9 @@ func _is_blocked_by_solid(world_position: Vector3) -> bool:
 	return false
 
 func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
+	return _is_point_inside_blocker_with_clearance(point, blocker, 0.0)
+
+func _is_point_inside_blocker_with_clearance(point: Vector2, blocker: Dictionary, clearance: float) -> bool:
 	var inside_garden := _flower_garden_controller != null and is_instance_valid(_flower_garden_controller) and bool(_flower_garden_controller.call("is_inside_garden"))
 	if bool(blocker.get("garden_only", false)) != inside_garden and (inside_garden or bool(blocker.get("garden_only", false))):
 		return false
@@ -24442,14 +24502,15 @@ func _is_point_inside_blocker(point: Vector2, blocker: Dictionary) -> bool:
 	var shape: String = blocker["shape"]
 	var center_3d: Vector3 = blocker["center"]
 	var center := Vector2(center_3d.x, center_3d.z)
+	var safe_clearance := maxf(clearance, 0.0)
 	if shape == "box":
 		var yaw: float = blocker["yaw"]
 		var half_extents: Vector2 = blocker["half_extents"]
 		var local := (point - center).rotated(-yaw)
-		return absf(local.x) <= half_extents.x and absf(local.y) <= half_extents.y
+		return absf(local.x) <= half_extents.x + safe_clearance and absf(local.y) <= half_extents.y + safe_clearance
 	elif shape == "circle" or shape == "tree":
 		var radius: float = blocker["radius"]
-		return point.distance_squared_to(center) <= radius * radius
+		return point.distance_squared_to(center) <= (radius + safe_clearance) * (radius + safe_clearance)
 	return false
 
 func _is_point_inside_house_interior_floor(point: Vector2) -> bool:
